@@ -3,14 +3,16 @@
 Newton dynamics is a realistic, cross-platform physics simulation library. It can easily be integrated into games and game engines and provides top of its class performance and simulation stability.
 Ongoing development and a permissive license makes Newton Dynamics a top choice for all kinds of projects from scientific projects to game engines.
 
+
+This Fork Strips the demo functionality and as much third party dependancies as possible.  The intention of this fork is for inclusion into the Urho3D game engine.
+
+
+
+
 * Links to **demos**, **tutorial**, **FAQ**, etc: <https://github.com/MADEAPPS/newton-dynamics/wiki>
 * Main project page: <http://newtondynamics.com>
 * Forums and public discussion: <http://newtondynamics.com/forum/index.php>
 
-
-This Fork Strips the demo functionality and as much third party dependancies as possible.  
-
-The intention of this fork is for inclusion into the Urho3D game engine.
 
 
 License
