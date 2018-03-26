@@ -12,20 +12,19 @@ cmake_minimum_required(VERSION 2.8.8)
 
 project(NewtonSDK)
 
-# Use relative paths
-# This is mostly to reduce path size for command-line limits on windows
-if(WIN32)
-  # This seems to break Xcode projects so definitely don't enable on Apple builds
-  set(CMAKE_USE_RELATIVE_PATHS true)
-  set(CMAKE_SUPPRESS_REGENERATION true)
-endif()
+
+
 
 # Include necessary submodules
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/CMake)
 
+
+
 #####################################################################
 # Set up the basic build environment
 #####################################################################
+
+
 
 if (CMAKE_BUILD_TYPE STREQUAL "")
   # CMake defaults to leaving CMAKE_BUILD_TYPE empty. This screws up
@@ -33,10 +32,11 @@ if (CMAKE_BUILD_TYPE STREQUAL "")
   set(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING "Choose the type of build, options are: None (CMAKE_CXX_FLAGS or CMAKE_C_FLAGS used) Debug Release RelWithDebInfo MinSizeRel." FORCE)
 endif ()
 
-if (NOT APPLE)
-  # Create debug libraries with _d postfix
-  set(CMAKE_DEBUG_POSTFIX "_d")
-endif ()
+
+# Create debug libraries with _d postfix
+set(CMAKE_DEBUG_POSTFIX "_d")
+
+
 
 if (MSVC)
   if (CMAKE_BUILD_TOOL STREQUAL "nmake")
@@ -101,7 +101,6 @@ endif ()
 
 
 # options
-option("NEWTON_DEMOS_SANDBOX" "Build demos sandbox" ON)
 option("DOUBLE_PRECISION" "Use Double Precision" OFF)
 option("THREAD_EMULATION" "Use single thread only" OFF)
 
@@ -117,8 +116,4 @@ endif()
 # Newton core library
 add_subdirectory("${NewtonSDK_SOURCE_DIR}/sdk")
 
-# demos sandbox
-if(NEWTON_DEMOS_SANDBOX)
-  add_subdirectory("${NewtonSDK_SOURCE_DIR}/sdk/thirdParty")
-  add_subdirectory("${NewtonSDK_SOURCE_DIR}/applications/demosSandbox")
-endif()
+
