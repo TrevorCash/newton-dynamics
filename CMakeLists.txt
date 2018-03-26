@@ -1,119 +1,60 @@
-# Copyright (c) <2014-2017> <Newton Game Dynamics>
 #
-# This software is provided 'as-is', without any express or implied
-# warranty. In no event will the authors be held liable for any damages
-# arising from the use of this software.
+# Copyright (c) 2008-2018 the Urho3D project.
 #
-# Permission is granted to anyone to use this software for any purpose,
-# including commercial applications, and to alter it and redistribute it
-# freely.
-
-cmake_minimum_required(VERSION 2.8.8)
-
-project(NewtonSDK)
-
-
-
-
-# Include necessary submodules
-set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/CMake)
-
-
-
-#####################################################################
-# Set up the basic build environment
-#####################################################################
-
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+#
 
 
-if (CMAKE_BUILD_TYPE STREQUAL "")
-  # CMake defaults to leaving CMAKE_BUILD_TYPE empty. This screws up
-  # differentiation between debug and release builds.
-  set(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING "Choose the type of build, options are: None (CMAKE_CXX_FLAGS or CMAKE_C_FLAGS used) Debug Release RelWithDebInfo MinSizeRel." FORCE)
-endif ()
-
-
-# Create debug libraries with _d postfix
-set(CMAKE_DEBUG_POSTFIX "_d")
-
-
-
-if (MSVC)
-  if (CMAKE_BUILD_TOOL STREQUAL "nmake")
-    # set variable to state that we are using nmake makefiles
-    set(NMAKE TRUE)
-  endif ()
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /fp:fast")
-  # Enable intrinsics on MSVC in debug mode
-  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /Oi")
-  
-  # dgVector uses sse3 instrinsics
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /arch:sse3")
-  # and clang needs this additional enabling (this is probably a bug
-  # in clang as it doesn't seem to understand the msvc style arch
-  # flag)
-  if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    message(STATUS "enabled it: ${CMAKE_CXX_COMPILER_ID}")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse3")
-  endif ()
-  
-  if (CMAKE_CL_64)
-    # Visual Studio bails out on debug builds in 64bit mode unless
-    # this flag is set...
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /bigobj")
-    set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} /bigobj")
-  endif ()
-  if (MSVC_VERSION GREATER 1600 OR MSVC_VERSION EQUAL 1600)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
-  endif ()
-endif ()
-
-# Specify build paths
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${NewtonSDK_BINARY_DIR}/lib")
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${NewtonSDK_BINARY_DIR}/lib")
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${NewtonSDK_BINARY_DIR}/bin")
-if (WIN32 OR APPLE)
-  if (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
-    # We don't want to install in default system location, install is really for the SDK, so call it that
-    set(CMAKE_INSTALL_PREFIX "${NewtonSDK_SOURCE_DIR}/sdk" CACHE PATH "Newton SDK install directory prefix" FORCE)
-  endif (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
-endif ()
-
-###################################################################
-# disable (useless) compiler warnings on project level
-###################################################################
-if(MSVC)
-  add_definitions( /wd4786 /wd4503 /wd4251 /wd4275 /wd4290 /wd4661 /wd4996 /wd4127 /wd4100)
-endif()
-
-if(${CMAKE_C_COMPILER_ID} MATCHES "GNU" OR ${CMAKE_C_COMPILER_ID} MATCHES "Clang")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -pthread")
-endif()
-
-# determine if we are compiling for a 32bit or 64bit system
-include(CheckTypeSize)
-CHECK_TYPE_SIZE("void*" PTR_SIZE BUILTIN_TYPES_ONLY)
-if (PTR_SIZE EQUAL 8)
-  set(BUILD_64 TRUE)
+# Define source files
+file (GLOB_RECURSE SOURCE_FILES *.h *.cpp)
+set (SOURCE_FILES ${SOURCE_FILES})
+if (BUILD_SHARED_LIBS)
+    set (LIB_TYPE STATIC)
 else ()
-  set(BUILD_64 FALSE)
+    set (LIB_TYPE OBJECT)
 endif ()
 
 
-# options
-option("DOUBLE_PRECISION" "Use Double Precision" OFF)
-option("THREAD_EMULATION" "Use single thread only" OFF)
+add_library (NewtonDynamics ${LIB_TYPE} ${SOURCE_FILES})
+target_include_directories(NewtonDynamics
+    PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/sdk>
+           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/sdk/dAnimation>
+           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/sdk/dContainers>
+           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/sdk/dCustomJoints>
+           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/sdk/dgCore>
+           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/sdk/dgMeshUtil>
+           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/sdk/dgNewton>
+           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/sdk/dgPhysics>
+           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/sdk/dMath>
+           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/sdk/dNewton>
+           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/sdk/dScene>
+           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/sdk/thirdParty/tinyxml>
+           $<INSTALL_INTERFACE:${DEST_THIRDPARTY_HEADERS}/sdk>
+)
 
-if(THREAD_EMULATION)
-  add_definitions(-DDG_USE_THREAD_EMULATION)
-endif()
 
-if(DOUBLE_PRECISION)
- add_definitions(-D_NEWTON_USE_DOUBLE)
-endif()
+target_compile_definitions(NewtonDynamics PRIVATE _CNEWTON_STATIC_LIB _CUSTOM_JOINTS_STATIC_LIB _NEWTON_STATIC_LIB)
 
 
-# Newton core library
-add_subdirectory("${NewtonSDK_SOURCE_DIR}/sdk")
 
 
+install (DIRECTORY NewtonDynamics DESTINATION ${DEST_THIRDPARTY_HEADERS} FILES_MATCHING PATTERN *.h)
+if (BUILD_SHARED_LIBS)
+    install(TARGETS NewtonDynamics EXPORT Urho3D ARCHIVE DESTINATION ${DEST_LIBRARY_DIR})
+endif ()
