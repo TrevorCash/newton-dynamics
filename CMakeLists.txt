@@ -22,66 +22,41 @@
 
 
 
-
-
-
-
-
-#bullet reference
-# Define source files
-#file (GLOB_RECURSE SOURCE_FILES *.h *.cpp)
-#set (SOURCE_FILES ${SOURCE_FILES})
-#if (BUILD_SHARED_LIBS)
-#    set (LIB_TYPE STATIC)
-#else ()
-#    set (LIB_TYPE OBJECT)
-#endif ()
-#add_library (Bullet ${LIB_TYPE} ${SOURCE_FILES})
-#target_include_directories(Bullet
-#   PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/Bullet>
-#           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-#           $<INSTALL_INTERFACE:${DEST_THIRDPARTY_HEADERS}/Bullet>
-#)
-#install (DIRECTORY Bullet DESTINATION ${DEST_THIRDPARTY_HEADERS} FILES_MATCHING PATTERN *.h)
-#if (BUILD_SHARED_LIBS)
-#    install(TARGETS Bullet EXPORT Urho3D ARCHIVE DESTINATION ${DEST_LIBRARY_DIR})
-#endif ()
-
-
-
-
-
-
-
-
-
-
-
-
 # Define source files
 file (GLOB_RECURSE SOURCE_FILES *.h *.cpp)
 set (SOURCE_FILES ${SOURCE_FILES})
-#if (BUILD_SHARED_LIBS)
-#    set (LIB_TYPE STATIC)
-#else ()
+if (BUILD_SHARED_LIBS)
+    set (LIB_TYPE STATIC)
+else ()
     set (LIB_TYPE OBJECT)
-#endif ()
+endif ()
 
 
-add_library (NewtonDynamics ${LIB_TYPE} ${SOURCE_FILES})
-target_include_directories(NewtonDynamics
-    PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/Newton>
-           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-           $<INSTALL_INTERFACE:${DEST_THIRDPARTY_HEADERS}/Newton>
+add_library (newton-dynamics ${LIB_TYPE} ${SOURCE_FILES})
+target_include_directories(newton-dynamics
+    PUBLIC 
+   		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+    	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/sdk>
+    	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/sdk/dAnimation>  
+    	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/sdk/dContainers>  
+    	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/sdk/dCustomJoints>  
+    	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/sdk/dgCore>  
+    	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/sdk/dgMeshUtil>  
+    	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/sdk/dgNewton>  
+    	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/sdk/dgPhysics>  
+    	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/sdk/dMath>  
+    	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/sdk/dNewton>  
+    	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/sdk/dScene>  
+    	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/sdk/thirdParty/tinyxml>  
+        $<INSTALL_INTERFACE:${DEST_THIRDPARTY_HEADERS}/sdk>
 )
 
 
-target_compile_definitions(NewtonDynamics PRIVATE _CNEWTON_STATIC_LIB _CUSTOM_JOINTS_STATIC_LIB _NEWTON_STATIC_LIB)
+target_compile_definitions(newton-dynamics PRIVATE _CNEWTON_STATIC_LIB _CUSTOM_JOINTS_STATIC_LIB _NEWTON_STATIC_LIB)
 
 
 
-
-#install (DIRECTORY NewtonDynamics DESTINATION ${DEST_THIRDPARTY_HEADERS} FILES_MATCHING PATTERN *.h)
-#if (BUILD_SHARED_LIBS)
-#    install(TARGETS NewtonDynamics EXPORT Urho3D ARCHIVE DESTINATION ${DEST_LIBRARY_DIR})
-#endif ()
+install (DIRECTORY newton-dynamics DESTINATION ${DEST_THIRDPARTY_HEADERS} FILES_MATCHING PATTERN *.h)
+if (BUILD_SHARED_LIBS)
+    install(TARGETS newton-dynamics EXPORT Urho3D ARCHIVE DESTINATION ${DEST_LIBRARY_DIR})
+endif ()
