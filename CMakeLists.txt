@@ -48,7 +48,7 @@ target_include_directories(newton-dynamics
     	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/sdk/dNewton>  
     	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/sdk/dScene>  
     	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/sdk/thirdParty/tinyxml>  
-        $<INSTALL_INTERFACE:${DEST_THIRDPARTY_HEADERS}/sdk>
+        $<INSTALL_INTERFACE:${DEST_THIRDPARTY_HEADERS_DIR}/sdk>
 )
 
 
@@ -56,7 +56,7 @@ target_compile_definitions(newton-dynamics PRIVATE _CNEWTON_STATIC_LIB _CUSTOM_J
 
 
 
-install (DIRECTORY newton-dynamics DESTINATION ${DEST_THIRDPARTY_HEADERS} FILES_MATCHING PATTERN *.h)
+install (DIRECTORY newton-dynamics DESTINATION ${DEST_THIRDPARTY_HEADERS_DIR} FILES_MATCHING PATTERN *.h)
 if (BUILD_SHARED_LIBS)
     install(TARGETS newton-dynamics EXPORT Urho3D ARCHIVE DESTINATION ${DEST_LIBRARY_DIR})
 endif ()
