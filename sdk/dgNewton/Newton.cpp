@@ -316,38 +316,51 @@ NewtonBody* NewtonFindSerializedBody(const NewtonWorld* const newtonWorld, int b
 	return (NewtonBody*) world->FindBodyFromSerializedID(bodySerializedID);
 }
 
-
-int NewtonGetCurrentDevice (const NewtonWorld* const newtonWorld)
+void* NewtonCurrentPlugin(const NewtonWorld* const newtonWorld)
 {
 	TRACE_FUNCTION(__FUNCTION__);
 	Newton* const world = (Newton *)newtonWorld;
-	return world->GetCurrentHardwareMode();
+	return world->GetCurrentPlugin();
 }
 
-int NewtonEnumerateDevices (const NewtonWorld* const newtonWorld)
+void* NewtonGetFirstPlugin(const NewtonWorld* const newtonWorld)
 {
 	TRACE_FUNCTION(__FUNCTION__);
 	Newton* const world = (Newton *)newtonWorld;
-	return world->EnumerateHardwareModes();
+	return world->GetFirstPlugin();
 }
 
-void NewtonSetCurrentDevice (const NewtonWorld* const newtonWorld, int deviceIndex)
+void* NewtonGetNextPlugin(const NewtonWorld* const newtonWorld, const void* const plugin)
 {
 	TRACE_FUNCTION(__FUNCTION__);
 	Newton* const world = (Newton *)newtonWorld;
-	world->SetCurrentHardwareMode (deviceIndex);
+	dgWorldPluginList::dgListNode* const node = (dgWorldPluginList::dgListNode*) plugin;
+	return world->GetNextPlugin(node);
 }
 
-void NewtonGetDeviceString (const NewtonWorld* const newtonWorld, int deviceIndex, char* const vendorString, int maxSize)
+const char* NewtonGetPluginString(const NewtonWorld* const newtonWorld, const void* const plugin)
 {
 	TRACE_FUNCTION(__FUNCTION__);
 	Newton* const world = (Newton *)newtonWorld;
-	world->GetHardwareVendorString (deviceIndex, vendorString, maxSize);
+	dgWorldPluginList::dgListNode* const node = (dgWorldPluginList::dgListNode*) plugin;
+	return world->GetPluginId (node);
 }
 
+void NewtonSelectPlugin(const NewtonWorld* const newtonWorld, const void* const plugin)
+{
+	TRACE_FUNCTION(__FUNCTION__);
+	Newton* const world = (Newton *)newtonWorld;
+	dgWorldPluginList::dgListNode* const node = (dgWorldPluginList::dgListNode*) plugin;
+	return world->SelectPlugin(node);
+}
 
-
-
+int NewtonPluginGetMFlops(const NewtonWorld* const newtonWorld)
+{
+	TRACE_FUNCTION(__FUNCTION__);
+	Newton* const world = (Newton *)newtonWorld;
+	dgWorldPluginList::dgListNode* const node = world->GetCurrentPlugin();
+	return node ? node->GetInfo().m_plugin->GetMegaFlops() : 0;
+}
 
 /*!
   this function block all other threads from executing the same subsequent code simultaneously.
@@ -379,7 +392,7 @@ void NewtonWorldCriticalSectionLock (const NewtonWorld* const newtonWorld, int t
 	TRACE_FUNCTION(__FUNCTION__);
 
 	Newton* const world = (Newton *)newtonWorld;
-	world->GlobalLock(true);
+	world->GlobalLock();
 }
 
 
@@ -584,14 +597,6 @@ int NewtonGetSolverModel(const NewtonWorld* const newtonWorld)
 	return world->GetSolverMode();
 }
 
-
-
-void NewtonSetPerformanceClock(const NewtonWorld* const newtonWorld, NewtonGetTimeInMicrosencondsCallback callback)
-{
-	TRACE_FUNCTION(__FUNCTION__);
-	Newton* const world = (Newton *)newtonWorld;
-	world->SetGetTimeInMicrosenconds ((dgWorld::OnGetTimeInMicrosenconds) callback);
-}
 
 /*!
   Advance the simulation by a user defined amount of time.
@@ -4462,6 +4467,8 @@ int NewtonBodyGetType (const NewtonBody* const bodyPtr)
 		return NEWTON_DYNAMIC_BODY;
 	} else if (body->IsRTTIType(dgBody::m_kinematicBodyRTTI)) {
 		return NEWTON_KINEMATIC_BODY;
+	} else if (body->IsRTTIType(dgBody::m_dynamicBodyAsymentricRTTI)) {
+		return NEWTON_DYNAMIC_ASYMETRIC_BODY;
 //	} else if (body->IsRTTIType(dgBody::m_deformableBodyRTTI)) {
 //		return NEWTON_DEFORMABLE_BODY;
 	}
@@ -4943,7 +4950,7 @@ void NewtonBodyGetRotation(const NewtonBody* const bodyPtr, dFloat* const rotPtr
 
   This function is only effective when called from *NewtonApplyForceAndTorque callback*
 
-  See also: ::NewtonBodyAddForce, ::NewtonBodyGetForce, ::NewtonBodyGetForceAcc
+  See also: ::NewtonBodyAddForce, ::NewtonBodyGetForce
 */
 void  NewtonBodySetForce(const NewtonBody* const bodyPtr, const dFloat* const vectorPtr)
 {
@@ -4963,7 +4970,7 @@ void  NewtonBodySetForce(const NewtonBody* const bodyPtr, const dFloat* const ve
 
   This function is only effective when called from *NewtonApplyForceAndTorque callback*
 
-  See also: ::NewtonBodySetForce, ::NewtonBodyGetForce, ::NewtonBodyGetForceAcc
+  See also: ::NewtonBodySetForce, ::NewtonBodyGetForce
 */
 void  NewtonBodyAddForce(const NewtonBody* const bodyPtr, const dFloat* const vectorPtr)
 {
@@ -4985,7 +4992,7 @@ void  NewtonBodyAddForce(const NewtonBody* const bodyPtr, const dFloat* const ve
 
   @return Nothing.
 
-  See also: ::NewtonBodyAddForce, ::NewtonBodyGetForce, ::NewtonBodyGetForceAcc
+  See also: ::NewtonBodyAddForce, ::NewtonBodyGetForce
 */
 void NewtonBodyGetForce(const NewtonBody* const bodyPtr, dFloat* const vectorPtr)
 {
@@ -5015,7 +5022,7 @@ void NewtonBodyGetForce(const NewtonBody* const bodyPtr, dFloat* const vectorPtr
 
   @return Nothing.
 
-  See also: ::NewtonBodySetForce, ::NewtonBodyAddForce, ::NewtonBodyGetForce, ::NewtonBodyGetForceAcc
+  See also: ::NewtonBodySetForce, ::NewtonBodyAddForce, ::NewtonBodyGetForce
 */
 void NewtonBodyCalculateInverseDynamicsForce(const NewtonBody* const bodyPtr, dFloat timestep, const dFloat* const desiredVeloc, dFloat* const forceOut)
 {
@@ -5039,7 +5046,7 @@ void NewtonBodyCalculateInverseDynamicsForce(const NewtonBody* const bodyPtr, dF
 
   This function is only effective when called from *NewtonApplyForceAndTorque callback*
 
-  See also: ::NewtonBodyAddTorque, ::NewtonBodyGetTorque, ::NewtonBodyGetTorqueAcc
+  See also: ::NewtonBodyAddTorque, ::NewtonBodyGetTorque
 */
 void  NewtonBodySetTorque(const NewtonBody* const bodyPtr, const dFloat* const vectorPtr)
 {
@@ -5060,7 +5067,7 @@ void  NewtonBodySetTorque(const NewtonBody* const bodyPtr, const dFloat* const v
 
   This function is only effective when called from *NewtonApplyForceAndTorque callback*
 
-  See also: ::NewtonBodySetTorque, ::NewtonBodyGetTorque, ::NewtonBodyGetTorqueAcc
+  See also: ::NewtonBodySetTorque, ::NewtonBodyGetTorque
 */
 void  NewtonBodyAddTorque(const NewtonBody* const bodyPtr, const dFloat* const vectorPtr)
 {
@@ -5078,7 +5085,7 @@ void  NewtonBodyAddTorque(const NewtonBody* const bodyPtr, const dFloat* const v
 
   @return Nothing.
 
-  See also: ::NewtonBodyAddTorque, ::NewtonBodyGetTorque, ::NewtonBodyGetTorqueAcc
+  See also: ::NewtonBodyAddTorque, ::NewtonBodyGetTorque
 */
 void NewtonBodyGetTorque(const NewtonBody* const bodyPtr, dFloat* const vectorPtr)
 {
@@ -5430,7 +5437,7 @@ void NewtonContactJointRemoveContact(const NewtonJoint* const contactJoint, void
 		//dgBody* const body = joint->GetBody0() ? joint->GetBody0() : joint->GetBody1();
 		//dgWorld* const world = body->GetWorld();
 		dgWorld* const world = joint->GetBody0()->GetWorld();
-		world->GlobalLock(false);
+		world->GlobalLock();
 		joint->Remove(node);
 		joint->GetBody0()->SetSleepState(false);
 		joint->GetBody1()->SetSleepState(false);
@@ -5443,6 +5450,13 @@ dFloat NewtonContactJointGetClosestDistance(const NewtonJoint* const contactJoin
 	TRACE_FUNCTION(__FUNCTION__);
 	dgContact* const joint = (dgContact *)contactJoint;
 	return joint->GetClosestDistance();
+}
+
+void NewtonContactJointResetSelfJointsCollision(const NewtonJoint* const contactJoint)
+{
+	TRACE_FUNCTION(__FUNCTION__);
+	dgContact* const joint = (dgContact *)contactJoint;
+	joint->ResetSkeleton();
 }
 
 /*!
@@ -5713,22 +5727,6 @@ int NewtonBodyGetJointRecursiveCollision (const NewtonBody* const bodyPtr)
 
 	return body->GetCollisionWithLinkedBodies () ? 1 : 0;
 }
-
-
-dFloat NewtonBodyGetMaxRotationPerStep(const NewtonBody* const bodyPtr)
-{
-	TRACE_FUNCTION(__FUNCTION__);
-	dgBody* const body = (dgBody *)bodyPtr;
-	return body->GetMaxRotationPerStep();
-}
-
-void NewtonBodySetMaxRotationPerStep(const NewtonBody* const bodyPtr, dFloat angleInRadians)
-{
-	TRACE_FUNCTION(__FUNCTION__);
-	dgBody* const body = (dgBody *)bodyPtr;
-	body->SetMaxRotationPerStep(angleInRadians);
-}
-
 
 /*!
   get the freeze state of this body
@@ -7613,7 +7611,6 @@ dFloat NewtonJointGetStiffness(const NewtonJoint* const joint)
 	return contraint->GetStiffness();
 }
 
-
 /*!
   Register a destructor callback to be called when the joint is about to be destroyed.
 
@@ -7806,32 +7803,36 @@ void NewtonMeshCalculateVertexNormals(const NewtonMesh* const mesh, dFloat angle
 	meshEffect->CalculateNormals (angleInRadians);
 }
 
-void NewtonMeshApplyAngleBasedMapping(const NewtonMesh* const mesh, int material, NewtonReportProgress reportPrograssCallback, void* const reportPrgressUserData)
+void NewtonMeshApplyAngleBasedMapping(const NewtonMesh* const mesh, int material, NewtonReportProgress reportPrograssCallback, void* const reportPrgressUserData, dFloat* const aligmentMatrix)
 {
 	TRACE_FUNCTION(__FUNCTION__);	
+	dgMatrix matrix(aligmentMatrix);
 	dgMeshEffect* const meshEffect = (dgMeshEffect*) mesh;
 	meshEffect->AngleBaseFlatteningMapping(material, (dgReportProgress) reportPrograssCallback, reportPrgressUserData);
 }
 
-void NewtonMeshApplySphericalMapping(const NewtonMesh* const mesh, int material)
+void NewtonMeshApplySphericalMapping(const NewtonMesh* const mesh, int material, const dFloat* const aligmentMatrix)
 {
 	TRACE_FUNCTION(__FUNCTION__);	
+	dgMatrix matrix(aligmentMatrix);
 	dgMeshEffect* const meshEffect = (dgMeshEffect*) mesh;
-	meshEffect->SphericalMapping (material);
+	meshEffect->SphericalMapping (material, matrix);
 }
 
-void NewtonMeshApplyBoxMapping(const NewtonMesh* const mesh, int front, int side, int top)
+void NewtonMeshApplyBoxMapping(const NewtonMesh* const mesh, int front, int side, int top, const dFloat* const aligmentMatrix)
 {
 	TRACE_FUNCTION(__FUNCTION__);
+	dgMatrix matrix(aligmentMatrix);
 	dgMeshEffect* const meshEffect = (dgMeshEffect*) mesh;
 	meshEffect->BoxMapping (front, side, top);
 }
 
-void NewtonMeshApplyCylindricalMapping(const NewtonMesh* const mesh, int cylinderMaterial, int capMaterial)
+void NewtonMeshApplyCylindricalMapping(const NewtonMesh* const mesh, int cylinderMaterial, int capMaterial, const dFloat* const aligmentMatrix)
 {
 	TRACE_FUNCTION(__FUNCTION__);	
+	dgMatrix matrix(aligmentMatrix);
 	dgMeshEffect* const meshEffect = (dgMeshEffect*) mesh;
-	meshEffect->CylindricalMapping (cylinderMaterial, capMaterial);
+	meshEffect->CylindricalMapping (cylinderMaterial, capMaterial, matrix);
 }
 
 void NewtonMeshTriangulate (const NewtonMesh* const mesh)

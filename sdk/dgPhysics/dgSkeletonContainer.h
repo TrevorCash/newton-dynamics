@@ -65,25 +65,20 @@ class dgSkeletonContainer
 	DG_INLINE void CalculateForce (dgForcePair* const force, const dgForcePair* const accel) const;
 	DG_INLINE void SolveBackward(dgForcePair* const force, const dgForcePair* const accel) const;
 	DG_INLINE void SolveForward(dgForcePair* const force, const dgForcePair* const accel, dgInt32 startNode = 0) const;
-	DG_INLINE void UpdateForces(dgJointInfo* const jointInfoArray, dgJacobian* const internalForces, dgJacobianMatrixElement* const matrixRow, const dgForcePair* const force) const;
-	DG_INLINE void CalculateJointAccel (dgJointInfo* const jointInfoArray, const dgJacobian* const internalForces, dgJacobianMatrixElement* const matrixRow, dgForcePair* const accel) const;
+	DG_INLINE void UpdateForces(dgJointInfo* const jointInfoArray, dgJacobian* const internalForces, const dgForcePair* const force) const;
+	DG_INLINE void CalculateJointAccel (dgJointInfo* const jointInfoArray, const dgJacobian* const internalForces, dgForcePair* const accel) const;
 
-	DG_INLINE void CalculateMassMatrixCoeffBruteForce(dgInt32 loopStart, dgFloat32* const diagDamp);
-	DG_INLINE void CalculateMassMatrixCoeff(const dgJointInfo* const jointInfoArray, dgFloat32* const diagDamp);
-	DG_INLINE void CalculateBlock_GijGij(const dgJointInfo* const jointInfoArray, const dgNode* const auxiliaryNode, dgFloat32* const diagDamp);
-	DG_INLINE void CalculateBlock_GijJij(const dgJointInfo* const jointInfoArray, const dgNode* const auxiliaryNode, const dgNode* const primaryNode);
-	DG_INLINE void CalculateBlock_GikJkj(const dgJointInfo* const jointInfoArray, const dgNode* const auxiliaryNode, const dgNode* const primaryNode);
-	DG_INLINE void CalculateBlock_GikGkj(const dgJointInfo* const jointInfoArray, const dgNode* const auxiliaryNodeI, const dgNode* const auxiliaryNodej);
+	DG_INLINE void CalculateLoopMassMatrixCoefficients(dgFloat32* const diagDamp);
 	static void ResetUniqueId(dgInt32 id);
 
 	dgNode* FindNode(dgDynamicBody* const node) const;
 	void SortGraph(dgNode* const root, dgInt32& index);
 		
-	void InitMassMatrix (const dgJointInfo* const jointInfoArray, dgJacobianMatrixElement* const matrixRow);
-	void InitAuxiliaryMassMatrix (const dgJointInfo* const jointInfoArray, dgJacobianMatrixElement* const matrixRow);
-	dgInt8* GetMemoryBufferSizeInBytes (const dgJointInfo* const jointInfoArray, const dgJacobianMatrixElement* const matrixRow);
-	void SolveAuxiliary (const dgJointInfo* const jointInfoArray, dgJacobian* const internalForces, dgJacobianMatrixElement* const matrixRow, const dgForcePair* const accel, dgForcePair* const force) const;
-	void CalculateJointForce (dgJointInfo* const jointInfoArray, const dgBodyInfo* const bodyArray, dgJacobian* const internalForces, dgJacobianMatrixElement* const matrixRow);
+	void InitLoopMassMatrix (const dgJointInfo* const jointInfoArray);
+	dgInt8* CalculateBufferSizeInBytes (const dgJointInfo* const jointInfoArray);
+	void InitMassMatrix (const dgJointInfo* const jointInfoArray, const dgLeftHandSide* const matrixRow, dgRightHandSide* const rightHandSide);
+	void SolveAuxiliary (const dgJointInfo* const jointInfoArray, dgJacobian* const internalForces, const dgForcePair* const accel, dgForcePair* const force) const;
+	void CalculateJointForce (dgJointInfo* const jointInfoArray, const dgBodyInfo* const bodyArray, dgJacobian* const internalForces);
 
 	dgWorld* m_world;
 	dgNode* m_skeleton;
@@ -92,8 +87,9 @@ class dgSkeletonContainer
 	dgFloat32* m_deltaForce;
 	dgFloat32* m_massMatrix11;
 	dgFloat32* m_massMatrix10;
-//	dgFloat32* m_lowerTriangularMassMatrix11;
-	dgJacobianMatrixElement** m_rowArray;
+	dgRightHandSide* m_rightHandSide;
+	const dgLeftHandSide* m_leftHandSide;
+	dgInt32* m_matrixRowsIndex;
 	dgArray<dgConstraint*> m_loopingJoints;
 	dgArray<dgInt8> m_auxiliaryMemoryBuffer;
 	dgInt32 m_id;

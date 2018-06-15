@@ -26,7 +26,7 @@
 
 #define DG_MAX_BOUND				dgFloat32 (1.0e15f)
 #define DG_MIN_BOUND				(-DG_MAX_BOUND)
-#define DG_NORMAL_CONSTRAINT		-1 
+#define DG_INDEPENDENT_ROW			-1 
 #define DG_CONSTRAINT_MAX_ROWS		(3 * 16)
 #define MIN_JOINT_PIN_LENGTH		dgFloat32 (50.0f)
 
@@ -96,7 +96,9 @@ class dgJacobianPair
 	dgJacobian m_jacobianM1;
 } DG_GCC_VECTOR_ALIGMENT;
 
-class dgJacobianMatrixElement;
+class dgLeftHandSide;
+class dgRightHandSide;
+
 class dgJointAccelerationDecriptor
 {
 	public: 
@@ -104,7 +106,8 @@ class dgJointAccelerationDecriptor
 	dgFloat32 m_timeStep;
 	dgFloat32 m_invTimeStep;
 	dgFloat32 m_firstPassCoefFlag;
-	dgJacobianMatrixElement *m_rowMatrix;
+	dgRightHandSide* m_rightHandSide;
+	const dgLeftHandSide* m_leftHandSide;
 };
 
 
@@ -129,7 +132,6 @@ class dgContraintDescritor
 
 typedef void (dgApi *OnConstraintDestroy) (dgConstraint& me);
 
-//DG_MSC_VECTOR_ALIGMENT
 DG_MSC_VECTOR_ALIGMENT
 class dgConstraint
 {
@@ -147,7 +149,6 @@ class dgConstraint
 		m_corkScrewConstraint,
 		m_unknownConstraint
 	};
-
 
 	dgUnsigned32 GetId () const;
 	dgBody* GetBody0 ()	const;
@@ -212,9 +213,8 @@ class dgConstraint
 	dgBodyMasterListRow::dgListNode* m_link1;
 	ConstraintsForceFeeback m_updaFeedbackCallback;
 	dgInt32 m_clusterLRU;
-	dgUnsigned32 m_dynamicsLru;
 	dgUnsigned32 m_index;
-	
+	dgUnsigned32 m_dynamicsLru;
 	dgUnsigned32 m_maxDOF				: 6;
 	dgUnsigned32 m_constId				: 6;		
 	dgUnsigned32 m_solverModel			: 2;
@@ -229,6 +229,7 @@ class dgConstraint
 	friend class dgInverseDynamics;
 	friend class dgSkeletonContainer;
 	friend class dgWorldDynamicUpdate;
+	friend class dgParallelBodySolver;
 	friend class dgParallelSolverJointAcceleration;
 	friend class dgParallelSolverInitFeedbackUpdate;
 	friend class dgParallelSolverBuildJacobianMatrix;
@@ -242,9 +243,9 @@ DG_INLINE dgConstraint::dgConstraint()
 	,m_link0(NULL)
 	,m_link1(NULL)
 	,m_updaFeedbackCallback(NULL)
-	,m_clusterLRU (-1)
-	,m_dynamicsLru(0)
+	,m_clusterLRU(-1)
 	,m_index(0)
+	,m_dynamicsLru(0)
 	,m_maxDOF(6)
 	,m_constId(m_unknownConstraint)
 	,m_solverModel(2)

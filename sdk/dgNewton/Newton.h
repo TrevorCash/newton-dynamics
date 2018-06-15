@@ -75,6 +75,7 @@ extern "C" {
 
 	#define NEWTON_DYNAMIC_BODY								0
 	#define NEWTON_KINEMATIC_BODY							1
+	#define NEWTON_DYNAMIC_ASYMETRIC_BODY					2
 //	#define NEWTON_DEFORMABLE_BODY							2
 
 	#define SERIALIZE_ID_SPHERE								0
@@ -397,8 +398,9 @@ extern "C" {
 	typedef unsigned (*NewtonWorldRayPrefilterCallback)(const NewtonBody* const body, const NewtonCollision* const collision, void* const userData);
 	typedef dFloat (*NewtonWorldRayFilterCallback)(const NewtonBody* const body, const NewtonCollision* const shapeHit, const dFloat* const hitContact, const dFloat* const hitNormal, dLong collisionID, void* const userData, dFloat intersectParam);
 
+	typedef int (*NewtonOnAABBOverlap) (const NewtonJoint* const contact, dFloat timestep, int threadIndex);
 	typedef void (*NewtonContactsProcess) (const NewtonJoint* const contact, dFloat timestep, int threadIndex);
-	typedef int  (*NewtonOnAABBOverlap) (const NewtonMaterial* const material, const NewtonBody* const body0, const NewtonBody* const body1, int threadIndex);
+//	typedef int  (*NewtonOnAABBOverlap) (const NewtonMaterial* const material, const NewtonBody* const body0, const NewtonBody* const body1, int threadIndex);
 	typedef int  (*NewtonOnCompoundSubCollisionAABBOverlap) (const NewtonMaterial* const material, const NewtonBody* const body0, const void* const collisionNode0, const NewtonBody* const body1, const void* const collisionNode1, int threadIndex);
 	typedef int  (*NewtonOnContactGeneration) (const NewtonMaterial* const material, const NewtonBody* const body0, const NewtonCollision* const collision0, const NewtonBody* const body1, const NewtonCollision* const collision1, NewtonUserContactPoint* const contactBuffer, int maxCount, int threadIndex);
 
@@ -440,10 +442,12 @@ extern "C" {
 	NEWTON_API void* NewtonAlloc (int sizeInBytes);
 	NEWTON_API void NewtonFree (void* const ptr);
 
-	NEWTON_API int NewtonEnumerateDevices (const NewtonWorld* const newtonWorld);
-	NEWTON_API int NewtonGetCurrentDevice (const NewtonWorld* const newtonWorld);
-	NEWTON_API void NewtonSetCurrentDevice (const NewtonWorld* const newtonWorld, int deviceIndex);
-	NEWTON_API void NewtonGetDeviceString (const NewtonWorld* const newtonWorld, int deviceIndex, char* const vendorString, int maxSize);
+	NEWTON_API void* NewtonCurrentPlugin(const NewtonWorld* const newtonWorld);
+	NEWTON_API void* NewtonGetFirstPlugin(const NewtonWorld* const newtonWorld);
+	NEWTON_API void* NewtonGetNextPlugin(const NewtonWorld* const newtonWorld, const void* const plugin);
+	NEWTON_API const char* NewtonGetPluginString(const NewtonWorld* const newtonWorld, const void* const plugin);
+	NEWTON_API void NewtonSelectPlugin(const NewtonWorld* const newtonWorld, const void* const plugin);
+	NEWTON_API int NewtonPluginGetMFlops(const NewtonWorld* const newtonWorld);
 
 	NEWTON_API dFloat NewtonGetContactMergeTolerance (const NewtonWorld* const newtonWorld);
 	NEWTON_API void NewtonSetContactMergeTolerance (const NewtonWorld* const newtonWorld, dFloat tolerance);
@@ -455,7 +459,6 @@ extern "C" {
 
 	NEWTON_API void NewtonSetMultiThreadSolverOnSingleIsland (const NewtonWorld* const newtonWorld, int mode);
 	NEWTON_API int NewtonGetMultiThreadSolverOnSingleIsland (const NewtonWorld* const newtonWorld);
-	NEWTON_API void NewtonSetPerformanceClock (const NewtonWorld* const newtonWorld, NewtonGetTimeInMicrosencondsCallback callback);
 
 	NEWTON_API int NewtonGetBroadphaseAlgorithm (const NewtonWorld* const newtonWorld);
 	NEWTON_API void NewtonSelectBroadphaseAlgorithm (const NewtonWorld* const newtonWorld, int algorithmType);
@@ -740,8 +743,7 @@ extern "C" {
 	// Static collision shapes functions
 	//
 	// **********************************************************************************************
-	NEWTON_API NewtonCollision* NewtonCreateHeightFieldCollision (const NewtonWorld* const newtonWorld, int width, int height, int gridsDiagonals, int elevationdatType,
-																  const void* const elevationMap, const char* const attributeMap, dFloat verticalScale, dFloat horizontalScale_x, dFloat horizontalScale_z, int shapeID);
+	NEWTON_API NewtonCollision* NewtonCreateHeightFieldCollision (const NewtonWorld* const newtonWorld, int width, int height, int gridsDiagonals, int elevationdatType, const void* const elevationMap, const char* const attributeMap, dFloat verticalScale, dFloat horizontalScale_x, dFloat horizontalScale_z, int shapeID);
 	NEWTON_API void NewtonHeightFieldSetUserRayCastCallback (const NewtonCollision* const heightfieldCollision, NewtonHeightFieldRayCastCallback rayHitCallback);
 	NEWTON_API void NewtonHeightFieldSetHorizontalDisplacement (const NewtonCollision* const heightfieldCollision, const unsigned short* const horizontalMap, dFloat scale);
 
@@ -893,9 +895,6 @@ extern "C" {
 	NEWTON_API void  NewtonBodySetCollision (const NewtonBody* const body, const NewtonCollision* const collision);
 	NEWTON_API void  NewtonBodySetCollisionScale (const NewtonBody* const body, dFloat scaleX, dFloat  scaleY, dFloat scaleZ);
 
-	NEWTON_API dFloat NewtonBodyGetMaxRotationPerStep (const NewtonBody* const body);
-	NEWTON_API void NewtonBodySetMaxRotationPerStep (const NewtonBody* const body, dFloat angleInRadians);
-
 	NEWTON_API int  NewtonBodyGetSleepState (const NewtonBody* const body);
 	NEWTON_API void NewtonBodySetSleepState (const NewtonBody* const body, int state);
 
@@ -970,6 +969,7 @@ extern "C" {
 	NEWTON_API void NewtonContactJointRemoveContact(const NewtonJoint* const contactJoint, void* const contact); 
 
 	NEWTON_API dFloat NewtonContactJointGetClosestDistance(const NewtonJoint* const contactJoint);
+	NEWTON_API void NewtonContactJointResetSelfJointsCollision(const NewtonJoint* const contactJoint);
 
 	NEWTON_API NewtonMaterial* NewtonContactGetMaterial (const void* const contact);
 
@@ -997,7 +997,7 @@ extern "C" {
 
 	NEWTON_API dFloat NewtonJointGetStiffness (const NewtonJoint* const joint);
 	NEWTON_API void NewtonJointSetStiffness (const NewtonJoint* const joint, dFloat state);
-
+	
 	NEWTON_API void NewtonDestroyJoint(const NewtonWorld* const newtonWorld, const NewtonJoint* const joint);
 	NEWTON_API void NewtonJointSetDestructor (const NewtonJoint* const joint, NewtonConstraintDestructor destructor);
 
@@ -1194,10 +1194,10 @@ extern "C" {
 	NEWTON_API void NewtonMeshCalculateOOBB(const NewtonMesh* const mesh, dFloat* const matrix, dFloat* const x, dFloat* const y, dFloat* const z);
 
 	NEWTON_API void NewtonMeshCalculateVertexNormals(const NewtonMesh* const mesh, dFloat angleInRadians);
-	NEWTON_API void NewtonMeshApplySphericalMapping(const NewtonMesh* const mesh, int material);
-	NEWTON_API void NewtonMeshApplyCylindricalMapping(const NewtonMesh* const mesh, int cylinderMaterial, int capMaterial);
-	NEWTON_API void NewtonMeshApplyBoxMapping(const NewtonMesh* const mesh, int frontMaterial, int sideMaterial, int topMaterial);
-	NEWTON_API void NewtonMeshApplyAngleBasedMapping(const NewtonMesh* const mesh, int material, NewtonReportProgress reportPrograssCallback, void* const reportPrgressUserData);
+	NEWTON_API void NewtonMeshApplySphericalMapping(const NewtonMesh* const mesh, int material, const dFloat* const aligmentMatrix);
+	NEWTON_API void NewtonMeshApplyCylindricalMapping(const NewtonMesh* const mesh, int cylinderMaterial, int capMaterial, const dFloat* const aligmentMatrix);
+	NEWTON_API void NewtonMeshApplyBoxMapping(const NewtonMesh* const mesh, int frontMaterial, int sideMaterial, int topMaterial, const dFloat* const aligmentMatrix);
+	NEWTON_API void NewtonMeshApplyAngleBasedMapping(const NewtonMesh* const mesh, int material, NewtonReportProgress reportPrograssCallback, void* const reportPrgressUserData, dFloat* const aligmentMatrix);
 
 	NEWTON_API void NewtonCreateTetrahedraLinearBlendSkinWeightsChannel(const NewtonMesh* const tetrahedraMesh, NewtonMesh* const skinMesh);
 	

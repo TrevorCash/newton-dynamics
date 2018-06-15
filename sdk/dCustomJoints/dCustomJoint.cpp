@@ -201,7 +201,6 @@ int dCustomJoint::GetSolverModel() const
 	return NewtonUserJointGetSolverModel(m_joint);
 }
 
-
 void dCustomJoint::Destructor (const NewtonJoint* me)
 {
 	// get the pointer to the joint class

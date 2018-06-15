@@ -83,13 +83,13 @@ class dgThreadHive
 	virtual void OnBeginWorkerThread (dgInt32 threadId);
 	virtual void OnEndWorkerThread (dgInt32 threadId);
 
-	void SetMatertThread (dgThread* const mastertThread);
+	void SetParentThread (dgThread* const mastertThread);
 
-	void GlobalLock(bool yield) const;
+	void GlobalLock() const;
 	void GlobalUnlock() const;
 
-	void GetIndirectLock (dgThread::dgCriticalSection* const criticalSectionLock, bool yield) const;
-	void ReleaseIndirectLock (dgThread::dgCriticalSection* const criticalSectionLock) const;
+	void GetIndirectLock (dgInt32* const criticalSectionLock) const;
+	void ReleaseIndirectLock (dgInt32* const criticalSectionLock) const;
 
 	dgInt32 GetThreadCount() const;
 	dgInt32 GetMaxThreadCount() const;
@@ -101,21 +101,22 @@ class dgThreadHive
 	private:
 	void DestroyThreads();
 
+	dgThreadBee* m_workerBees;
+	dgThread* m_parentThread;
+	dgMemoryAllocator* m_allocator;
 	dgInt32 m_beesCount;
 	dgInt32 m_currentIdleBee;
-	dgThreadBee* m_workerBees;
-	dgThread* m_myMasterThread;
-	dgMemoryAllocator* m_allocator;
-	dgThread::dgCriticalSection m_jobsCriticalSection;
-	mutable dgThread::dgCriticalSection m_globalCriticalSection;
+	dgInt32 m_jobsCriticalSection;
+	mutable dgInt32 m_globalCriticalSection;
+
 	dgThread::dgSemaphore m_myMutex[DG_MAX_THREADS_HIVE_COUNT];
 	dgFastQueue<dgThreadJob, DG_THREAD_POOL_JOB_SIZE> m_jobsPool;
 };
 
 
-DG_INLINE void dgThreadHive::GlobalLock(bool yield) const
+DG_INLINE void dgThreadHive::GlobalLock() const
 {
-	GetIndirectLock(&m_globalCriticalSection, yield);
+	GetIndirectLock(&m_globalCriticalSection);
 }
 
 DG_INLINE void dgThreadHive::GlobalUnlock() const
@@ -124,37 +125,20 @@ DG_INLINE void dgThreadHive::GlobalUnlock() const
 }
 
 
-DG_INLINE void dgThreadHive::GetIndirectLock (dgThread::dgCriticalSection* const criticalSectionLock, bool yield) const
+DG_INLINE void dgThreadHive::GetIndirectLock (dgInt32* const criticalSectionLock) const
 {
 	if (m_beesCount) {	
-		criticalSectionLock->Lock(yield);
+		//criticalSectionLock->Lock();
+		dgSpinLock(criticalSectionLock);
 	}
 }
 
-DG_INLINE void dgThreadHive::ReleaseIndirectLock (dgThread::dgCriticalSection* const criticalSectionLock) const
+DG_INLINE void dgThreadHive::ReleaseIndirectLock (dgInt32* const criticalSectionLock) const
 {
 	if (m_beesCount) {	
-		criticalSectionLock->Unlock();
+		//criticalSectionLock->Unlock();
+		dgSpinUnlock(criticalSectionLock);
 	}
 }
-
-class dgThreadHiveScopeLock
-{
-	public:
-	dgThreadHiveScopeLock(const dgThreadHive* const me, dgThread::dgCriticalSection* const criticalSectionLock, bool yield)
-		:m_me(me)
-		,m_lock (criticalSectionLock)
-	{
-		me->GetIndirectLock (criticalSectionLock, yield);
-	}
-
-	~dgThreadHiveScopeLock()
-	{
-		m_me->ReleaseIndirectLock (m_lock);
-	}
-
-	const dgThreadHive* m_me;
-	dgThread::dgCriticalSection* m_lock; 
-};
 
 #endif

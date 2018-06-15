@@ -26,6 +26,7 @@
 #include "dgContact.h"
 #include "dgCollision.h"
 #include "dgBroadPhase.h"
+#include "dgWorldPlugins.h"
 #include "dgCollisionScene.h"
 #include "dgBodyMasterList.h"
 #include "dgWorldDynamicUpdate.h"
@@ -54,6 +55,7 @@ class dgUpVectorConstraint;
 class dgUniversalConstraint;
 class dgCorkscrewConstraint;
 class dgCollisionDeformableMesh;
+
 
 class dgBodyCollisionList: public dgTree<const dgCollision*, dgUnsigned32>
 {
@@ -162,22 +164,17 @@ class dgWorld
 	,public dgActiveContacts 
 	,public dgWorldDynamicUpdate
 	,public dgMutexThread
-	,public dgAsyncThread
 	,public dgWorldThreadPool
 	,public dgDeadBodies
 	,public dgDeadJoints
+	,public dgWorldPluginList
 {
 	public:
-	typedef dgUnsigned64 (dgApi *OnGetTimeInMicrosenconds) ();
 	typedef dgUnsigned32 (dgApi *OnClusterUpdate) (const dgWorld* const world, void* island, dgInt32 bodyCount);
 	typedef void (dgApi *OnListenerBodyDestroyCallback) (const dgWorld* const world, void* const listener, dgBody* const body);
 	typedef void (dgApi *OnListenerUpdateCallback) (const dgWorld* const world, void* const listener, dgFloat32 timestep);
 	typedef void (dgApi *OnListenerDestroyCallback) (const dgWorld* const world, void* const listener);
 	typedef void (dgApi *OnListenerDebugCallback) (const dgWorld* const world, void* const listener, void* const debugContext);
-
-//	typedef void (dgApi *OnSerialize) (void* const userData, dgSerialize funt, void* const serilalizeObject);
-//	typedef void (dgApi *OnDeserialize) (void* const userData, dgDeserialize funt, void* const serilalizeObject);
-
 	typedef void (dgApi *OnBodySerialize) (dgBody& me, void* const userData, dgSerialize funt, void* const serilalizeObject);
 	typedef void (dgApi *OnBodyDeserialize) (dgBody& me, void* const userData, dgDeserialize funt, void* const serilalizeObject);
 	typedef void (dgApi *OnCollisionInstanceDestroy) (const dgWorld* const world, const dgCollisionInstance* const collision);
@@ -241,7 +238,6 @@ class dgWorld
 	dgWorld(dgMemoryAllocator* const allocator);
 	~dgWorld();
 
-
 	dgFloat32 GetUpdateTime() const;
 	dgBroadPhase* GetBroadPhase() const;
 
@@ -250,15 +246,12 @@ class dgWorld
 
 	void SetPosUpdateCallback (const dgWorld* const newtonWorld, dgPostUpdateCallback callback);
 
-	dgInt32 EnumerateHardwareModes() const;
-	dgInt32 GetCurrentHardwareMode() const;
-	void SetCurrentHardwareMode(dgInt32 deviceIndex);
-	void GetHardwareVendorString (dgInt32 deviceIndex, char* const description, dgInt32 maxlength) const;
-
 	void EnableThreadOnSingleIsland(dgInt32 mode);
 	dgInt32 GetThreadOnSingleIsland() const;
 
 	void FlushCache();
+
+	virtual dgUnsigned64 GetTimeInMicrosenconds() const;
 	
 	void* GetUserData() const;
 	void SetUserData (void* const userData);
@@ -353,9 +346,7 @@ class dgWorld
 	dgInverseDynamics* CreateInverseDynamics();
 	void DestroyInverseDynamics(dgInverseDynamics* const inverseDynamics);
 
-	void SetGetTimeInMicrosenconds (OnGetTimeInMicrosenconds callback);
 	void SetCollisionInstanceConstructorDestructor (OnCollisionInstanceDuplicate constructor, OnCollisionInstanceDestroy destructor);
-
 
 	static void OnDeserializeFromFile(void* const userData, void* const buffer, dgInt32 size);
 	static void OnSerializeToFile(void* const userData, const void* const buffer, dgInt32 size);
@@ -434,53 +425,6 @@ class dgWorld
 		dgFloat32 m_dist;
 	};
 
-	class dgStack: public dgArray<dgUnsigned8>
-	{
-		public:
-		dgStack(dgMemoryAllocator* const allocator)
-			:dgArray<dgUnsigned8>(allocator, 256)
-			,m_index(0)
-		{
-			Resize(1024 * 32);
-		}
-
-		~dgStack()
-		{
-		}
-
-		dgInt32 m_index;
-	};
-
-	template<class T>
-	class dgStackBuffer 
-	{
-		public: 
-		dgStackBuffer(dgWorld* const world, dgInt32 elements)
-			:m_stack(&world->m_stack)
-		{
-			dgInt32 sizeInBytes = m_stack->m_index + sizeof(T) * elements + 32;
-			m_stack->ResizeIfNecessary(sizeInBytes);
-			dgInt32 index = (m_stack->m_index + 0x0f) & -0x10;
-			m_ptr = (T*)(&(*m_stack)[index]);
-			m_previusIndex = m_stack->m_index;
-			m_stack->m_index = sizeInBytes;
-		}
-
-		~dgStackBuffer()
-		{
-			m_stack->m_index = m_previusIndex;
-		}
-
-		T* GetBuffer()
-		{
-			return m_ptr;
-		}
-
-		void* m_ptr;
-		dgStack* m_stack;
-		dgInt32 m_previusIndex;
-	};
-
 	void RunStep ();
 	void CalculateContacts (dgBroadPhase::dgPair* const pair, dgInt32 threadIndex, bool ccdMode, bool intersectionTestOnly);
 	dgInt32 PruneContacts (dgInt32 count, dgContactPoint* const contact, dgFloat32 distTolerenace, dgInt32 maxCount = (DG_CONSTRAINT_MAX_ROWS / 3)) const;
@@ -555,30 +499,32 @@ class dgWorld
 
 	void* m_userData;
 	dgMemoryAllocator* m_allocator;
-	dgInt32 m_hardwaredIndex;
+
+	dgSemaphore m_mutex;
 	OnClusterUpdate m_clusterUpdate;
-	OnGetTimeInMicrosenconds m_getDebugTime;
 	OnCollisionInstanceDestroy	m_onCollisionInstanceDestruction;
 	OnCollisionInstanceDuplicate m_onCollisionInstanceCopyConstrutor;
 	OnJointSerializationCallback m_serializedJointCallback;	
 	OnJointDeserializationCallback m_deserializedJointCallback;	
+	dgPostUpdateCallback m_postUpdateCallback;
 
 	dgListenerList m_listeners;
 	dgTree<void*, unsigned> m_perInstanceData;
 	dgArray<dgUnsigned8> m_bodiesMemory; 
 	dgArray<dgUnsigned8> m_jointsMemory; 
 	dgArray<dgUnsigned8> m_solverJacobiansMemory;  
+	dgArray<dgUnsigned8> m_solverRightHandSideMemory;
 	dgArray<dgUnsigned8> m_solverForceAccumulatorMemory;
 	dgArray<dgUnsigned8> m_clusterMemory;
-	dgStack m_stack;
-
-	dgPostUpdateCallback m_postUpdateCallback;
+	
+	bool m_concurrentUpdate;
 	
 	friend class dgBody;
 	friend class dgContact;
 	friend class dgBroadPhase;
 	friend class dgDeadBodies;
 	friend class dgDeadJoints;
+	friend class dgWorldPlugin;
 	friend class dgActiveContacts;
 	friend class dgUserConstraint;
 	friend class dgBodyMasterList;
@@ -587,6 +533,7 @@ class dgWorld
 	friend class dgCollisionConvex;
 	friend class dgCollisionInstance;
 	friend class dgCollisionCompound;
+	friend class dgParallelBodySolver;
 	friend class dgWorldDynamicUpdate;
 	friend class dgParallelSolverClear;	
 	friend class dgParallelSolverSolve;
@@ -641,6 +588,11 @@ inline dgFloat32 dgWorld::GetUpdateTime() const
 inline void dgWorld::SetPosUpdateCallback (const dgWorld* const newtonWorld, dgPostUpdateCallback callback)
 {
 	m_postUpdateCallback = callback;
+}
+
+inline dgUnsigned64 dgWorld::GetTimeInMicrosenconds() const
+{
+	return dgGetTimeInMicrosenconds();
 }
 
 #endif

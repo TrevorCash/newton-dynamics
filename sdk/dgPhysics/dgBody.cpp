@@ -35,13 +35,10 @@
 // Construction/Destruction
 //////////////////////////////////////////////////////////////////////
 
-#define DG_MAX_ANGLE_STEP   dgFloat32 (45.0f * dgDEG2RAD)
-
-
 dgBody::dgBody()
-	:m_invWorldInertiaMatrix(dgGetZeroMatrix())
-	,m_matrix (dgGetIdentityMatrix())
+	:m_matrix (dgGetIdentityMatrix())
 	,m_rotation(dgFloat32 (1.0f), dgFloat32 (0.0f), dgFloat32 (0.0f), dgFloat32 (0.0f))
+	,m_invWorldInertiaMatrix(dgGetZeroMatrix())
 	,m_mass(dgFloat32 (DG_INFINITE_MASS * 2.0f), dgFloat32 (DG_INFINITE_MASS * 2.0f), dgFloat32 (DG_INFINITE_MASS * 2.0f), dgFloat32 (DG_INFINITE_MASS * 2.0f))
 	,m_invMass(dgFloat32 (0.0f))
 	,m_veloc(dgFloat32 (0.0f))
@@ -53,9 +50,10 @@ dgBody::dgBody()
 	,m_localCentreOfMass(dgFloat32 (0.0f))	
 	,m_globalCentreOfMass(dgFloat32 (0.0f))	
 	,m_impulseForce(dgFloat32 (0.0f))		
-	,m_impulseTorque(dgFloat32 (0.0f))		
-	,m_maxAngulaRotationPerSet2(DG_MAX_ANGLE_STEP * DG_MAX_ANGLE_STEP )
-	,m_criticalSectionLock()
+	,m_impulseTorque(dgFloat32 (0.0f))	
+	,m_gyroTorque(dgFloat32 (0.0f))
+	,m_gyroRotation(dgFloat32 (1.0f), dgFloat32 (0.0f), dgFloat32 (0.0f), dgFloat32 (0.0f))
+	,m_criticalSectionLock(0)
 	,m_flags(0)
 	,m_userData(NULL)
 	,m_world(NULL)
@@ -82,9 +80,9 @@ dgBody::dgBody()
 }
 
 dgBody::dgBody (dgWorld* const world, const dgTree<const dgCollision*, dgInt32>* const collisionCashe, dgDeserialize serializeCallback, void* const userData, dgInt32 revisionNumber)
-	:m_invWorldInertiaMatrix(dgGetZeroMatrix())
-	,m_matrix (dgGetIdentityMatrix())
+	:m_matrix (dgGetIdentityMatrix())
 	,m_rotation(dgFloat32 (1.0f), dgFloat32 (0.0f), dgFloat32 (0.0f), dgFloat32 (0.0f))
+	,m_invWorldInertiaMatrix(dgGetZeroMatrix())
 	,m_mass(dgFloat32 (DG_INFINITE_MASS * 2.0f), dgFloat32 (DG_INFINITE_MASS * 2.0f), dgFloat32 (DG_INFINITE_MASS * 2.0f), dgFloat32 (DG_INFINITE_MASS * 2.0f))
 	,m_invMass(dgFloat32 (0.0f))
 	,m_veloc(dgFloat32 (0.0f))
@@ -97,8 +95,9 @@ dgBody::dgBody (dgWorld* const world, const dgTree<const dgCollision*, dgInt32>*
 	,m_globalCentreOfMass(dgFloat32 (0.0f))	
 	,m_impulseForce(dgFloat32 (0.0f))		
 	,m_impulseTorque(dgFloat32 (0.0f))		
-	,m_maxAngulaRotationPerSet2(DG_MAX_ANGLE_STEP * DG_MAX_ANGLE_STEP )
-	,m_criticalSectionLock()
+	,m_gyroTorque(dgFloat32 (0.0f))
+	,m_gyroRotation(dgFloat32 (1.0f), dgFloat32 (0.0f), dgFloat32 (0.0f), dgFloat32 (0.0f))
+	,m_criticalSectionLock(0)
 	,m_flags(0)
 	,m_userData(NULL)
 	,m_world(world)
@@ -132,7 +131,6 @@ dgBody::dgBody (dgWorld* const world, const dgTree<const dgCollision*, dgInt32>*
 	serializeCallback (userData, &m_localCentreOfMass, sizeof (m_localCentreOfMass));
 	serializeCallback (userData, &m_mass, sizeof (m_mass));
 	serializeCallback (userData, &m_flags, sizeof (m_flags));
-	serializeCallback (userData, &m_maxAngulaRotationPerSet2, sizeof (m_maxAngulaRotationPerSet2));
 	serializeCallback (userData, &m_serializedEnum, sizeof(dgInt32));
 
 	dgInt32 id;
@@ -192,7 +190,6 @@ void dgBody::Serialize (const dgTree<dgInt32, const dgCollision*>& collisionRema
 	serializeCallback (userData, &m_localCentreOfMass, sizeof (m_localCentreOfMass));
 	serializeCallback(userData, &m_mass, sizeof (m_mass));
 	serializeCallback (userData, &m_flags, sizeof (m_flags));
-	serializeCallback (userData, &m_maxAngulaRotationPerSet2, sizeof (m_maxAngulaRotationPerSet2));
 	serializeCallback(userData, &m_serializedEnum, sizeof(dgInt32));
 
 	dgTree<dgInt32, const dgCollision*>::dgTreeNode* const node = collisionRemapId.Find(m_collision->GetChildShape());
@@ -255,6 +252,7 @@ void dgBody::UpdateCollisionMatrix (dgFloat32 timestep, dgInt32 threadIndex)
 	if (m_broadPhaseNode) {
 		dgAssert (m_world);
 		
+		//if (!m_sleeping) {
 		if (!m_equilibrium) {
 			m_world->GetBroadPhase()->UpdateBody (this, threadIndex);
 		}
@@ -295,28 +293,22 @@ dgFloat32 dgBody::RayCast (const dgLineBox& line, OnRayCastAction filter, OnRayP
 	return maxT;
 }
 
-/*
-void dgBody::UpdateCollisionMatrix (dgFloat32 timestep, dgInt32 threadIndex)
-{
-//	if (m_matrixUpdate) {
-//		m_matrixUpdate (*this, m_matrix, threadIndex);
-//	}
-	UpdateCollisionMatrix (timestep, threadIndex);
-}
-*/
-
 void dgBody::IntegrateVelocity (dgFloat32 timestep)
 {
-	//dgTrace (("%d p(%f %f %f)\n", m_uniqueID, m_globalCentreOfMass[0], m_globalCentreOfMass[1], m_globalCentreOfMass[2]));
 	dgAssert (m_veloc.m_w == dgFloat32 (0.0f));
 	dgAssert (m_omega.m_w == dgFloat32 (0.0f));
 	m_globalCentreOfMass += m_veloc.Scale4 (timestep); 
-	while ((m_omega.DotProduct4(m_omega).GetScalar() * timestep * timestep) > m_maxAngulaRotationPerSet2) {
-		m_omega = m_omega.Scale4 (dgFloat32 (0.9f));
+	dgFloat32 omegaMag2 = m_omega.DotProduct4(m_omega).GetScalar();
+#ifdef _DEBUG
+	const dgFloat32 err = dgFloat32(90.0f * dgDEG2RAD);
+	const dgFloat32 err2 = err * err;
+	const dgFloat32 step2 = omegaMag2 * timestep * timestep;
+	if (step2 > err2) {
+		dgTrace (("warning bodies %d w(%f %f %f) with very high angular velocity, may be unstable\n", m_uniqueID, m_omega.m_x, m_omega.m_y, m_omega.m_z));
 	}
+#endif
 
 	// this is correct
-	dgFloat32 omegaMag2 = m_omega.DotProduct4(m_omega).GetScalar();
 	if (omegaMag2 > ((dgFloat32 (0.0125f) * dgDEG2RAD) * (dgFloat32 (0.0125f) * dgDEG2RAD))) {
 		dgFloat32 invOmegaMag = dgRsqrt (omegaMag2);
 		dgVector omegaAxis (m_omega.Scale4 (invOmegaMag));
@@ -329,6 +321,9 @@ void dgBody::IntegrateVelocity (dgFloat32 timestep)
 
 	m_matrix.m_posit = m_globalCentreOfMass - m_matrix.RotateVector(m_localCentreOfMass);
 	dgAssert (m_matrix.TestOrthogonal());
+
+//dgVector angularMomentum (CalculateAngularMomentum());
+//dgTrace(("E(%f) L(%f %f %f) W(%f %f %f)\n", m_omega.DotProduct3(angularMomentum), angularMomentum.m_x, angularMomentum.m_y, angularMomentum.m_z, m_omega.m_x, m_omega.m_y, m_omega.m_z));
 }
 
 

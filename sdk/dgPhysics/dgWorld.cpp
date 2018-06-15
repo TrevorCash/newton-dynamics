@@ -188,9 +188,6 @@ void xxxxx()
 // Construction/Destruction
 //////////////////////////////////////////////////////////////////////
 
-#define DG_MUTEX_THREAD_ID	0
-#define DG_ASYNC_THREAD_ID	1
-
 dgWorld::dgWorld(dgMemoryAllocator* const allocator)
 	:dgBodyMasterList(allocator)
 	,dgBodyMaterialList(allocator)
@@ -198,39 +195,43 @@ dgWorld::dgWorld(dgMemoryAllocator* const allocator)
 	,dgSkeletonList(allocator)
 	,dgInverseDynamicsList(allocator)
 	,dgActiveContacts(allocator) 
-	,dgWorldDynamicUpdate()
-	,dgMutexThread("newtonSyncThread", DG_MUTEX_THREAD_ID)
-	,dgAsyncThread("newtonAsyncThread", DG_ASYNC_THREAD_ID)
+	,dgWorldDynamicUpdate(allocator)
+	,dgMutexThread("newtonSyncThread", 0)
 	,dgWorldThreadPool(allocator)
 	,dgDeadBodies(allocator)
 	,dgDeadJoints(allocator)
+	,dgWorldPluginList(allocator)
 	,m_broadPhase(NULL)
 	,m_sentinelBody(NULL)
 	,m_pointCollision(NULL)
+	,m_userData(NULL)
+	,m_allocator (allocator)
+	,m_mutex()
+	,m_postUpdateCallback(NULL)
 	,m_listeners(allocator)
 	,m_perInstanceData(allocator)
 	,m_bodiesMemory (allocator, 64)
 	,m_jointsMemory (allocator, 64)
 	,m_solverJacobiansMemory (allocator, 64)
+	,m_solverRightHandSideMemory (allocator, 64)
 	,m_solverForceAccumulatorMemory (allocator, 64)
 	,m_clusterMemory (allocator, 64)
-	,m_stack(allocator)
-	,m_postUpdateCallback(NULL)
+	,m_concurrentUpdate(false)
 {
 	dgMutexThread* const mutexThread = this;
-	SetMatertThread (mutexThread);
+	SetParentThread (mutexThread);
 
 	// avoid small memory fragmentations on initialization
 	m_bodiesMemory.Resize(1024 * 32);
 	m_jointsMemory.Resize(1024 * 32);
 	m_clusterMemory.Resize(1024 * 32);
 	m_solverJacobiansMemory.Resize(1024 * 64);
+	m_solverRightHandSideMemory.Resize(1024 * 64);
 	m_solverForceAccumulatorMemory.Resize(1024 * 32);
 
 	m_savetimestep = dgFloat32 (0.0f);
 	m_allocator = allocator;
 	m_clusterUpdate = NULL;
-	m_getDebugTime = NULL;
 
 	m_onCollisionInstanceDestruction = NULL;
 	m_onCollisionInstanceCopyConstrutor = NULL;
@@ -291,7 +292,6 @@ dgWorld::dgWorld(dgMemoryAllocator* const allocator)
 	m_sleepTable[DG_SLEEP_ENTRIES - 1].m_maxOmega = 0.1f;
 	m_sleepTable[DG_SLEEP_ENTRIES - 1].m_steps = steps;
 
-	m_hardwaredIndex = 0;
 	SetThreadsCount (0);
 
 	m_broadPhase = new (allocator) dgBroadPhaseDefault(this);
@@ -303,14 +303,16 @@ dgWorld::dgWorld(dgMemoryAllocator* const allocator)
 	pointCollison->Release();
 
 	AddSentinelBody();
+
+	LoadPlugins();
 }
 
 dgWorld::~dgWorld()
 {	
 	Sync();
-	dgAsyncThread::Terminate();
-	dgMutexThread::Terminate();
+	Terminate();
 
+	UnloadPlugins();
 	m_listeners.RemoveAll();
 
 	DestroyAllBodies();
@@ -397,27 +399,6 @@ dgInt32 dgWorld::GetSolverMode() const
 	return m_solverMode;
 }
 
-
-dgInt32 dgWorld::EnumerateHardwareModes() const
-{
-	dgInt32 count = 1;
-	return count;
-}
-
-void dgWorld::GetHardwareVendorString (dgInt32 deviceIndex, char* const description, dgInt32 maxlength) const
-{
-	deviceIndex = dgClamp(deviceIndex, 0, EnumerateHardwareModes() - 1);
-	if (deviceIndex == 0) {
-		sprintf (description, "newton cpu");
-	}
-}
-
-void dgWorld::SetCurrentHardwareMode(dgInt32 deviceIndex)
-{
-	m_hardwaredIndex = dgClamp(deviceIndex, 0, EnumerateHardwareModes() - 1);
-}
-
-
 dgFloat32 dgWorld::GetContactMergeTolerance() const
 {
 	return m_contactTolerance;
@@ -426,12 +407,6 @@ dgFloat32 dgWorld::GetContactMergeTolerance() const
 void dgWorld::SetContactMergeTolerance(dgFloat32 tolerenace)
 {
 	m_contactTolerance = dgMax (tolerenace, dgFloat32 (1.e-3f));
-}
-
-
-dgInt32 dgWorld::GetCurrentHardwareMode() const
-{
-	return m_hardwaredIndex;
 }
 
 void dgWorld::EnableThreadOnSingleIsland(dgInt32 mode)
@@ -950,16 +925,12 @@ void dgWorldThreadPool::OnEndWorkerThread (dgInt32 threadId)
 
 void dgWorld::Execute (dgInt32 threadID)
 {
-	if (threadID == DG_MUTEX_THREAD_ID) {
-		dgMutexThread::Execute (threadID);
-	} else {
-		dgAsyncThread::Execute (threadID);
-	}
+	dgMutexThread::Execute (threadID);
 }
 
 void dgWorld::Sync ()
 {
-	while (dgMutexThread::IsBusy()) {
+	while (IsBusy()) {
 		dgThreadYield();
 	}
 }
@@ -989,7 +960,7 @@ void dgWorld::UpdateTransforms(void* const context, void* const nodePtr, dgInt32
 
 void dgWorld::RunStep ()
 {
-	dgUnsigned64 timeAcc = m_getDebugTime ? m_getDebugTime() : 0;
+	dgUnsigned64 timeAcc = dgGetTimeInMicrosenconds();
 	dgFloat32 step = m_savetimestep / m_numberOfSubsteps;
 	for (dgUnsigned32 i = 0; i < m_numberOfSubsteps; i ++) {
 		dgInterlockedExchange(&m_delayDelateLock, 1);
@@ -1016,21 +987,22 @@ void dgWorld::RunStep ()
 		m_postUpdateCallback (this, m_savetimestep);
 	}
 
-	m_lastExecutionTime = m_getDebugTime ? dgFloat32 (m_getDebugTime() - timeAcc) * dgFloat32 (1.0e-6f): 0;
+	m_lastExecutionTime = (dgGetTimeInMicrosenconds() - timeAcc) * dgFloat32 (1.0e-6f);
+
+	if (!m_concurrentUpdate) {
+		m_mutex.Release();
+	}
 }
 
 void dgWorld::TickCallback (dgInt32 threadID)
 {
-	if (threadID == DG_MUTEX_THREAD_ID) {
-		RunStep ();
-	} else {
-		Update (m_savetimestep);
-	}
+	RunStep ();
 }
 
 
 void dgWorld::Update (dgFloat32 timestep)
 {
+	m_concurrentUpdate = false;
 	m_savetimestep = timestep;
 	#ifdef DG_USE_THREAD_EMULATION
 		dgFloatExceptions exception;
@@ -1039,13 +1011,14 @@ void dgWorld::Update (dgFloat32 timestep)
 	#else 
 		// runs the update in a separate thread and wait until the update is completed before it returns.
 		// this will run well on single core systems, since the two thread are mutually exclusive 
-		dgMutexThread::Tick();
+		Tick();
+		SuspendExecution(dgWorld::m_mutex);
 	#endif
 }
 
-
 void dgWorld::UpdateAsync (dgFloat32 timestep)
 {
+	m_concurrentUpdate = true;
 	Sync ();
 	m_savetimestep = timestep;
 	#ifdef DG_USE_THREAD_EMULATION
@@ -1054,14 +1027,8 @@ void dgWorld::UpdateAsync (dgFloat32 timestep)
 		RunStep ();
 	#else 
 		// execute one update, but do not wait for the update to finish, instead return immediately to the caller
-		dgAsyncThread::Tick();
+		Tick();
 	#endif
-}
-
-
-void dgWorld::SetGetTimeInMicrosenconds (OnGetTimeInMicrosenconds callback)
-{
-	m_getDebugTime = callback;
 }
 
 void dgWorld::SetCollisionInstanceConstructorDestructor (OnCollisionInstanceDuplicate constructor, OnCollisionInstanceDestroy destructor)
@@ -1069,8 +1036,6 @@ void dgWorld::SetCollisionInstanceConstructorDestructor (OnCollisionInstanceDupl
 	m_onCollisionInstanceDestruction = destructor;
 	m_onCollisionInstanceCopyConstrutor = constructor;
 }
-
-
 
 dgInt32 dgWorld::GetBroadPhaseType() const
 {
@@ -1189,7 +1154,7 @@ void dgWorld::DestroyInverseDynamics(dgInverseDynamics* const inverseDynamics)
 
 void dgDeadJoints::DestroyJoint(dgConstraint* const joint)
 {
-	dgSpinLock (&m_lock, true);
+	dgSpinLock (&m_lock);
 
 	dgWorld& me = *((dgWorld*)this);
 	if (me.m_delayDelateLock) {
@@ -1205,7 +1170,7 @@ void dgDeadJoints::DestroyJoint(dgConstraint* const joint)
 
 void dgDeadJoints::DestroyJoints(dgWorld& world)
 {
-	dgSpinLock (&m_lock, true);
+	dgSpinLock (&m_lock);
 	Iterator iter (*this);
 	for (iter.Begin(); iter; iter++) {
 		dgTreeNode* const node = iter.GetNode();
@@ -1220,7 +1185,7 @@ void dgDeadJoints::DestroyJoints(dgWorld& world)
 void dgDeadBodies::DestroyBody(dgBody* const body)
 {
 	dgAssert (0);
-	dgSpinLock (&m_lock, true);
+	dgSpinLock (&m_lock);
 
 	dgWorld& me = *((dgWorld*)this);
 	if (me.m_delayDelateLock) {
@@ -1235,7 +1200,7 @@ void dgDeadBodies::DestroyBody(dgBody* const body)
 
 void dgDeadBodies::DestroyBodies(dgWorld& world)
 {
-	dgSpinLock (&m_lock, true);
+	dgSpinLock (&m_lock);
 
 	Iterator iter (*this);
 	for (iter.Begin(); iter; iter++) {
@@ -1259,17 +1224,14 @@ dgInt32 dgWorld::CompareJointByInvMass(const dgBilateralConstraint* const jointA
 
 	if (modeA < modeB) {
 		return -1;
-	}
-	else if (modeA > modeB) {
+	} else if (modeA > modeB) {
 		return 1;
-	}
-	else {
+	} else {
 		dgFloat32 invMassA = dgMin(jointA->GetBody0()->m_invMass.m_w, jointA->GetBody1()->m_invMass.m_w);
 		dgFloat32 invMassB = dgMin(jointB->GetBody0()->m_invMass.m_w, jointB->GetBody1()->m_invMass.m_w);
 		if (invMassA < invMassB) {
 			return -1;
-		}
-		else if (invMassA > invMassB) {
+		} else if (invMassA > invMassB) {
 			return 1;
 		}
 	}
@@ -1460,7 +1422,6 @@ dgInt32 dgWorld::SerializeToFileSort(const dgBody* const body0, const dgBody* co
 	return 0;
 }
 
-
 void dgWorld::SerializeScene(void* const userData, OnBodySerialize bodyCallback, dgSerialize serializeCallback, void* const serializeHandle) const
 {
 	dgBody** const array = new dgBody*[GetBodiesCount()];
@@ -1506,7 +1467,6 @@ void dgWorld::OnBodyDeserializeFromFile(dgBody& body, void* const userData, dgDe
 {
 }
 
-
 void dgWorld::DeserializeBodyArray (void* const userData, OnBodyDeserialize bodyCallback, dgTree<dgBody*, dgInt32>&bodyMap, dgDeserialize deserializeCallback, void* const serializeHandle)
 {
 	dgInt32 revision = dgDeserializeMarker(deserializeCallback, serializeHandle);
@@ -1546,6 +1506,13 @@ void dgWorld::DeserializeBodyArray (void* const userData, OnBodyDeserialize body
 				body = new (m_allocator)dgKinematicBody(this, &shapeMap, deserializeCallback, serializeHandle, revision);
 				break;
 			}
+
+			case dgBody::m_dynamicBodyAsymatric:
+			{
+				body = new (m_allocator)dgDynamicBodyAsymetric(this, &shapeMap, deserializeCallback, serializeHandle, revision);
+				break;
+			}
+
 		}
 
 		dgAssert(body);
@@ -1556,8 +1523,6 @@ void dgWorld::DeserializeBodyArray (void* const userData, OnBodyDeserialize body
 		body->m_spawnnedFromCallback = false;
 		body->m_uniqueID = dgInt32(m_bodiesUniqueID);
 
-//if (body->m_uniqueID == 5 || body->m_uniqueID == 33)
-//{
 		dgBodyMasterList::AddBody(body);
 		body->SetMatrix(body->GetMatrix());
 		m_broadPhase->Add(body);
@@ -1570,9 +1535,6 @@ void dgWorld::DeserializeBodyArray (void* const userData, OnBodyDeserialize body
 		bodyCallback(*body, userData, deserializeCallback, serializeHandle);
 
 		bodyMap.Insert(body, body->m_serializedEnum);
-//} else {
-//delete body;
-//}
 
 		// sync to next body
 		dgDeserializeMarker(deserializeCallback, serializeHandle);
@@ -1709,3 +1671,4 @@ void dgWorld::SerializeJointArray(dgInt32 bodyCount, dgSerialize serializeCallba
 
 	dgSerializeMarker(serializeCallback, userData);
 }
+

@@ -237,11 +237,11 @@
 #endif
 
 #if (defined (_WIN_32_VER) || defined (_WIN_64_VER))
-	#define	DG_GCC_AVX2_ALIGMENT	
-	#define	DG_MSC_AVX2_ALIGMENT			__declspec(align(DG_VECTOR_AVX2_SIZE))
+	#define	DG_GCC_AVX_ALIGMENT	
+	#define	DG_MSC_AVX_ALIGMENT			__declspec(align(DG_VECTOR_AVX2_SIZE))
 #else
-	#define	DG_GCC_AVX2_ALIGMENT			__attribute__ ((aligned (DG_VECTOR_AVX2_SIZE)))
-	#define	DG_MSC_AVX2_ALIGMENT			
+	#define	DG_GCC_AVX_ALIGMENT			__attribute__ ((aligned (DG_VECTOR_AVX2_SIZE)))
+	#define	DG_MSC_AVX_ALIGMENT			
 #endif
 
 
@@ -734,10 +734,6 @@ union dgDoubleInt
 
 
 void dgGetMinMax (dgBigVector &Min, dgBigVector &Max, const dgFloat64* const vArray, dgInt32 vCount, dgInt32 strideInBytes);
-#ifndef _NEWTON_USE_DOUBLE
-void dgGetMinMax (dgVector &Min, dgVector &Max, const dgFloat32* const vArray, dgInt32 vCount, dgInt32 StrideInBytes);
-#endif
-
 dgInt32 dgVertexListToIndexList (dgFloat64* const vertexList, dgInt32 strideInBytes, dgInt32 compareCount,     dgInt32 vertexCount,         dgInt32* const indexListOut, dgFloat64 tolerance = dgEPSILON);
 dgInt32 dgVertexListToIndexList (dgFloat32* const vertexList, dgInt32 strideInBytes, dgInt32 floatSizeInBytes, dgInt32 unsignedSizeInBytes, dgInt32 vertexCount, dgInt32* const indexListOut, dgFloat32 tolerance = dgEPSILON);
 
@@ -841,7 +837,17 @@ DG_INLINE void dgThreadYield()
 	#endif
 }
 
-void dgSpinLock (dgInt32* const ptr, bool yield);
+
+DG_INLINE void dgSpinLock(dgInt32* const ptr)
+{
+#ifndef DG_USE_THREAD_EMULATION 
+	while (dgInterlockedExchange(ptr, 1)) {
+		dgThreadYield();
+		//_mm_pause();
+	}
+#endif
+}
+
 
 DG_INLINE void dgSpinUnlock (dgInt32* const ptr)
 {
@@ -857,7 +863,7 @@ class dgScopeSpinLock
 		dgScopeSpinLock(dgInt32* const lock)
 		:m_atomicLock(lock)
 	{
-		dgSpinLock(m_atomicLock, false);
+		dgSpinLock(m_atomicLock);
 	}
 	~dgScopeSpinLock()
 	{

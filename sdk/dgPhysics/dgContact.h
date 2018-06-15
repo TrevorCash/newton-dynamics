@@ -36,6 +36,7 @@ class dgCollisionInstance;
 
 #define DG_MAX_CONTATCS					128
 #define DG_RESTING_CONTACT_PENETRATION	(DG_PENETRATION_TOL + dgFloat32 (1.0f / 1024.0f))
+#define DG_DIAGONAL_PRECONDITIONER		dgFloat32 (25.0f)
 
 class dgActiveContacts: public dgList<dgContact*>
 {
@@ -129,8 +130,9 @@ class dgContactMaterial: public dgContactPoint
 	} DG_GCC_VECTOR_ALIGMENT;
 
 
+	typedef bool (dgApi *OnAABBOverlap) (dgContact& contactJoint, dgFloat32 timestep, dgInt32 threadIndex);
 	typedef void (dgApi *OnContactCallback) (dgContact& contactJoint, dgFloat32 timestep, dgInt32 threadIndex);
-	typedef bool (dgApi *OnAABBOverlap) (const dgContactMaterial& material, const dgBody& body0, const dgBody& body1, dgInt32 threadIndex);
+//	typedef bool (dgApi *OnAABBOverlap) (const dgContactMaterial& material, const dgBody& body0, const dgBody& body1, dgInt32 threadIndex);
 	typedef bool (dgApi *OnCompoundCollisionPrefilter) (const dgContactMaterial& material, const dgBody* bodyA, const void* collisionNodeA, const dgBody* bodyB, const void* collisionNodeB, dgInt32 threadIndex);
 	typedef bool (dgApi *OnContactGeneration) (const dgContactMaterial& material, const dgBody& body0, const dgCollisionInstance* collisionIntance0, const dgBody& body1, const dgCollisionInstance* collisionIntance1, dgUserContactPoint* const contacts, dgInt32 maxCount, dgInt32 threadIndex);
 
@@ -178,8 +180,9 @@ DG_MSC_VECTOR_ALIGMENT
 class dgContact: public dgConstraint, public dgList<dgContactMaterial>
 {
 	public:
-    dgFloat32 GetClosestDistance() const;
+	void ResetSkeleton();
 	dgFloat32 GetTimeOfImpact() const;
+	dgFloat32 GetClosestDistance() const;
 	void SetTimeOfImpact(dgFloat32 timetoImpact);
 	const dgContactMaterial* GetMaterial() const;
 
@@ -198,8 +201,8 @@ class dgContact: public dgConstraint, public dgList<dgContactMaterial>
 	virtual void GetInfo (dgConstraintInfo* const info) const;
 	virtual dgUnsigned32 JacobianDerivative (dgContraintDescritor& params); 
 	virtual void JointAccelerations (dgJointAccelerationDecriptor* const params); 
-	
 	virtual bool IsDeformable() const ;
+	virtual bool IsSkeleton() const;
 	virtual void SetDestructorCallback (OnConstraintDestroy destructor);
 
 	void JacobianContactDerivative (dgContraintDescritor& params, const dgContactMaterial& contact, dgInt32 normalIndex, dgInt32& frictionIndex); 
@@ -236,80 +239,90 @@ class dgContact: public dgConstraint, public dgList<dgContactMaterial>
 	friend class dgCollidingPairCollector;
 }DG_GCC_VECTOR_ALIGMENT;
 
-inline void dgContactMaterial::SetCollisionCallback (OnAABBOverlap aabbOverlap, OnContactCallback contact) 
+DG_INLINE void dgContactMaterial::SetCollisionCallback (OnAABBOverlap aabbOverlap, OnContactCallback contact) 
 {
 	m_aabbOverlap = aabbOverlap;
 	m_processContactPoint = contact;
 }
 
-inline void dgContactMaterial::SetCollisionGenerationCallback (OnContactGeneration contactGeneration)
+DG_INLINE void dgContactMaterial::SetCollisionGenerationCallback (OnContactGeneration contactGeneration)
 {
 	m_contactGeneration = contactGeneration;
 }
 
-inline void dgContactMaterial::SetCompoundCollisionCallback (OnCompoundCollisionPrefilter aabbOverlap)
+DG_INLINE void dgContactMaterial::SetCompoundCollisionCallback (OnCompoundCollisionPrefilter aabbOverlap)
 {
 	m_compoundAABBOverlap = aabbOverlap;
 }
 
-inline void* dgContactMaterial::GetUserData () const
+DG_INLINE void* dgContactMaterial::GetUserData () const
 {
 	return m_userData;
 }
 
-inline void dgContactMaterial::SetUserData (void* const userData)
+DG_INLINE void dgContactMaterial::SetUserData (void* const userData)
 {
 	m_userData = userData;
 }
 
-inline bool dgContact::IsDeformable() const 
+DG_INLINE bool dgContact::IsDeformable() const 
 {
 	return false;
 }
 
-inline void dgContact::SetDestructorCallback (OnConstraintDestroy destructor)
+DG_INLINE void dgContact::SetDestructorCallback (OnConstraintDestroy destructor)
 {
 }
 
-inline const dgContactMaterial* dgContact::GetMaterial() const
+DG_INLINE const dgContactMaterial* dgContact::GetMaterial() const
 {
 	return m_material;
 }
 
-inline void dgContact::SetTimeOfImpact(dgFloat32 timetoImpact)
+DG_INLINE void dgContact::SetTimeOfImpact(dgFloat32 timetoImpact)
 {
 	m_timeOfImpact = timetoImpact;
 }
 
-inline dgFloat32 dgContact::GetTimeOfImpact() const
+DG_INLINE dgFloat32 dgContact::GetTimeOfImpact() const
 {
 	return m_timeOfImpact;
 }
 
-inline dgFloat32 dgContact::GetClosestDistance() const
+DG_INLINE dgFloat32 dgContact::GetClosestDistance() const
 {
     return m_closestDistance;
 }
 
-inline void dgContact::ResetMaxDOF()
+DG_INLINE void dgContact::ResetMaxDOF()
 {
 	m_maxDOF = 0;
 }
 
-inline void dgContact::ResetInverseDynamics()
+DG_INLINE void dgContact::ResetInverseDynamics()
 {
 }
 
-inline dgFloat32 dgContact::GetPruningTolerance() const
+DG_INLINE dgFloat32 dgContact::GetPruningTolerance() const
 {
 	return m_contactPruningTolereance;
 }
 
-inline void dgContact::SetPruningTolerance(dgFloat32 tolerance)
+DG_INLINE void dgContact::SetPruningTolerance(dgFloat32 tolerance)
 {
 	m_contactPruningTolereance = dgAbs (tolerance);
 }
 
+
+DG_INLINE void dgContact::ResetSkeleton()
+{
+	m_skeletonSelfCollision = 0;
+}
+
+DG_INLINE bool dgContact::IsSkeleton() const
+{
+	return m_skeletonSelfCollision;
+}
 
 #endif 
 

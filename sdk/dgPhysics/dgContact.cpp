@@ -100,7 +100,7 @@ dgContact::dgContact(dgContact* const clone)
 	,m_contactPruningTolereance(clone->m_contactPruningTolereance)
 	,m_broadphaseLru(clone->m_broadphaseLru)
 	,m_isNewContact(clone->m_isNewContact)
-	,m_skeletonSelfCollision(0)
+	,m_skeletonSelfCollision(clone->m_skeletonSelfCollision)
 {
 	dgAssert((((dgUnsigned64) this) & 15) == 0);
 	m_body0 = clone->m_body0;
@@ -126,7 +126,8 @@ void dgContact::AppendToActiveList()
 {
 	dgAssert (!m_contactNode);
 	dgActiveContacts* const activeContacts = m_world;
-	m_contactNode = activeContacts->Append (this);
+	//m_contactNode = activeContacts->Append (this);
+	m_contactNode = activeContacts->Addtop(this);
 }
 
 void dgContact::SwapBodies()
@@ -149,34 +150,23 @@ void dgContact::CalculatePointDerivative (dgInt32 index, dgContraintDescritor& d
 	dgAssert (m_body0);
 	dgAssert (m_body1);
 
-	dgVector r0CrossDir (param.m_r0.CrossProduct3(dir));
 	dgJacobian &jacobian0 = desc.m_jacobian[index].m_jacobianM0; 
-	jacobian0.m_linear[0] = dir.m_x;
-	jacobian0.m_linear[1] = dir.m_y;
-	jacobian0.m_linear[2] = dir.m_z;
-	jacobian0.m_linear[3] = dgFloat32 (0.0f);
-	jacobian0.m_angular[0] = r0CrossDir.m_x;
-	jacobian0.m_angular[1] = r0CrossDir.m_y;
-	jacobian0.m_angular[2] = r0CrossDir.m_z;
-	jacobian0.m_angular[3] = dgFloat32 (0.0f);
+	dgJacobian &jacobian1 = desc.m_jacobian[index].m_jacobianM1;
+	jacobian0.m_linear = dir;
+	jacobian1.m_linear = dir * dgVector::m_negOne;
 
+	jacobian0.m_angular = param.m_r0.CrossProduct3(dir);
+	jacobian1.m_angular = dir.CrossProduct3(param.m_r1);
 
-	dgVector r1CrossDir (dir.CrossProduct3(param.m_r1));
-	dgJacobian &jacobian1 = desc.m_jacobian[index].m_jacobianM1; 
-	jacobian1.m_linear[0] = -dir.m_x;
-	jacobian1.m_linear[1] = -dir.m_y;
-	jacobian1.m_linear[2] = -dir.m_z;
-	jacobian1.m_linear[3] =  dgFloat32 (0.0f);
-	jacobian1.m_angular[0] = r1CrossDir.m_x;
-	jacobian1.m_angular[1] = r1CrossDir.m_y;
-	jacobian1.m_angular[2] = r1CrossDir.m_z;
-	jacobian1.m_angular[3] = dgFloat32 (0.0f);
+	dgAssert(jacobian0.m_linear.m_w == dgFloat32(0.0f));
+	dgAssert(jacobian0.m_angular.m_w == dgFloat32(0.0f));
+	dgAssert(jacobian1.m_linear.m_w == dgFloat32(0.0f));
+	dgAssert(jacobian1.m_angular.m_w == dgFloat32(0.0f));
 }
 
 dgUnsigned32 dgContact::JacobianDerivative (dgContraintDescritor& params)
 {
 	dgInt32 frictionIndex = 0;
-	m_skeletonSelfCollision = 0;
 	if (m_maxDOF) {
 		dgInt32 i = 0;
 		frictionIndex = GetCount();
@@ -203,10 +193,12 @@ void dgContact::JacobianContactDerivative (dgContraintDescritor& params, const d
 
 	dgVector velocError (pointData.m_veloc1 - pointData.m_veloc0);
 	dgFloat32 restitution = contact.m_restitution;
-
 	dgFloat32 relVelocErr = velocError.DotProduct3(contact.m_normal);
-
 	dgFloat32 penetration = dgClamp (contact.m_penetration - DG_RESTING_CONTACT_PENETRATION, dgFloat32(0.0f), dgFloat32(0.5f));
+
+//restitution = 0.0f;
+//penetration = 0.0f;
+
 	dgFloat32 penetrationStiffness = MAX_PENETRATION_STIFFNESS * contact.m_softness;
 	dgFloat32 penetrationVeloc = penetration * penetrationStiffness;
 	dgAssert (dgAbs (penetrationVeloc - MAX_PENETRATION_STIFFNESS * contact.m_softness * penetration) < dgFloat32 (1.0e-6f));
@@ -216,9 +208,10 @@ void dgContact::JacobianContactDerivative (dgContraintDescritor& params, const d
 
 	params.m_restitution[normalIndex] = restitution;
 	params.m_penetration[normalIndex] = penetration;
+
 	params.m_penetrationStiffness[normalIndex] = penetrationStiffness;
 	params.m_forceBounds[normalIndex].m_low = dgFloat32 (0.0f);
-	params.m_forceBounds[normalIndex].m_normalIndex = DG_NORMAL_CONSTRAINT;
+	params.m_forceBounds[normalIndex].m_normalIndex = DG_INDEPENDENT_ROW;
 	params.m_forceBounds[normalIndex].m_jointForce = (dgForceImpactPair*) &contact.m_normal_Force;
 	params.m_jointStiffness[normalIndex] = dgFloat32 (0.0f);
 
@@ -237,20 +230,18 @@ void dgContact::JacobianContactDerivative (dgContraintDescritor& params, const d
 		frictionIndex += 1;
 		CalculatePointDerivative (jacobIndex, params, contact.m_dir0, pointData); 
 		relVelocErr = velocError.DotProduct3(contact.m_dir0);
-		params.m_forceBounds[jacobIndex].m_normalIndex = dgInt16 ((contact.m_flags & dgContactMaterial::m_override0Friction) ? DG_NORMAL_CONSTRAINT : normalIndex);
+		params.m_forceBounds[jacobIndex].m_normalIndex = dgInt16 ((contact.m_flags & dgContactMaterial::m_override0Friction) ? DG_INDEPENDENT_ROW : normalIndex);
+		params.m_jointStiffness[jacobIndex] = dgFloat32 (0.0f);
 
 		params.m_restitution[jacobIndex] = dgFloat32(0.0f);
 		params.m_penetration[jacobIndex] = dgFloat32(0.0f);
-		params.m_jointStiffness[jacobIndex] = dgFloat32 (0.0f);
-		params.m_penetrationStiffness[jacobIndex] = dgFloat32 (0.0f);
 
-//dgTrace(("[x(%f %f) ", contact.m_dir0_Force.m_force, relVelocErr * impulseOrForceScale));
+		params.m_penetrationStiffness[jacobIndex] = dgFloat32 (0.0f);
 		if (contact.m_flags & dgContactMaterial::m_override0Accel) {
 			// note: using restitution been negative to indicate that the acceleration was override
 			//dgAssert(dgAbs(relVelocErr * impulseOrForceScale - contact.m_dir0_Force.m_force) < 1.0e-3f);
 			params.m_restitution[jacobIndex] = dgFloat32 (-1.0f);
 			params.m_jointAccel[jacobIndex] = contact.m_dir0_Force.m_force;
-
 		} else {
 			params.m_restitution[jacobIndex] = dgFloat32 (0.0f);
 			params.m_jointAccel[jacobIndex] = relVelocErr * impulseOrForceScale;
@@ -270,15 +261,12 @@ void dgContact::JacobianContactDerivative (dgContraintDescritor& params, const d
 		frictionIndex += 1;
 		CalculatePointDerivative (jacobIndex, params, contact.m_dir1, pointData); 
 		relVelocErr = velocError.DotProduct3(contact.m_dir1);
-		params.m_forceBounds[jacobIndex].m_normalIndex = dgInt16 ((contact.m_flags & dgContactMaterial::m_override1Friction) ? DG_NORMAL_CONSTRAINT : normalIndex);
+		params.m_forceBounds[jacobIndex].m_normalIndex = dgInt16 ((contact.m_flags & dgContactMaterial::m_override1Friction) ? DG_INDEPENDENT_ROW : normalIndex);
+		params.m_jointStiffness[jacobIndex] = dgFloat32(0.0f);
 		
 		params.m_restitution[jacobIndex] = dgFloat32 (0.0f);
 		params.m_penetration[jacobIndex] = dgFloat32 (0.0f);
-		params.m_jointStiffness[jacobIndex] = dgFloat32(0.0f);
 		params.m_penetrationStiffness[jacobIndex] = dgFloat32 (0.0f);
-
-
-//dgTrace(("y(%f %f)] ", contact.m_dir1_Force.m_force, relVelocErr * impulseOrForceScale));
 		if (contact.m_flags & dgContactMaterial::m_override1Accel) {
 			// note: using restitution been negative to indicate that the acceleration was override
 			//dgAssert(dgAbs(relVelocErr * impulseOrForceScale - contact.m_dir1_Force.m_force) < 1.0e-3f);
@@ -302,7 +290,6 @@ void dgContact::JacobianContactDerivative (dgContraintDescritor& params, const d
 
 void dgContact::JointAccelerations(dgJointAccelerationDecriptor* const params)
 {
-	dgJacobianMatrixElement* const rowMatrix = params->m_rowMatrix;
 	const dgVector& bodyVeloc0 = m_body0->m_veloc;
 	const dgVector& bodyOmega0 = m_body0->m_omega;
 	const dgVector& bodyVeloc1 = m_body1->m_veloc;
@@ -317,41 +304,43 @@ void dgContact::JointAccelerations(dgJointAccelerationDecriptor* const params)
 		invTimestep = params->m_invTimeStep;
 	}
 
+	dgRightHandSide* const rightHandSide = params->m_rightHandSide;
+	const dgLeftHandSide* const leftHandSide = params->m_leftHandSide;
+
 	for (dgInt32 k = 0; k < count; k ++) {
 		// note: using restitution been negative to indicate that the acceleration was override
-		if (rowMatrix[k].m_restitution >= dgFloat32 (0.0f)) {
-			dgJacobianMatrixElement* const row = &rowMatrix[k];
+		if (rightHandSide[k].m_restitution >= dgFloat32 (0.0f)) {
+			dgRightHandSide* const rhs = &rightHandSide[k];
+			const dgLeftHandSide* const row = &leftHandSide[k];
 
-			dgVector relVeloc (row->m_Jt.m_jacobianM0.m_linear * bodyVeloc0 + row->m_Jt.m_jacobianM0.m_angular * bodyOmega0 + 
-							   row->m_Jt.m_jacobianM1.m_linear * bodyVeloc1 + row->m_Jt.m_jacobianM1.m_angular * bodyOmega1);
+			dgVector relVeloc (row->m_Jt.m_jacobianM0.m_linear * bodyVeloc0 + row->m_Jt.m_jacobianM0.m_angular * bodyOmega0 + row->m_Jt.m_jacobianM1.m_linear * bodyVeloc1 + row->m_Jt.m_jacobianM1.m_angular * bodyOmega1);
 			dgFloat32 vRel = relVeloc.AddHorizontal().GetScalar();
-			dgFloat32 aRel = row->m_deltaAccel;
+			dgFloat32 aRel = rhs->m_deltaAccel;
 
-			if (row->m_normalForceIndex == count) {
-				dgAssert (row->m_restitution >= 0.0f);
-				dgAssert (row->m_restitution <= 2.0f);
-				dgFloat32 restitution = (vRel <= dgFloat32 (0.0f)) ? (dgFloat32 (1.0f) + row->m_restitution) : dgFloat32 (1.0f);
+			if (rhs->m_normalForceIndex == count) {
+				dgAssert (rhs->m_restitution >= 0.0f);
+				dgAssert (rhs->m_restitution <= 2.0f);
+				dgFloat32 restitution = (vRel <= dgFloat32 (0.0f)) ? (dgFloat32 (1.0f) + rhs->m_restitution) : dgFloat32 (1.0f);
 
 				dgFloat32 penetrationVeloc = dgFloat32 (0.0f);
-				if (row->m_penetration > DG_RESTING_CONTACT_PENETRATION * dgFloat32 (0.125f)) {
+				if (rhs->m_penetration > DG_RESTING_CONTACT_PENETRATION * dgFloat32 (0.125f)) {
 					if (vRel > dgFloat32 (0.0f)) {
 						dgFloat32 penetrationCorrection = vRel * timestep;
 						dgAssert (penetrationCorrection >= dgFloat32 (0.0f));
-						row->m_penetration = dgMax (dgFloat32 (0.0f), row->m_penetration - penetrationCorrection);
+						rhs->m_penetration = dgMax (dgFloat32 (0.0f), rhs->m_penetration - penetrationCorrection);
 					} else {
-						dgFloat32 penetrationCorrection = -vRel * timestep * row->m_restitution * dgFloat32 (8.0f);
-						if (penetrationCorrection > row->m_penetration) {
-							row->m_penetration = dgFloat32 (0.001f);
+						dgFloat32 penetrationCorrection = -vRel * timestep * rhs->m_restitution * dgFloat32 (8.0f);
+						if (penetrationCorrection > rhs->m_penetration) {
+							rhs->m_penetration = dgFloat32 (0.001f);
 						}
 					}
-					penetrationVeloc = -(row->m_penetration * row->m_penetrationStiffness);
+					penetrationVeloc = -(rhs->m_penetration * rhs->m_penetrationStiffness);
 				}
 
 				vRel = vRel * restitution + penetrationVeloc;
 				vRel = dgMin (MAX_SEPARATING_SPEED, vRel);
 			}
-
-			row->m_coordenateAccel = aRel - vRel * invTimestep;
+			rhs->m_coordenateAccel = aRel - vRel * invTimestep;
 		}
 	}
 }

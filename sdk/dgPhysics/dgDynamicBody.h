@@ -25,15 +25,16 @@
 #include "dgPhysicsStdafx.h"
 #include "dgBody.h"
 
-#define DG_MIN_SPEED_ATT	dgFloat32(0.0f)
 #define DG_MAX_SPEED_ATT	dgFloat32(0.02f)
 
-#define DG_FREEZE_ACCEL		dgFloat32(0.05f)
-#define DG_FREEZE_SPEED		dgFloat32(0.005f)
+#define DG_FREEZE_ACCEL		dgFloat32(0.1f)
+#define DG_FREEZE_SPEED		dgFloat32(0.032f)
 
 #define DG_FREEZE_ACCEL2	(DG_FREEZE_ACCEL * DG_FREEZE_ACCEL)
 #define DG_FREEZE_SPEED2	(DG_FREEZE_SPEED * DG_FREEZE_SPEED)
 
+#define DG_FREEZE_MAG		DG_FREEZE_ACCEL
+#define DG_FREEZE_MAG2		(DG_FREEZE_MAG * DG_FREEZE_MAG)
 
 #define DG_ERR_TOLERANCE	dgFloat32(1.0e-2f)
 #define DG_ERR_TOLERANCE2	(DG_ERR_TOLERANCE * DG_ERR_TOLERANCE)
@@ -80,7 +81,11 @@ class dgDynamicBody : public dgBody
 	virtual dgSkeletonContainer* GetSkeleton() const;
 	void SetSkeleton(dgSkeletonContainer* const skeleton);
 
+	void IntegrateImplicit(dgFloat32 timeStep);
+	void IntegrateExplicit(dgFloat32 timeStep, dgInt32 method);
+
 	virtual void IntegrateOpenLoopExternalForce(dgFloat32 timeStep);
+	const dgVector& GetDampCoeffcient (dgFloat32 timestep);
 
 	private:
 	virtual void AddDampingAcceleration(dgFloat32 timestep);
@@ -111,6 +116,7 @@ class dgDynamicBody : public dgBody
 	friend class dgInverseDynamics;
 	friend class dgSkeletonContainer;
 	friend class dgWorldDynamicUpdate;
+	friend class dgParallelBodySolver;
 	friend class dgCollisionDeformableMesh;
 	friend class dgCollisionDeformableSolidMesh;
 	friend class dgCollisionMassSpringDamperSystem;
@@ -150,20 +156,20 @@ DG_INLINE const dgVector& dgDynamicBody::GetTorque() const
 
 DG_INLINE dgFloat32 dgDynamicBody::GetLinearDamping () const
 {
-	return (m_dampCoef.m_w - DG_MIN_SPEED_ATT) / (DG_MAX_SPEED_ATT - DG_MIN_SPEED_ATT);
+	return m_dampCoef.m_w / DG_MAX_SPEED_ATT;
 }
 
 DG_INLINE dgVector dgDynamicBody::GetAngularDamping () const
 {
-	return dgVector ((m_dampCoef.m_x - DG_MIN_SPEED_ATT) / (DG_MAX_SPEED_ATT - DG_MIN_SPEED_ATT),
-					 (m_dampCoef.m_y - DG_MIN_SPEED_ATT) / (DG_MAX_SPEED_ATT - DG_MIN_SPEED_ATT),
-					 (m_dampCoef.m_z - DG_MIN_SPEED_ATT) / (DG_MAX_SPEED_ATT - DG_MIN_SPEED_ATT), dgFloat32 (0.0f));
+	return dgVector (m_dampCoef.m_x / DG_MAX_SPEED_ATT,
+					 m_dampCoef.m_y / DG_MAX_SPEED_ATT,
+					 m_dampCoef.m_z / DG_MAX_SPEED_ATT, dgFloat32 (0.0f));
 }
 
 DG_INLINE void dgDynamicBody::SetLinearDamping (dgFloat32 linearDamp)
 {
 	linearDamp = dgClamp (linearDamp, dgFloat32(0.0f), dgFloat32(1.0f));
-	m_dampCoef.m_w = DG_MIN_SPEED_ATT + (DG_MAX_SPEED_ATT - DG_MIN_SPEED_ATT) * linearDamp;
+	m_dampCoef.m_w = DG_MAX_SPEED_ATT * linearDamp;
 
 	m_linearDampOn = m_dampCoef.m_w > dgFloat32 (1.0e-7f);
 	m_cachedTimeStep = dgFloat32(0.0f);
@@ -172,13 +178,13 @@ DG_INLINE void dgDynamicBody::SetLinearDamping (dgFloat32 linearDamp)
 DG_INLINE void dgDynamicBody::SetAngularDamping (const dgVector& angularDamp)
 {
 	dgFloat32 tmp = dgClamp (angularDamp.m_x, dgFloat32(0.0f), dgFloat32(1.0f));
-	m_dampCoef.m_x = DG_MIN_SPEED_ATT + (DG_MAX_SPEED_ATT - DG_MIN_SPEED_ATT) * tmp;
+	m_dampCoef.m_x = DG_MAX_SPEED_ATT * tmp;
 
 	tmp = dgClamp (angularDamp.m_y, dgFloat32(0.0f), dgFloat32(1.0f));
-	m_dampCoef.m_y = DG_MIN_SPEED_ATT + (DG_MAX_SPEED_ATT - DG_MIN_SPEED_ATT) * tmp;
+	m_dampCoef.m_y = DG_MAX_SPEED_ATT * tmp;
 
 	tmp = dgClamp (angularDamp.m_z, dgFloat32(0.0f), dgFloat32(1.0f));
-	m_dampCoef.m_z = DG_MIN_SPEED_ATT + (DG_MAX_SPEED_ATT - DG_MIN_SPEED_ATT) * tmp;
+	m_dampCoef.m_z = DG_MAX_SPEED_ATT * tmp;
 
 	m_angularDampOn = m_dampCoef.DotProduct3(m_dampCoef) > dgFloat32 (1.0e-12f);
 	m_cachedTimeStep = dgFloat32(0.0f);
@@ -238,6 +244,19 @@ DG_INLINE void dgDynamicBody::SetSkeleton(dgSkeletonContainer* const skeleton)
 	m_skeleton = skeleton;
 }
 
+
+DG_INLINE const dgVector& dgDynamicBody::GetDampCoeffcient (dgFloat32 timestep)
+{
+	if (dgAbs(m_cachedTimeStep - timestep) > dgFloat32(1.0e-6f)) {
+		m_cachedTimeStep = timestep;
+		const dgFloat32 tau = dgFloat32(1.0f) / (dgFloat32(60.0f) * timestep);
+		m_cachedDampCoef.m_x = dgPow(dgFloat32(1.0f) - m_dampCoef.m_x, tau);
+		m_cachedDampCoef.m_y = dgPow(dgFloat32(1.0f) - m_dampCoef.m_y, tau);
+		m_cachedDampCoef.m_z = dgPow(dgFloat32(1.0f) - m_dampCoef.m_z, tau);
+		m_cachedDampCoef.m_w = dgPow(dgFloat32(1.0f) - m_dampCoef.m_w, tau);
+	}
+	return m_cachedDampCoef;
+}
 
 
 #endif 

@@ -37,8 +37,6 @@ class dgBroadPhaseBodyNode;
 class dgBroadPhaseAggregate;
 
 
-//#define DG_USE_FULL_INERTIA_MATRIX
-
 #define DG_MINIMUM_MASS		dgFloat32(1.0e-5f)
 #define DG_INFINITE_MASS	dgFloat32(1.0e15f)
 
@@ -122,9 +120,6 @@ class dgBody
 	void SetContinueCollisionMode (bool mode);
 	bool GetCollisionWithLinkedBodies () const;
 	void SetCollisionWithLinkedBodies (bool state);
-
-	dgFloat32 GetMaxRotationPerStep() const;
-	void SetMaxRotationPerStep(dgFloat32 angle);
 
 	void Freeze ();
 	void Unfreeze ();
@@ -226,12 +221,12 @@ class dgBody
 	protected:
 	void UpdateLumpedMatrix();
 	void CalcInvInertiaMatrix ();
-	dgVector CalculateLineraMomentum() const; 
+	dgVector CalculateLinearMomentum() const; 
 	dgVector CalculateAngularMomentum() const; 
 
-	dgMatrix m_invWorldInertiaMatrix;
 	dgMatrix m_matrix;
 	dgQuaternion m_rotation;
+	dgMatrix m_invWorldInertiaMatrix;
 	dgVector m_mass;
 	dgVector m_invMass;
 	dgVector m_veloc;
@@ -244,9 +239,10 @@ class dgBody
 	dgVector m_globalCentreOfMass;	
 	dgVector m_impulseForce;	
 	dgVector m_impulseTorque;	
+	dgVector m_gyroTorque;
+	dgQuaternion m_gyroRotation;
 
-	dgFloat32 m_maxAngulaRotationPerSet2;
-	dgThread::dgCriticalSection m_criticalSectionLock;
+	mutable dgInt32 m_criticalSectionLock;
 	union 
 	{
 		dgUnsigned32 m_flags;
@@ -296,6 +292,7 @@ class dgBody
 	friend class dgCollisionCompound;
 	friend class dgCollisionUserMesh;
 	friend class dgBodyMasterListRow;
+	friend class dgParallelBodySolver;
 	friend class dgWorldDynamicUpdate;
 	friend class dgBroadPhaseBodyNode;
 	friend class dgBilateralConstraint;
@@ -510,16 +507,6 @@ DG_INLINE bool dgBody::GetFreeze () const
 	return m_freeze;
 }
 
-DG_INLINE dgFloat32 dgBody::GetMaxRotationPerStep() const
-{
-	return dgSqrt (m_maxAngulaRotationPerSet2);
-}
-
-DG_INLINE void dgBody::SetMaxRotationPerStep(dgFloat32 angle)
-{
-	m_maxAngulaRotationPerSet2 = angle * angle;
-}
-
 
 DG_INLINE void dgBody::SetAutoSleep (bool state)
 {
@@ -599,7 +586,7 @@ DG_INLINE void dgBody::CalcInvInertiaMatrix ()
 	dgAssert (m_invWorldInertiaMatrix[3][3] == dgFloat32 (1.0f));
 }
 
-DG_INLINE dgVector dgBody::CalculateLineraMomentum() const
+DG_INLINE dgVector dgBody::CalculateLinearMomentum() const
 {
 	return dgVector (m_veloc.Scale4 (m_mass.m_w));
 }
