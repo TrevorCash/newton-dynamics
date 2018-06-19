@@ -74,8 +74,12 @@ void dgWorldPluginList::LoadPlugins()
 				InitPlugin initModule = (InitPlugin)GetProcAddress(module, "GetPlugin");
 				if (initModule) {
 					dgWorldPlugin* const plugin = initModule(world, GetAllocator ());
-					dgWorldPluginModulePair entry(plugin, module);
-					Append(entry);
+					if (plugin) {
+						dgWorldPluginModulePair entry(plugin, module);
+						Append(entry);
+					} else {
+						FreeLibrary(module);
+					}
 				} else {
 					FreeLibrary(module);
 				}

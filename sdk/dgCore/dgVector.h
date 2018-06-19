@@ -181,6 +181,10 @@ class dgTemplateVector
 		return dgTemplateVector<T> (m_x * A.m_x, m_y * A.m_y, m_z * A.m_z, A.m_w);
 	}
 
+	T GetMax () const
+	{
+		return dgMax(dgMax(m_x, m_y), dgMax(m_z, m_w));
+	}
 
 	DG_INLINE dgTemplateVector<T> GetMax(const dgTemplateVector<T>& data) const
 	{
@@ -492,6 +496,11 @@ class dgVector
 			(m_w > dgFloat32 (0.0f)) ? m_w : -m_w);
 	}
 
+	dgFloat32 GetMax () const
+	{
+		return dgMax(dgMax(m_x, m_y), dgMax(m_z, m_w));
+	}
+
 	dgVector GetMax (const dgVector& data) const
 	{
 		return dgVector ((m_x > data.m_x) ? m_x : data.m_x,
@@ -617,6 +626,7 @@ class dgVector
 	DG_CLASS_ALLOCATOR(allocator)
 
 	union {
+		dgInt32 m_i[4];
 		struct {
 			dgFloat32 m_x;
 			dgFloat32 m_y;
@@ -897,7 +907,7 @@ class dgBigVector
 
 	DG_INLINE dgBigVector Normalize() const
 	{
-		dgAssert (m_w == dgFoat32 (0.0f));
+		dgAssert (m_w == dgFloat64 (0.0f));
 		//const dgBigVector& me = *this;
 		//return *this * dgBigVector (dgRsqrt(DotProduct4(*this).m_x));
 		return *this * InvMagSqrt();
@@ -909,6 +919,11 @@ class dgBigVector
 							(m_y > dgFloat64 (0.0f)) ? m_y : -m_y,
 							(m_z > dgFloat64 (0.0f)) ? m_z : -m_z,
 							(m_w > dgFloat64 (0.0f)) ? m_w : -m_w);
+	}
+
+	dgFloat64 GetMax () const
+	{
+		return dgMax(dgMax(m_x, m_y), dgMax(m_z, m_w));
 	}
 
 	dgBigVector GetMax (const dgBigVector& data) const
@@ -1036,6 +1051,7 @@ class dgBigVector
 
 	union 
 	{
+		dgInt64 m_i[4];
 		struct 
 		{
 			dgFloat64 m_x;
@@ -1392,6 +1408,12 @@ class dgVector
 		return _mm_and_ps (m_type, m_signMask.m_type);
 	}
 
+	dgFloat32 GetMax () const
+	{
+		__m128 tmp (_mm_max_ps (m_type, _mm_shuffle_ps (m_type, m_type, PERMUTE_MASK(1, 0, 3, 2))));
+		return dgVector (_mm_max_ps (tmp, _mm_shuffle_ps (tmp, tmp, PERMUTE_MASK(2, 3, 0, 1)))).GetScalar();
+	}
+
 	dgVector GetMax (const dgVector& data) const
 	{
 		return _mm_max_ps (m_type, data.m_type);
@@ -1546,6 +1568,7 @@ class dgVector
 
 	union {
 		dgFloat32 m_f[4];
+		dgInt32 m_i[4];
 		__m128 m_type;
 		__m128i m_typeInt;
 		struct {
@@ -1808,6 +1831,12 @@ class dgBigVector
 		return Scale4(dgFloat64 (1.0f) / sqrt (mag2));
 	}
 
+	dgFloat64 GetMax() const
+	{
+		__m128d tmp(_mm_max_pd(m_typeLow, m_typeHigh));
+		return dgBigVector(_mm_max_pd(tmp, _mm_shuffle_pd(tmp, tmp, PERMUT_MASK_DOUBLE(0, 1))), tmp).GetScalar();
+	}
+
 	dgBigVector GetMax(const dgBigVector& data) const
 	{
 		return dgBigVector(_mm_max_pd(m_typeLow, data.m_typeLow), _mm_max_pd(m_typeHigh, data.m_typeHigh));
@@ -1980,6 +2009,7 @@ class dgBigVector
 	union
 	{
 		dgFloat64 m_f[4];
+		dgInt64 m_i[4];
 		struct
 		{
 			__m128d m_typeLow;
