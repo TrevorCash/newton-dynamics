@@ -132,6 +132,8 @@ class dgBody
 	bool GetAutoSleep () const;
 	void SetAutoSleep (bool state);
 
+	dgInt32* GetLock();
+
 	dgCollisionInstance* GetCollision () const;
 	dgBodyMasterList::dgListNode* GetMasterList() const;
 
@@ -213,14 +215,12 @@ class dgBody
 	void ApplyImpulsesAtPoint (dgInt32 count, dgInt32 strideInBytes, const dgFloat32* const impulseArray, const dgFloat32* const pointArray, dgFloat32 timestep);
 
 	dgInt32 GetSerializedID() const;
+	void CalcInvInertiaMatrix();
 
 	protected:
 	void UpdateWorlCollisionMatrix() const;
-
-	// member variables:
-	protected:
 	void UpdateLumpedMatrix();
-	void CalcInvInertiaMatrix ();
+
 	dgVector CalculateLinearMomentum() const; 
 	dgVector CalculateAngularMomentum() const; 
 
@@ -280,8 +280,9 @@ class dgBody
 	dgUnsigned32 m_genericLRUMark;
 
 	friend class dgWorld;
+	friend class dgSolver;
 	friend class dgContact;
-	friend class dgConstraint;
+	friend class dgConstraint;	
 	friend class dgBroadPhase;
 	friend class dgCollisionBVH;
 	friend class dgBroadPhaseNode;
@@ -606,6 +607,11 @@ DG_INLINE dgSkeletonContainer* dgBody::GetSkeleton() const
 DG_INLINE dgInt32 dgBody::GetSerializedID() const
 {
 	return m_serializedEnum;
+}
+
+DG_INLINE dgInt32* dgBody::GetLock()
+{
+	return &m_criticalSectionLock;
 }
 
 #endif 
