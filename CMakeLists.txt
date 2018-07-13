@@ -25,11 +25,8 @@
 # Define source files
 file (GLOB_RECURSE SOURCE_FILES *.h *.cpp)
 set (SOURCE_FILES ${SOURCE_FILES})
-#if (BUILD_SHARED_LIBS)
-#    set (LIB_TYPE STATIC)
-#else ()
-    set (LIB_TYPE OBJECT)
-#endif ()
+set (LIB_TYPE STATIC)
+
 
 add_library (newton-dynamics ${LIB_TYPE} ${SOURCE_FILES})
 
@@ -61,8 +58,6 @@ if (BUILD_SHARED_LIBS)
     target_compile_definitions(newton-dynamics PRIVATE -D_EXPORTS INTERFACE -D_IMPORTS)
 endif ()
 
+
+install (TARGETS newton-dynamics EXPORT Urho3D ARCHIVE DESTINATION ${DEST_ARCHIVE_DIR})
 install(DIRECTORY newton-dynamics DESTINATION ${DEST_THIRDPARTY_HEADERS_DIR} FILES_MATCHING PATTERN *.h)
-#install (DIRECTORY newton-dynamics DESTINATION ${DEST_THIRDPARTY_HEADERS_DIR} FILES_MATCHING PATTERN *.h)
-#if (BUILD_SHARED_LIBS)
-#    install(TARGETS newton-dynamics EXPORT Urho3D ARCHIVE DESTINATION ${DEST_LIBRARY_DIR})
-#endif ()
