@@ -31,7 +31,7 @@ set (LIB_TYPE STATIC)
 add_library (newton-dynamics ${LIB_TYPE} ${SOURCE_FILES})
 
 
-target_compile_definitions(newton-dynamics PRIVATE _CNEWTON_STATIC_LIB _CUSTOM_JOINTS_STATIC_LIB _NEWTON_STATIC_LIB)
+target_compile_definitions(newton-dynamics PUBLIC _CNEWTON_STATIC_LIB _CUSTOM_JOINTS_STATIC_LIB _NEWTON_STATIC_LIB)
 
 
 target_include_directories(newton-dynamics
@@ -54,9 +54,6 @@ target_include_directories(newton-dynamics
 )
 
 
-if (BUILD_SHARED_LIBS)
-    target_compile_definitions(newton-dynamics PRIVATE -D_EXPORTS INTERFACE -D_IMPORTS)
-endif ()
 
 
 install (TARGETS newton-dynamics EXPORT Urho3D ARCHIVE DESTINATION ${DEST_ARCHIVE_DIR})
