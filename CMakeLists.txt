@@ -10,26 +10,42 @@
 
 cmake_minimum_required(VERSION 3.12.0)
 
-option("GENERATE_DLL" "build dll libraries" ON)
-option("BUILD_SANDBOX_DEMOS" "generates demos projects" ON)
-option("DOUBLE_PRECISION" "Generate double precision" OFF)
-option("STATIC_RUNTIME_LIBRARIES" "use windows static libraries" ON)
-option("WITH_AVX_PLUGIN" "adding avx parallel solver" ON)
-option("WITH_AVX2_PLUGIN" "adding avx parallel solver" OFF)
-option("WITH_SSE4_PLUGIN" "adding avx parallel solver" OFF)
+
+#Urho3D Overrides
+if(URHO3D_THIRDPARTY_SHARED_LIBS)
+	set(NEWTON_GENERATE_DLL ON CACHE BOOL "build dll libraries")
+	set(NEWTON_STATIC_RUNTIME_LIBRARIES OFF CACHE BOOL "use windows system static libraries")
+else ()
+	set(NEWTON_GENERATE_DLL OFF CACHE BOOL "build dll libraries")
+	set(NEWTON_STATIC_RUNTIME_LIBRARIES ON CACHE BOOL "use windows system static libraries")
+endif ()
+
+
+
+
+option("NEWTON_GENERATE_DLL" "build dll libraries" ON)
+option("NEWTON_BUILD_SANDBOX_DEMOS" "generates demos projects" OFF)
+option("NEWTON_DOUBLE_PRECISION" "Generate double precision" OFF)
+option("NEWTON_STATIC_RUNTIME_LIBRARIES" "use windows system static libraries" OFF)
+option("NEWTON_WITH_AVX_PLUGIN" "adding avx parallel solver" ON)
+option("NEWTON_WITH_AVX2_PLUGIN" "adding avx parallel solver" ON)
+option("NEWTON_WITH_SSE4_PLUGIN" "adding avx parallel solver" ON)
 
 set(CMAKE_CONFIGURATION_TYPES Debug Release)
-set(CMAKE_DEBUG_POSTFIX "_d")
+
+#Urho Doesnt Do "_d"'s
+#set(CMAKE_DEBUG_POSTFIX "_d")
+
 
 project(NewtonSDK)
 
 add_definitions(-D_CRT_SECURE_NO_WARNINGS)
-if (DOUBLE_PRECISION)
+if (NEWTON_DOUBLE_PRECISION)
 	add_definitions(-D_NEWTON_USE_DOUBLE)
 endif ()
 
 if (MSVC)
-	message ("build visual studio projects")
+	#message ("build newton visual studio projects")
 
 	if(CMAKE_CL_64)
 		message ("build 64 bit")
@@ -39,14 +55,14 @@ if (MSVC)
 		add_definitions(-D_WIN_32_VER)
 	endif()
 
-	if(STATIC_RUNTIME_LIBRARIES)
-		message ("link to static runtime libraries")
+	if(NEWTON_STATIC_RUNTIME_LIBRARIES)
+		#message ("newton link to static runtime libraries")
 		set(CMAKE_CXX_FLAGS_DEBUG "/MTd")
 		set(CMAKE_CXX_FLAGS_RELEASE "/MT")
 		set(CMAKE_C_FLAGS_DEBUG "/MTd")
 		set(CMAKE_C_FLAGS_RELEASE "/MT")
 	else()
-		message ("link to dynamic runtime libraries")
+		#message ("newton link to dynamic runtime libraries")
 		set(CMAKE_C_FLAGS_DEBUG "/MDd")
 		set(CMAKE_C_FLAGS_RELEASE "/MD")
 		set(CMAKE_CXX_FLAGS_DEBUG "/MDd")
@@ -66,8 +82,8 @@ if (MSVC)
 	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Zi")
 	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -Zi")
 
-	message("CMAKE_CXX_FLAGS_DEBUG is ${CMAKE_CXX_FLAGS_DEBUG}")
-	message("CMAKE_CXX_FLAGS_RELEASE is ${CMAKE_CXX_FLAGS_RELEASE}")
+	#message("CMAKE_CXX_FLAGS_DEBUG is ${CMAKE_CXX_FLAGS_DEBUG}")
+	#message("CMAKE_CXX_FLAGS_RELEASE is ${CMAKE_CXX_FLAGS_RELEASE}")
 endif()
 
 set (dllPath "${PROJECT_BINARY_DIR}/build/bin")
@@ -76,9 +92,7 @@ set (includePath "${PROJECT_BINARY_DIR}/build/include")
 
 
 add_subdirectory(sdk)
-if (BUILD_SANDBOX_DEMOS)
-	add_subdirectory(applications/demosSandbox)
-endif()
+
 
 add_dependencies (dgPhysics dgCore)
 add_dependencies (dContainers dMath dTimeTracker)
@@ -86,7 +100,6 @@ add_dependencies (newton dgCore dgPhysics dTimeTracker)
 add_dependencies (dAnimation dMath dContainers dTimeTracker)
 add_dependencies (dCustomJoints dMath dContainers dTimeTracker)
 add_dependencies (dNewton newton dMath dContainers dCustomJoints dTimeTracker)
-if (BUILD_SANDBOX_DEMOS)
-	add_dependencies (demosSandbox newton dMath dScene dNewton dContainers dCustomJoints dTimeTracker tinyxml imgui glfw)
-endif()
+
+
 
