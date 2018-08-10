@@ -31,7 +31,7 @@ option("NEWTON_WITH_AVX_PLUGIN" "adding avx parallel solver" ON)
 option("NEWTON_WITH_AVX2_PLUGIN" "adding avx parallel solver" ON)
 option("NEWTON_WITH_SSE4_PLUGIN" "adding avx parallel solver" ON)
 
-set(CMAKE_CONFIGURATION_TYPES Debug Release)
+set(CMAKE_CONFIGURATION_TYPES Debug Release RelWithDebInfo)
 
 #Urho Doesnt Do "_d"'s
 #set(CMAKE_DEBUG_POSTFIX "_d")
