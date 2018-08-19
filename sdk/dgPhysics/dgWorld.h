@@ -30,6 +30,7 @@
 #include "dgCollisionScene.h"
 #include "dgBodyMasterList.h"
 #include "dgWorldDynamicUpdate.h"
+#include "dgBilateralConstraint.h"
 //#include "dgDeformableBodiesUpdate.h"
 #include "dgCollisionCompoundFractured.h"
 
@@ -162,6 +163,7 @@ class dgWorld
 	,public dgSkeletonList
 	,public dgInverseDynamicsList
 	,public dgContactList 
+	,public dgBilateralConstraintList
 	,public dgWorldDynamicUpdate
 	,public dgMutexThread
 	,public dgWorldThreadPool
@@ -244,7 +246,7 @@ class dgWorld
 	dgInt32 GetSolverMode() const;
 	void SetSolverMode (dgInt32 mode);
 
-	void SetPosUpdateCallback (const dgWorld* const newtonWorld, dgPostUpdateCallback callback);
+	void SetPostUpdateCallback (const dgWorld* const newtonWorld, dgPostUpdateCallback callback);
 
 	void EnableThreadOnSingleIsland(dgInt32 mode);
 	dgInt32 GetThreadOnSingleIsland() const;
@@ -511,7 +513,7 @@ class dgWorld
 	dgListenerList m_listeners;
 	dgTree<void*, unsigned> m_perInstanceData;
 	dgArray<dgUnsigned8> m_bodiesMemory; 
-	dgArray<dgUnsigned8> m_jointsMemory; 
+	dgArray<dgJointInfo> m_jointsMemory; 
 	dgArray<dgUnsigned8> m_solverJacobiansMemory;  
 	dgArray<dgUnsigned8> m_solverRightHandSideMemory;
 	dgArray<dgUnsigned8> m_solverForceAccumulatorMemory;
@@ -586,7 +588,7 @@ inline dgFloat32 dgWorld::GetUpdateTime() const
 	return m_lastExecutionTime;
 }
 
-inline void dgWorld::SetPosUpdateCallback (const dgWorld* const newtonWorld, dgPostUpdateCallback callback)
+inline void dgWorld::SetPostUpdateCallback(const dgWorld* const newtonWorld, dgPostUpdateCallback callback)
 {
 	m_postUpdateCallback = callback;
 }

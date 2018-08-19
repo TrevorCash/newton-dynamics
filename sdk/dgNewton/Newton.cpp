@@ -185,11 +185,11 @@ void NewtonDestroy(const NewtonWorld* const newtonWorld)
 	delete allocator;
 }
 
-void NewtonSetPosUpdateCallback(const NewtonWorld* const newtonWorld, NewtonPostUpdateCallback callback)
+void NewtonSetPostUpdateCallback(const NewtonWorld* const newtonWorld, NewtonPostUpdateCallback callback)
 {
 	TRACE_FUNCTION(__FUNCTION__);
 	Newton* const world = (Newton *) newtonWorld;
-	world->SetPosUpdateCallback(world, (dgPostUpdateCallback) callback);
+	world->SetPostUpdateCallback(world, (dgPostUpdateCallback) callback);
 }
 
 
@@ -1521,7 +1521,7 @@ void NewtonMaterialSetContactGenerationCallback (const NewtonWorld* const newton
 
   @return Nothing.
 
-  When the AABB extend of the collision geometry of two bodies overlap, Newton collision system retrieves the material
+  When the AABB extents of the collision geometry of two bodies overlap, the Newton collision system retrieves the material
   interaction that defines the behavior between the pair of bodies. The material interaction is collected from a database of materials,
   indexed by the material gruopID assigned to the bodies. If the material is tagged as non collidable,
   then no action is taken and the simulation continues.
@@ -6022,10 +6022,10 @@ void NewtonBodyGetAlpha(const NewtonBody* const bodyPtr, dFloat* const alpha)
 
 
 /*!
-Get the global linear velocity of the body.
+Get the global linear Acceleration of the body.
 
 @param *bodyPtr is the pointer to the body.
-@param *velocity pointer to an array of at least three floats to hold the velocity vector.
+@param *acceleration pointer to an array of at least three floats to hold the acceleration vector.
 
 See also: ::NewtonBodySetVelocity
 */
