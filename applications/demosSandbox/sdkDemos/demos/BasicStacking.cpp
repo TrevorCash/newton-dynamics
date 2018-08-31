@@ -184,7 +184,9 @@ static void CapsuleStack(DemoEntityManager* const scene, dFloat mass, const dVec
 
 	// create the shape and visual mesh as a common data to be re used
 	NewtonCollision* const collision = CreateConvexCollision(world, dGetIdentityMatrix(), blockBoxSize, _CAPSULE_PRIMITIVE, defaultMaterialID);
-	DemoMesh* const geometry = new DemoMesh("sphere", collision, "smilli.tga", "smilli.tga", "smilli.tga");
+
+	dMatrix uvMatrix (dPitchMatrix(dPi));
+	DemoMesh* const geometry = new DemoMesh("sphere", collision, "smilli.tga", "smilli.tga", "smilli.tga", 1.0f, uvMatrix);
 
 	dFloat vertialStep = blockBoxSize.m_x;
 	dFloat horizontalStep = blockBoxSize.m_y * 0.8f;
@@ -277,39 +279,35 @@ void BasicBoxStacks (DemoEntityManager* const scene)
 //	AddFloorBox(scene, dVector (0.0f, -0.05f, 0.0f, 0.0f), dVector(100.0f, 0.1f, 100.0f, 0.0f));
 
 	int high = 20;
-//high = 10;
-high = 30;
 //high = 40;
-//high = 20;
+high = 30;
 
 	for (int i = 0; i < 1; i ++) {
-//		BuildPyramid (scene, 10.0f, dVector(  0.0f + i * 4.0f, 0.0f, 0.0f, 0.0f), dVector (0.5f, 0.25f, 0.8f, 0.0), high, _BOX_PRIMITIVE);
-//		BuildPyramid (scene, 10.0f, dVector( 10.0f + i * 4.0f, 0.0f, 0.0f, 0.0f), dVector (0.75f, 0.35f, 0.75f, 0.0), high, _CYLINDER_PRIMITIVE, dRollMatrix(0.5f * dPi));
-//		BuildPyramid (scene, 10.0f, dVector( 20.0f + i * 4.0f, 0.0f, 0.0f, 0.0f), dVector (0.5f, 0.35f, 0.8f, 0.0), high, _CYLINDER_PRIMITIVE, dRollMatrix(0.5f * dPi));
-//		BuildPyramid (scene, 10.0f, dVector( 30.0f + i * 4.0f, 0.0f, 0.0f, 0.0f), dVector (0.5f, 0.25f, 0.8f, 0.0), high, _REGULAR_CONVEX_HULL_PRIMITIVE, dRollMatrix(0.5f * dPi));
+		BuildPyramid (scene, 10.0f, dVector(  0.0f + i * 4.0f, 0.0f, 0.0f, 0.0f), dVector (0.5f, 0.25f, 0.8f, 0.0), high, _BOX_PRIMITIVE);
+		BuildPyramid (scene, 10.0f, dVector( 10.0f + i * 4.0f, 0.0f, 0.0f, 0.0f), dVector (0.75f, 0.35f, 0.75f, 0.0), high, _CYLINDER_PRIMITIVE, dRollMatrix(0.5f * dPi));
+		BuildPyramid (scene, 10.0f, dVector( 20.0f + i * 4.0f, 0.0f, 0.0f, 0.0f), dVector (0.5f, 0.35f, 0.8f, 0.0), high, _CYLINDER_PRIMITIVE, dRollMatrix(0.5f * dPi));
+		BuildPyramid (scene, 10.0f, dVector( 30.0f + i * 4.0f, 0.0f, 0.0f, 0.0f), dVector (0.5f, 0.25f, 0.8f, 0.0), high, _REGULAR_CONVEX_HULL_PRIMITIVE, dRollMatrix(0.5f * dPi));
 		//BuildPyramid (scene, 10.0f, dVector( 40.0f + i * 4.0f, 0.0f, 0.0f, 0.0f), dVector (0.5f, 0.35f, 0.8f, 0.0), high, _CHAMFER_CYLINDER_PRIMITIVE, dRollMatrix(0.5f * dPi));
 	}
 
 	high = 20;
 	for (int i = 0; i < 1; i ++) {
 		for (int j = 0; j < 1; j ++) {
-//			BuildJenga (scene, 5.0f, dVector(-15.0f + j * 8, 0.0f, 10.0f + i * 8, 0.0f), dVector (0.5f, 0.25f, 0.8f, 0.0), high);
+			BuildJenga (scene, 5.0f, dVector(-15.0f + j * 8, 0.0f, 10.0f + i * 8, 0.0f), dVector (0.5f, 0.25f, 0.8f, 0.0), high);
 		}
 	}
 
 	high = 20;
-high = 2;
 	for (int i = 0; i < 1; i ++) {
 		for (int j = 0; j < 1; j ++) {
 			SphereStack(scene, 1.0f, dVector(-5.0f + j * 8, 0.0f, -6.0f + i * 8, 0.0f), dVector (0.5f, 0.5f, 0.5f, 0.0f), high);
-//			CapsuleStack (scene, 1.0f, dVector(-5.0f + j * 8, 0.0f, 0.0f + i * 8, 0.0f), dVector (0.75f, 4.0f, 0.75f, 0.0f), high);
-//			BoxStack(scene, 5.0f, dVector(-5.0f + j * 8, 0.0f, 6.0f + i * 8, 0.0f), dVector (0.5f, 0.5f, 0.5f, 0.0f), high);
+			CapsuleStack (scene, 1.0f, dVector(-5.0f + j * 8, 0.0f, 0.0f + i * 8, 0.0f), dVector (0.8f, 4.0f, 0.8f, 0.0f), high);
+			BoxStack(scene, 5.0f, dVector(-5.0f + j * 8, 0.0f, 6.0f + i * 8, 0.0f), dVector (0.5f, 0.5f, 0.5f, 0.0f), high);
 		}
 	}
 
 	// place camera into position
 	dQuaternion rot;
-//	dVector origin (-40.0f, 10.0f, 0.0f, 0.0f);
 	dVector origin(-40.0f, 10.0f, 0.0f, 0.0f);
 	scene->SetCameraMatrix(rot, origin);
 }
