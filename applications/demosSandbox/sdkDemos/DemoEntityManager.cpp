@@ -67,7 +67,7 @@
 //#define DEFAULT_SCENE	33			// basic rag doll
 //#define DEFAULT_SCENE	34			// dynamic rag doll
 //#define DEFAULT_SCENE	35			// basic Car
-#define DEFAULT_SCENE	36			// single body vehicle
+//#define DEFAULT_SCENE	36			// single body vehicle
 //#define DEFAULT_SCENE	37			// david Gravel multi body car
 //#define DEFAULT_SCENE	38			// super Car
 //#define DEFAULT_SCENE	39			// heavy vehicles
@@ -75,8 +75,8 @@
 //#define DEFAULT_SCENE	31			// advanced player controller
 //#define DEFAULT_SCENE	42			// cloth patch			
 //#define DEFAULT_SCENE	43			// soft bodies	
-//#define DEFAULT_SCENE	44          // joe's joint test
-//#define DEFAULT_SCENE	45          // Misho's Rocket Test
+//#define DEFAULT_SCENE	44			// joe's joint test
+#define DEFAULT_SCENE	45			// Misho's Hinge Test
 
 /// demos forward declaration 
 void Friction (DemoEntityManager* const scene);
@@ -124,7 +124,8 @@ void StandardJoints (DemoEntityManager* const scene);
 void SixAxisManipulators(DemoEntityManager* const scene);
 void Hexapod(DemoEntityManager* const scene);
 void JoesJointTest (DemoEntityManager* const scene);
-void MishosRocketTest(DemoEntityManager* const scene);
+//void MishosRocketTest(DemoEntityManager* const scene);
+void MishosHingeTest(DemoEntityManager* const scene);
 
 
 DemoEntityManager::SDKDemos DemoEntityManager::m_demosSelection[] = 
@@ -164,9 +165,9 @@ DemoEntityManager::SDKDemos DemoEntityManager::m_demosSelection[] =
 	{"Hexapod walker", "show using inverse dynamics to control robots", Hexapod },
 	{"Passive rag doll", "demonstrate passive rag doll", PassiveRagdoll},
 	{"Dynamic rag doll", "demonstrate dynamic rag doll", DynamicRagDoll},
-	{"Basic Car", "show how to set up a vehicle controller", BasicCar},
-	{"Single Body Car", "show a generalized coordinate system body", SingleBodyCar },
-	{"Basic Multi body Car", "show how to set up a multi body vehicle by Dave Gravel", BasicMultibodyVehicle},
+	{"Basic car", "show how to set up a vehicle controller", BasicCar},
+	{"Single body car", "show a generalized coordinate system body", SingleBodyCar },
+	{"Basic multi body car", "show how to set up a multi body vehicle by Dave Gravel", BasicMultibodyVehicle},
 	{"Super car", "implement a hight performance sport car", SuperCar},
 	{"Heavy vehicles", "implement military type heavy Vehicles", MilitaryTransport},
 	{"Basic player controller", "demonstrate simple player controller", BasicPlayerController},
@@ -174,7 +175,7 @@ DemoEntityManager::SDKDemos DemoEntityManager::m_demosSelection[] =
 	{"Simple cloth Patch", "show simple cloth patch", ClothPatch},
 	{"Simple soft Body", "show simple soft body", SoftBodies},
 	{"Joes joint test", "", JoesJointTest},
-	{"Misho's Rocket Test", "", MishosRocketTest},
+	{"Misho's Hinge Test", "", MishosHingeTest },
 };
 
 
