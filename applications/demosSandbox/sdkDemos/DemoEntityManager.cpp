@@ -31,7 +31,7 @@
 #define MAX_PHYSICS_SUB_STEPS		2
 #define PROJECTILE_INITIAL_SPEED	20.0f
 
-//#define DEFAULT_SCENE	0			// using NetwonMesh Tool
+#define DEFAULT_SCENE	0			// using NetwonMesh Tool
 //#define DEFAULT_SCENE	1			// Coefficients of friction
 //#define DEFAULT_SCENE	2			// Coefficients of restitution
 //#define DEFAULT_SCENE	3			// gyroscope precession
@@ -68,7 +68,7 @@
 //#define DEFAULT_SCENE	34			// dynamic rag doll
 //#define DEFAULT_SCENE	35			// basic Car
 //#define DEFAULT_SCENE	36			// single body vehicle
-//#define DEFAULT_SCENE	37			// david Gravel multi body car
+//#define DEFAULT_SCENE	37			// David Gravel multi body car
 //#define DEFAULT_SCENE	38			// super Car
 //#define DEFAULT_SCENE	39			// heavy vehicles
 //#define DEFAULT_SCENE	30			// basic player controller
@@ -76,7 +76,7 @@
 //#define DEFAULT_SCENE	42			// cloth patch			
 //#define DEFAULT_SCENE	43			// soft bodies	
 //#define DEFAULT_SCENE	44			// joe's joint test
-#define DEFAULT_SCENE	45			// Misho's Hinge Test
+//#define DEFAULT_SCENE	45			// Misho's Hinge Test
 
 /// demos forward declaration 
 void Friction (DemoEntityManager* const scene);
@@ -561,6 +561,23 @@ void DemoEntityManager::Cleanup ()
 	// set the number of sub steps
 	NewtonSetNumberOfSubsteps (m_world, MAX_PHYSICS_SUB_STEPS);
 
+	// load all available plug ins
+	char plugInPath[2048];
+	GetModuleFileNameA(NULL, plugInPath, 256);
+
+	for (int i = int(strlen(plugInPath) - 1); i; i--) {
+		if ((plugInPath[i] == '\\') || (plugInPath[i] == '/')) {
+			plugInPath[i] = 0;
+			break;
+		}
+	}
+#ifdef _DEBUG
+	strcat(plugInPath, "/newtonPlugins/debug");
+#else
+	strcat(plugInPath, "/newtonPlugins/release");
+#endif
+	NewtonLoadPlugins(m_world, plugInPath);
+
 	// we start without 2d render
 	m_renderDemoGUI = NULL;
 	m_renderHelpMenus = NULL;
@@ -626,7 +643,7 @@ void DemoEntityManager::ApplyMenuOptions()
 	}
 
 	NewtonSelectBroadphaseAlgorithm(m_world, m_broadPhaseType);
-	NewtonSetMultiThreadSolverOnSingleIsland (m_world, m_solveLargeIslandInParallel ? 1 : 0);	
+	NewtonSetParallelSolverOnLargeIsland (m_world, m_solveLargeIslandInParallel ? 1 : 0);	
 
 	void* plugin = NULL;
 	if (m_currentPlugin) {

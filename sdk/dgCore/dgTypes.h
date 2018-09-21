@@ -99,15 +99,9 @@
 #endif
 
 #if (defined (_WIN_32_VER) || defined (_WIN_64_VER))
-//	#define DG_SSE4_INSTRUCTIONS_SET
 	#include <intrin.h>
 	#include <emmintrin.h> 
 	#include <pmmintrin.h>
-#endif
-
-
-#ifdef __ppc__
-	#include <vecLib/veclib.h>
 #endif
 
 #if (defined (_POSIX_VER) || defined (_POSIX_VER_64) || defined (_MINGW_32_VER) || defined (_MINGW_64_VER))
@@ -127,11 +121,6 @@
 			#include <pmmintrin.h> 
 			#include <emmintrin.h> 
 			#include <mmintrin.h> 
-			#ifdef __SSE4_1__
-				// some linux systems still do not support dot product operations
-//				#define DG_SSE4_INSTRUCTIONS_SET
-				#include <smmintrin.h>
-			#endif
 		} 
 	#endif
 #endif
@@ -145,27 +134,10 @@
 		#include <pmmintrin.h> 
 		#include <emmintrin.h>  //sse3
         #include <mmintrin.h> 
-		
-		#ifdef __SSE4_1__
-			#define DG_SSE4_INSTRUCTIONS_SET
-			#include <smmintrin.h>
-		#endif
     #endif
 #endif
 
 //#define DG_SCALAR_VECTOR_CLASS
-
-#ifdef DG_SSE4_INSTRUCTIONS_SET
-	#undef DG_SCALAR_VECTOR_CLASS
-#endif
-
-#if defined (__ppc__) || defined (ANDROID) || defined (IOS)
-	#undef DG_SSE4_INSTRUCTIONS_SET
-	#ifndef DG_SCALAR_VECTOR_CLASS
-		#define DG_SCALAR_VECTOR_CLASS
-	#endif
-#endif
-
 
 
 // by default newton run on a separate thread and 
@@ -831,6 +803,7 @@ class dgSetPrecisionDouble
 
 DG_INLINE dgInt32 dgAtomicExchangeAndAdd (dgInt32* const addend, dgInt32 amount)
 {
+/*
 	#if (defined (_WIN_32_VER) || defined (_WIN_64_VER))
 		return _InterlockedExchangeAdd((long*) addend, long (amount));
 	#endif
@@ -839,9 +812,19 @@ DG_INLINE dgInt32 dgAtomicExchangeAndAdd (dgInt32* const addend, dgInt32 amount)
 		return InterlockedExchangeAdd((long*) addend, long (amount));
 	#endif
 
-
 	#if (defined (_POSIX_VER) || defined (_POSIX_VER_64) ||defined (_MACOSX_VER))
 		return __sync_fetch_and_add ((int32_t*)addend, amount );
+	#endif
+*/
+
+	#if (defined (_WIN_32_VER) || defined (_WIN_64_VER))
+		return _InterlockedExchangeAdd((long*)addend, long(amount));
+	#elif (defined (_MINGW_32_VER) || defined (_MINGW_64_VER))
+		return InterlockedExchangeAdd((long*)addend, long(amount));
+	#elif (defined (_POSIX_VER) || defined (_POSIX_VER_64) ||defined (_MACOSX_VER)|| defined ANDROID)
+		return __sync_fetch_and_add((int32_t*)addend, amount);
+	#else
+		#error "dgAtomicExchangeAndAdd implementation required"
 	#endif
 }
 
@@ -849,33 +832,28 @@ DG_INLINE dgInt32 dgInterlockedExchange(dgInt32* const ptr, dgInt32 value)
 {
 	#if (defined (_WIN_32_VER) || defined (_WIN_64_VER))
 		return _InterlockedExchange((long*) ptr, value);
-	#endif
-
-	#if (defined (_MINGW_32_VER) || defined (_MINGW_64_VER))
+	#elif (defined (_MINGW_32_VER) || defined (_MINGW_64_VER))
 		return InterlockedExchange((long*) ptr, value);
-	#endif
-
-
-	#if (defined (_POSIX_VER) || defined (_POSIX_VER_64) ||defined (_MACOSX_VER))
+	#elif (defined (_POSIX_VER) || defined (_POSIX_VER_64) ||defined (_MACOSX_VER))
 		//__sync_synchronize();
 		return __sync_lock_test_and_set((int32_t*)ptr, value);
+	#else
+		#error "dgInterlockedExchange implementation required"
 	#endif
 }
 
 DG_INLINE dgInt32 dgInterlockedTest(dgInt32* const ptr, dgInt32 value)
 {
-#if (defined (_WIN_32_VER) || defined (_WIN_64_VER))
-	return _InterlockedCompareExchange((long*)ptr, value, value);
-#endif
-
-#if (defined (_MINGW_32_VER) || defined (_MINGW_64_VER))
-	return InterlockedCompareExchange((long*)ptr, value, value);
-#endif
-
-#if (defined (_POSIX_VER) || defined (_POSIX_VER_64) ||defined (_MACOSX_VER))
-	//__sync_synchronize();
-	return __sync_lock_test_and_set((int32_t*)ptr, value);
-#endif
+	#if (defined (_WIN_32_VER) || defined (_WIN_64_VER))
+		return _InterlockedCompareExchange((long*)ptr, value, value);
+	#elif (defined (_MINGW_32_VER) || defined (_MINGW_64_VER))
+		return InterlockedCompareExchange((long*)ptr, value, value);
+	#elif (defined (_POSIX_VER) || defined (_POSIX_VER_64) ||defined (_MACOSX_VER))
+		//__sync_synchronize();
+		return __sync_lock_test_and_set((int32_t*)ptr, value);
+	#else
+		#error "dgInterlockedTest implementation required"
+	#endif
 }
 
 /*
@@ -910,7 +888,7 @@ DG_INLINE void dgThreadYield()
 DG_INLINE void dgThreadPause()
 {
 #ifndef DG_USE_THREAD_EMULATION
-	#if defined (_WIN_32_VER) || defined (_WIN_64_VER)
+	#if defined (_WIN_32_VER) || defined (_WIN_64_VER) || defined (WIN32) || defined (i386_) || defined (x86_64_)
 		_mm_pause();
 	#endif
 #endif
@@ -962,7 +940,7 @@ class dgScopeSpinPause
 	{
 		while (dgInterlockedExchange(m_atomicLock, 1)) {
 			//DG_TRACKTIME_NAMED("pause");
-			_mm_pause();
+			dgThreadPause();
 		}
 	}
 
