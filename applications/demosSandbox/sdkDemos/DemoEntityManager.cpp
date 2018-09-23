@@ -31,11 +31,11 @@
 #define MAX_PHYSICS_SUB_STEPS		2
 #define PROJECTILE_INITIAL_SPEED	20.0f
 
-#define DEFAULT_SCENE	0			// using NetwonMesh Tool
+//#define DEFAULT_SCENE	0			// using NetwonMesh Tool
 //#define DEFAULT_SCENE	1			// Coefficients of friction
 //#define DEFAULT_SCENE	2			// Coefficients of restitution
 //#define DEFAULT_SCENE	3			// gyroscope precession
-//#define DEFAULT_SCENE	4			// closest distance
+#define DEFAULT_SCENE	4			// closest distance
 //#define DEFAULT_SCENE	5			// primitive collision
 //#define DEFAULT_SCENE	6 			// Kinematic bodies
 //#define DEFAULT_SCENE	7			// primitive convex cast 
@@ -239,6 +239,7 @@ DemoEntityManager::DemoEntityManager ()
 	,m_hideVisualMeshes(false)
 	,m_showNormalForces(false)
 	,m_showCenterOfMass(false)
+	,m_showBodyFrame(false)
 	,m_updateMenuOptions(true)
 	,m_showContactPoints(false)
 	,m_showJointDebugInfo(false)
@@ -755,6 +756,7 @@ void DemoEntityManager::ShowMainMenuBar()
 			ImGui::Checkbox("Show contact points", &m_showContactPoints);
 			ImGui::Checkbox("Show normal forces", &m_showNormalForces);
 			ImGui::Checkbox("Show center of mass", &m_showCenterOfMass);
+			ImGui::Checkbox("Show body frame", &m_showBodyFrame);
 			ImGui::Checkbox("show Joint debug info", &m_showJointDebugInfo);
 			ImGui::Checkbox("show colliding faces", &m_showCollidingFaces);
 			ImGui::Separator();
@@ -1434,6 +1436,10 @@ void DemoEntityManager::RenderScene()
 
 	if (m_showContactPoints) {
 		RenderContactPoints (m_world);
+	}
+
+	if (m_showBodyFrame) {
+		RenderBodyFrame(m_world);
 	}
 
 	if (m_showCenterOfMass) {
