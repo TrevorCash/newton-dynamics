@@ -415,30 +415,30 @@ for (dgFractureConectivity::dgListNode* node = m_conectivity.GetFirst(); node; n
 
 	bool ArePlaneCoplanar (dgMeshEffect* const meshA, void* faceA, const dgBigVector& planeA, dgMeshEffect* const meshB, void* faceB, const dgBigVector& planeB) const
 	{
-		if ((planeA.DotProduct3(planeB) < dgFloat64 (-1.0 + 1.0e-6f)) && ((fabs(planeA.m_w + planeB.m_w) < dgFloat64(1.0e-6f)))) {
-			const dgBigVector* const pointsA = (dgBigVector*) meshA->GetVertexPool();
-			const dgBigVector* const pointsB = (dgBigVector*) meshB->GetVertexPool();
+		if ((planeA.DotProduct(planeB & dgBigVector::m_triplexMask).GetScalar() < dgFloat64(-1.0 + 1.0e-6f)) && ((fabs(planeA.m_w + planeB.m_w) < dgFloat64(1.0e-6f)))) {
+			const dgBigVector* const pointsA = (dgBigVector*)meshA->GetVertexPool();
+			const dgBigVector* const pointsB = (dgBigVector*)meshB->GetVertexPool();
 
 			dgInt32 indexA[128];
 			dgInt32 indexB[128];
 
 			dgInt32 indexCountA = meshA->GetFaceIndexCount(faceA);
 			dgInt32 indexCountB = meshB->GetFaceIndexCount(faceB);
-			dgAssert (indexCountA < sizeof (indexA)/ sizeof(indexA[0]));
-			dgAssert (indexCountB < sizeof (indexB)/ sizeof(indexB[0]));
+			dgAssert(indexCountA < sizeof (indexA) / sizeof(indexA[0]));
+			dgAssert(indexCountB < sizeof (indexB) / sizeof(indexB[0]));
 
 			meshA->GetFaceIndex(faceA, indexA);
 			meshA->GetFaceIndex(faceB, indexB);
 
-//dgTrace (("faceA:\n"));
+			//dgTrace (("faceA:\n"));
 			dgPerimenterEdge subdivision[256];
-			dgAssert ((2 * (indexCountA + indexCountB)) < dgInt32 (sizeof (subdivision) / sizeof (subdivision[0])));
-			for (dgInt32 i = 1; i < indexCountB; i ++) {
+			dgAssert((2 * (indexCountA + indexCountB)) < dgInt32(sizeof (subdivision) / sizeof (subdivision[0])));
+			for (dgInt32 i = 1; i < indexCountB; i++) {
 				subdivision[i].m_vertex = &pointsB[indexB[i]];
 				subdivision[i].m_prev = &subdivision[i - 1];
 				subdivision[i].m_next = &subdivision[i + 1];
 
-//dgTrace (("%f %f %f\n", pointsB[indexB[i]].m_x, pointsB[indexB[i]].m_y, pointsB[indexB[i]].m_z));
+				//dgTrace (("%f %f %f\n", pointsB[indexB[i]].m_x, pointsB[indexB[i]].m_y, pointsB[indexB[i]].m_z));
 			}
 			subdivision[0].m_vertex = &pointsB[indexB[0]];
 			subdivision[0].m_next = &subdivision[1];
@@ -446,7 +446,7 @@ for (dgFractureConectivity::dgListNode* node = m_conectivity.GetFirst(); node; n
 
 			subdivision[indexCountB - 1].m_next = &subdivision[0];
 
-            dgInt32 edgeIndex = indexCountB;
+			dgInt32 edgeIndex = indexCountB;
 
 			dgBigVector outputPool[128];
 			dgPerimenterEdge* edgeClipped[2];
@@ -454,63 +454,66 @@ for (dgFractureConectivity::dgListNode* node = m_conectivity.GetFirst(); node; n
 			edgeClipped[0] = NULL;
 			edgeClipped[1] = NULL;
 
-//dgTrace (("faceB:\n"));
+			//dgTrace (("faceB:\n"));
 			dgPerimenterEdge* poly = &subdivision[0];
 			dgInt32 i0 = indexCountA - 1;
-			for (dgInt32 i1 = 0; i1 < indexCountA; i1 ++) {
-                const dgBigVector& q0 = pointsA[indexA[i0]];
-                const dgBigVector& q1 = pointsA[indexA[i1]];
-				dgBigVector n (planeA.CrossProduct3(q1 - q0));
-				dgBigPlane plane (n, - n.DotProduct3(q0));
+			for (dgInt32 i1 = 0; i1 < indexCountA; i1++) {
+				const dgBigVector& q0 = pointsA[indexA[i0]];
+				const dgBigVector& q1 = pointsA[indexA[i1]];
+				dgBigVector n(planeA.CrossProduct(q1 - q0));
+				dgAssert(n.m_w == dgFloat32(0.0f));
+				dgBigPlane plane(n, -n.DotProduct(q0).GetScalar());
 				i0 = i1;
-//dgTrace (("%f %f %f\n", q0.m_x, q0.m_y, q0.m_z));
+				//dgTrace (("%f %f %f\n", q0.m_x, q0.m_y, q0.m_z));
 
 				dgInt32 count = 0;
 				dgPerimenterEdge* tmp = poly;
 				dgInt32 isInside = 0;
-				dgFloat64 test0 = plane.Evalue (*tmp->m_vertex);
+				dgFloat64 test0 = plane.Evalue(*tmp->m_vertex);
 				do {
-					dgFloat64 test1 = plane.Evalue (*tmp->m_next->m_vertex);
-					if (test0 >= dgFloat32 (0.0f)) {
+					dgFloat64 test1 = plane.Evalue(*tmp->m_next->m_vertex);
+					if (test0 >= dgFloat32(0.0f)) {
 						isInside |= 1;
-						if (test1 < dgFloat32 (0.0f)) {
+						if (test1 < dgFloat32(0.0f)) {
 							const dgBigVector& p0 = *tmp->m_vertex;
 							const dgBigVector& p1 = *tmp->m_next->m_vertex;
 
-							dgBigVector dp (p1 - p0); 
-							dgFloat64 den = plane.DotProduct3(dp);
-							if (fabs(den) < dgFloat32 (1.0e-24f)) {
-								den = (den >= dgFloat32 (0.0f)) ?  dgFloat32 (1.0e-24f) :  dgFloat32 (-1.0e-24f);
+							dgBigVector dp(p1 - p0);
+							dgAssert(dp.m_w == dgFloat32(0.0f));
+							dgFloat64 den = plane.DotProduct(dp).GetScalar();
+							if (fabs(den) < dgFloat32(1.0e-24f)) {
+								den = (den >= dgFloat32(0.0f)) ? dgFloat32(1.0e-24f) : dgFloat32(-1.0e-24f);
 							}
 
 							den = test0 / den;
-							if (den >= dgFloat32 (0.0f)) {
-								den = dgFloat32 (0.0f);
+							if (den >= dgFloat32(0.0f)) {
+								den = dgFloat32(0.0f);
 							} else if (den <= -1.0f) {
-								den = dgFloat32 (-1.0f);
+								den = dgFloat32(-1.0f);
 							}
-							output[0] = p0 - dp.Scale3 (den);
+							output[0] = p0 - dp.Scale(den);
 							edgeClipped[0] = tmp;
-							count ++;
+							count++;
 						}
-					} else if (test1 >= dgFloat32 (0.0f)) {
+					} else if (test1 >= dgFloat32(0.0f)) {
 						const dgBigVector& p0 = *tmp->m_vertex;
 						const dgBigVector& p1 = *tmp->m_next->m_vertex;
 						isInside |= 1;
-						dgBigVector dp (p1 - p0); 
-						dgFloat64 den = plane.DotProduct3(dp);
-						if (fabs(den) < dgFloat32 (1.0e-24f)) {
-							den = (den >= dgFloat32 (0.0f)) ?  dgFloat32 (1.0e-24f) :  dgFloat32 (-1.0e-24f);
+						dgBigVector dp(p1 - p0);
+						dgAssert(dp.m_w == dgFloat32(0.0f));
+						dgFloat64 den = plane.DotProduct(dp).GetScalar();
+						if (fabs(den) < dgFloat32(1.0e-24f)) {
+							den = (den >= dgFloat32(0.0f)) ? dgFloat32(1.0e-24f) : dgFloat32(-1.0e-24f);
 						}
 						den = test0 / den;
-						if (den >= dgFloat32 (0.0f)) {
-							den = dgFloat32 (0.0f);
+						if (den >= dgFloat32(0.0f)) {
+							den = dgFloat32(0.0f);
 						} else if (den <= -1.0f) {
-							den = dgFloat32 (-1.0f);
+							den = dgFloat32(-1.0f);
 						}
-						output[1] = p0 - dp.Scale3 (den);
+						output[1] = p0 - dp.Scale(den);
 						edgeClipped[1] = tmp;
-						count ++;
+						count++;
 					}
 					test0 = test1;
 					tmp = tmp->m_next;
@@ -532,71 +535,71 @@ for (dgFractureConectivity::dgListNode* node = m_conectivity.GetFirst(); node; n
 					poly = newEdge;
 
 					output += 2;
-					edgeIndex ++;
-					dgAssert (edgeIndex < dgInt32 (sizeof (subdivision) / sizeof (subdivision[0])));
+					edgeIndex++;
+					dgAssert(edgeIndex < dgInt32(sizeof (subdivision) / sizeof (subdivision[0])));
 				}
 			}
-//dgTrace (("\n"));
-			dgAssert (poly);
-            dgBigVector area(dgFloat32 (0.0f));
-            dgBigVector r0 (*poly->m_vertex);
-            dgBigVector r1 (*poly->m_next->m_vertex);
-            dgBigVector r1r0 (r1 - r0);
-            dgPerimenterEdge* polyPtr = poly->m_next->m_next;
-            do {
-                dgBigVector r2 (*polyPtr->m_vertex);
-                dgBigVector r2r0 (r2 - r0);
-                area += r2r0.CrossProduct3(r1r0);
-                r1r0 = r2r0;
-                polyPtr = polyPtr->m_next;
-            } while (polyPtr != poly);
-            return fabs (area.DotProduct3(planeA)) > dgFloat32 (1.0e-5f);
+			//dgTrace (("\n"));
+			dgAssert(poly);
+			dgBigVector area(dgFloat32(0.0f));
+			dgBigVector r0(*poly->m_vertex);
+			dgBigVector r1(*poly->m_next->m_vertex);
+			dgBigVector r1r0(r1 - r0);
+			dgPerimenterEdge* polyPtr = poly->m_next->m_next;
+			do {
+				dgBigVector r2(*polyPtr->m_vertex);
+				dgBigVector r2r0(r2 - r0);
+				area += r2r0.CrossProduct(r1r0);
+				r1r0 = r2r0;
+				polyPtr = polyPtr->m_next;
+			} while (polyPtr != poly);
+			dgAssert(area.m_w == dgFloat32(0.0f));
+			return fabs(area.DotProduct(planeA).GetScalar()) > dgFloat32(1.0e-5f);
 		}
 
 		return false;
 	}
 
-
     bool AreSolidNeigborg (int indexA, int indexB) const
     {
-        dgMeshEffect* const meshA = Find(indexA)->GetInfo();
-        dgMeshEffect* const meshB = Find(indexB)->GetInfo();
+		dgMeshEffect* const meshA = Find(indexA)->GetInfo();
+		dgMeshEffect* const meshB = Find(indexB)->GetInfo();
 
-        const dgBigVector* const pointsA = (dgBigVector*) meshA->GetVertexPool();
-        const dgBigVector* const pointsB = (dgBigVector*) meshB->GetVertexPool();
+		const dgBigVector* const pointsA = (dgBigVector*)meshA->GetVertexPool();
+		const dgBigVector* const pointsB = (dgBigVector*)meshB->GetVertexPool();
 
-        dgBigVector planeB_array[512];
+		dgBigVector planeB_array[512];
 
-        dgInt32 planeB_Count = 0;
-        for (void* faceB = meshB->GetFirstFace(); faceB; faceB = meshB->GetNextFace(faceB)) {
-            if (!meshB->IsFaceOpen (faceB)) {
-				dgInt32 vertexIndexB = meshB->GetVertexIndex (faceB);
-				dgBigVector planeB (meshB->CalculateFaceNormal (faceB));
-				planeB.m_w = -planeB.DotProduct3(pointsB[vertexIndexB]);
+		dgInt32 planeB_Count = 0;
+		for (void* faceB = meshB->GetFirstFace(); faceB; faceB = meshB->GetNextFace(faceB)) {
+			if (!meshB->IsFaceOpen(faceB)) {
+				dgInt32 vertexIndexB = meshB->GetVertexIndex(faceB);
+				dgBigVector planeB(meshB->CalculateFaceNormal(faceB));
+				planeB.m_w = -planeB.DotProduct(pointsB[vertexIndexB]).GetScalar();
 				planeB_array[planeB_Count] = planeB;
-				planeB_Count ++;
-				dgAssert (planeB_Count < sizeof (planeB_array) / sizeof (planeB_array[0]));
+				planeB_Count++;
+				dgAssert(planeB_Count < sizeof (planeB_array) / sizeof (planeB_array[0]));
 			}
-        }
+		}
 
-        for (void* faceA = meshA->GetFirstFace(); faceA; faceA = meshA->GetNextFace(faceA)) {
-            if (!meshA->IsFaceOpen (faceA)) {
-				dgInt32 vertexIndexA = meshA->GetVertexIndex (faceA);
-				dgBigVector planeA (meshA->CalculateFaceNormal (faceA));
-				planeA.m_w = - planeA.DotProduct3(pointsA[vertexIndexA]);
+		for (void* faceA = meshA->GetFirstFace(); faceA; faceA = meshA->GetNextFace(faceA)) {
+			if (!meshA->IsFaceOpen(faceA)) {
+				dgInt32 vertexIndexA = meshA->GetVertexIndex(faceA);
+				dgBigVector planeA(meshA->CalculateFaceNormal(faceA));
+				planeA.m_w = -planeA.DotProduct(pointsA[vertexIndexA]).GetScalar();
 
 				dgInt32 index = 0;
 				for (void* faceB = meshB->GetFirstFace(); faceB; faceB = meshB->GetNextFace(faceB)) {
-					if (!meshB->IsFaceOpen (faceB)) {
-						if (ArePlaneCoplanar (meshA, faceA, planeA, meshB, faceB, planeB_array[index])) {
+					if (!meshB->IsFaceOpen(faceB)) {
+						if (ArePlaneCoplanar(meshA, faceA, planeA, meshB, faceB, planeB_array[index])) {
 							return true;
 						}
-						index ++;
+						index++;
 					}
 				}
 			}
-        }
-        return false;
+		}
+		return false;
     }
 
     void ClipFractureParts (dgMeshEffect* const solidMesh)
@@ -1275,8 +1278,8 @@ dgInt32 dgCollisionCompoundFractured::CalculateContacts (dgBroadPhase::dgPair* c
 		dgBody* const otherBody = constraint->GetBody1();
 		dgVector relVeloc (otherBody->GetVelocity() - myBody->GetVelocity());
 		dgAssert (relVeloc.m_w == dgFloat32 (0.0f));
-		dgVector impulseStimate (relVeloc.Scale4 (dgFloat32 (1.0f) / (myBody->GetInvMass().m_w + otherBody->GetInvMass().m_w))); 
-		dgFloat32 impulseStimate2 = impulseStimate.DotProduct4(impulseStimate).m_w;
+		dgVector impulseStimate (relVeloc.Scale (dgFloat32 (1.0f) / (myBody->GetInvMass().m_w + otherBody->GetInvMass().m_w))); 
+		dgFloat32 impulseStimate2 = impulseStimate.DotProduct(impulseStimate).m_w;
 		dgFloat32 impulseStrength = m_impulseStrengthPerUnitMass * myBody->GetMass().m_w;
 
 		if (impulseStimate2 > (impulseStrength * impulseStrength)) {
@@ -1389,7 +1392,7 @@ bool dgCollisionCompoundFractured::CanChunk (dgConectivityGraph::dgListNode* con
 	dgVector error (dgFloat32 (1.0e-3f));
 	dgVector himespherePlane (directionsMap[0]);
 	for (dgInt32 i = 1; i < count; i ++) {
-		dgVector projection (himespherePlane.DotProduct4(directionsMap[i]));
+		dgVector projection (himespherePlane.DotProduct(directionsMap[i]));
 		dgInt32 sign = (projection < error).GetSignMask();
 		if (sign & 0x0f) {
 //			dgFloat32 val;
@@ -1397,13 +1400,13 @@ bool dgCollisionCompoundFractured::CanChunk (dgConectivityGraph::dgListNode* con
 			dgFloat32 val = projection.GetScalar();
 			dgAssert (val > dgFloat32 (-1.0f));
 			dgFloat32 angle = dgAcos (val) - dgFloat32 (90.0f * dgDEG2RAD) + dgFloat32 (15.0f * dgDEG2RAD);
-			dgVector axis (himespherePlane.CrossProduct3(directionsMap[i]));
+			dgVector axis (himespherePlane.CrossProduct(directionsMap[i]));
 			axis = axis.Normalize();
 			dgQuaternion rot (axis, angle);
 			himespherePlane = dgMatrix (rot, dgVector::m_wOne).RotateVector(himespherePlane);
 
 			for (dgInt32 j = 0; j < i; j ++) {
-				dgVector projection1 (himespherePlane.DotProduct4(directionsMap[j]));
+				dgVector projection1 (himespherePlane.DotProduct(directionsMap[j]));
 				dgInt32 sign1 = (projection1 < error).GetSignMask();
 				if (sign1 & 0x0f) {
 					return false;
@@ -1427,7 +1430,7 @@ bool dgCollisionCompoundFractured::IsBelowPlane (dgConectivityGraph::dgListNode*
 	const dgMatrix& matrix = instance->GetLocalMatrix(); 
 	dgVector support (matrix.TransformVector(instance->SupportVertex(matrix.UnrotateVector(dir))));
 
-	dgFloat32 dist = (support.DotProduct4(plane)).GetScalar();
+	dgFloat32 dist = (support.DotProduct(plane)).GetScalar();
 	return dist < dgFloat32 (0.0f);
 }
 
@@ -1441,7 +1444,7 @@ bool dgCollisionCompoundFractured::IsAbovePlane (dgConectivityGraph::dgListNode*
 	const dgMatrix& matrix = instance->GetLocalMatrix(); 
 	dgVector support (matrix.TransformVector(instance->SupportVertex(matrix.UnrotateVector(dir))));
 
-	dgFloat32 dist = (support.DotProduct4(plane)).GetScalar();
+	dgFloat32 dist = (support.DotProduct(plane)).GetScalar();
 	return dist > dgFloat32 (0.0f);
 }
 
@@ -1455,7 +1458,7 @@ dgCollisionCompoundFractured::dgConectivityGraph::dgListNode* dgCollisionCompoun
 	const dgMatrix& matrix = instance->GetLocalMatrix(); 
 	dgVector support (matrix.TransformVector(instance->SupportVertex(matrix.UnrotateVector(dir))));
 
-	dgFloat32 dist = (support.DotProduct4(plane)).GetScalar();
+	dgFloat32 dist = (support.DotProduct(plane)).GetScalar();
 	dgAssert (dist < dgFloat32 (0.0f));
 
 	dgConectivityGraph::dgListNode* startNode = nodeBelowPlane;
@@ -1468,7 +1471,7 @@ dgCollisionCompoundFractured::dgConectivityGraph::dgListNode* dgCollisionCompoun
 
 			const dgMatrix& matrix1 = instance1->GetLocalMatrix(); 
 			dgVector support1 (matrix1.TransformVector(instance1->SupportVertex(matrix1.UnrotateVector(dir))));
-			dgFloat32 dist1 = (support1.DotProduct4(plane)).GetScalar();
+			dgFloat32 dist1 = (support1.DotProduct(plane)).GetScalar();
 			if (dist1 > dist) {
 				dist = dist1;
 				foundBetterNode = true;
@@ -1522,7 +1525,7 @@ dgCollisionCompoundFractured* dgCollisionCompoundFractured::PlaneClip (const dgV
 						const dgMatrix& matrix = instance->GetLocalMatrix(); 
 
 						dgVector support (matrix.TransformVector(instance->SupportVertex(matrix.UnrotateVector(negDir))));
-						dgFloat32 dist = (support.DotProduct4(plane)).GetScalar();
+						dgFloat32 dist = (support.DotProduct(plane)).GetScalar();
 						if (dist > dgFloat32 (0.0f)) {
 							upperSide.Insert(node, node);
 							planeNode->GetInfo().DeleteEdge (edgeNode);
@@ -1542,7 +1545,7 @@ dgCollisionCompoundFractured* dgCollisionCompoundFractured::PlaneClip (const dgV
 
 						} else {
 							dgVector support1 (matrix.TransformVector(instance->SupportVertex(matrix.UnrotateVector(posgDir))));
-							dgFloat32 dist1 = (support1.DotProduct4(plane)).GetScalar();
+							dgFloat32 dist1 = (support1.DotProduct(plane)).GetScalar();
 							if (dist1 > dgFloat32 (0.0f)) {
 								pool[stack] = node;
 								stack ++;
@@ -1686,7 +1689,7 @@ void dgCollisionCompoundFractured::SpawnSingleChunk (dgBody* const myBody, const
 
 	// calculate debris initial velocity
 	dgVector chunkOrigin (matrix.TransformVector(chunkCollision->GetLocalMatrix().m_posit));
-	dgVector chunkVeloc (veloc + omega.CrossProduct3(chunkOrigin - com));
+	dgVector chunkVeloc (veloc + omega.CrossProduct(chunkOrigin - com));
 
 	chunkBody->SetOmega(omega);
 	chunkBody->SetVelocity(chunkVeloc);
@@ -1745,7 +1748,7 @@ void dgCollisionCompoundFractured::SpawnComplexChunk (dgBody* const myBody, cons
 
 	// calculate debris initial velocity
 	dgVector chunkOrigin (matrix.TransformVector(childStructureInstance->GetLocalMatrix().m_posit));
-	dgVector chunkVeloc (veloc + omega.CrossProduct3(chunkOrigin - com));
+	dgVector chunkVeloc (veloc + omega.CrossProduct(chunkOrigin - com));
 
 	chunkBody->SetOmega(omega);
 	chunkBody->SetVelocity(chunkVeloc);

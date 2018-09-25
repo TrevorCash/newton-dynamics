@@ -87,9 +87,9 @@ DG_INLINE dgPlane::dgPlane (const dgVector &normal, dgFloat32 distance)
 }
 
 DG_INLINE dgPlane::dgPlane (const dgVector &P0, const dgVector &P1, const dgVector &P2)
-	:dgVector ((P1 - P0).CrossProduct3(P2 - P0)) 
+	:dgVector ((P1 - P0).CrossProduct(P2 - P0)) 
 {
-	m_w = - DotProduct3(P0);
+	m_w = - DotProduct(P0 & dgVector::m_triplexMask).GetScalar();
 }
 
 DG_INLINE dgPlane dgPlane::Scale (dgFloat32 s)	const
@@ -100,12 +100,12 @@ DG_INLINE dgPlane dgPlane::Scale (dgFloat32 s)	const
 
 DG_INLINE dgFloat32 dgPlane::Evalue (const dgFloat32* const point) const
 {
-	return DotProduct4 (dgVector (point) | m_wOne).GetScalar();
+	return DotProduct (dgVector (point) | m_wOne).GetScalar();
 }
 
 DG_INLINE dgFloat32 dgPlane::Evalue (const dgVector& point) const
 {
-	return DotProduct4 ((point & m_triplexMask) | m_wOne).GetScalar();
+	return DotProduct ((point & m_triplexMask) | m_wOne).GetScalar();
 }
 #endif
 
@@ -132,7 +132,7 @@ DG_INLINE dgBigPlane::dgBigPlane (const dgBigVector &normal, dgFloat64 distance)
 }
 
 DG_INLINE dgBigPlane::dgBigPlane (const dgBigVector &P0, const dgBigVector &P1, const dgBigVector &P2)
-	:dgBigVector ((P1 - P0).CrossProduct3(P2 - P0)) 
+	:dgBigVector ((P1 - P0).CrossProduct(P2 - P0)) 
 {
 	m_w = - DotProduct3(P0);
 }

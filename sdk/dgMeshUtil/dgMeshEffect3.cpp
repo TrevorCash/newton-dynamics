@@ -147,7 +147,7 @@ class dgHACDClusterGraph: public dgGraph<dgHACDCluster, dgHACDEdge>
 			pool[0][2] = points[i2];
 
 			const dgFloat64 rayLength = dgFloat64(4.0f) * GetDiagonal();
-			const dgBigVector step(normal.Scale3(rayLength));
+			const dgBigVector step(normal.Scale(rayLength));
 
 			dgFloat64 concavity = dgFloat32(0.0f);
 			dgFloat64 minArea = dgFloat32(0.125f);
@@ -168,14 +168,14 @@ class dgHACDClusterGraph: public dgGraph<dgHACDCluster, dgHACDEdge>
 
 				tail = (tail + 1) & mask;
 
-				dgBigVector q1((p0 + p1 + p2).Scale3(dgFloat64(1.0f / 3.0f)));
+				dgBigVector q1((p0 + p1 + p2).Scale(dgFloat64(1.0f / 3.0f)));
 				dgBigVector q0(q1 + step);
 
 				dgFloat64 param = RayCast(q0, q1, &firstGuess);
 				if (param > dgFloat64(1.0f)) {
 					param = dgFloat64(1.0f);
 				}
-				dgBigVector dq(step.Scale3(dgFloat32(1.0f) - param));
+				dgBigVector dq(step.Scale(dgFloat32(1.0f) - param));
 				dgFloat64 lenght2 = sqrt (dq.DotProduct3(dq));
 				if (lenght2 > concavity) {
 					concavity = lenght2;
@@ -184,12 +184,12 @@ class dgHACDClusterGraph: public dgGraph<dgHACDCluster, dgHACDEdge>
 				if (((head + 1) & mask) != tail) {
 					dgBigVector edge10(p1 - p0);
 					dgBigVector edge20(p2 - p0);
-					dgBigVector n(edge10.CrossProduct3(edge20));
+					dgBigVector n(edge10.CrossProduct(edge20));
 					dgFloat64 area2 = n.DotProduct3(n);
 					if (area2 > minArea2) {
-						dgBigVector p01((p0 + p1).Scale3(dgFloat64(0.5f)));
-						dgBigVector p12((p1 + p2).Scale3(dgFloat64(0.5f)));
-						dgBigVector p20((p2 + p0).Scale3(dgFloat64(0.5f)));
+						dgBigVector p01((p0 + p1).Scale(dgFloat64(0.5f)));
+						dgBigVector p12((p1 + p2).Scale(dgFloat64(0.5f)));
+						dgBigVector p20((p2 + p0).Scale(dgFloat64(0.5f)));
 
 						pool[head][0] = p0;
 						pool[head][1] = p01;
@@ -224,7 +224,7 @@ class dgHACDClusterGraph: public dgGraph<dgHACDCluster, dgHACDEdge>
 			dgInt32 i2 = face->m_index[2];
 
 			const dgBigVector& p0 = m_points[i0];
-			dgBigVector normal ((m_points[i1] - p0).CrossProduct3(m_points[i2] - p0));
+			dgBigVector normal ((m_points[i1] - p0).CrossProduct(m_points[i2] - p0));
 
 			//dgFloat64 N = (origin - p0) % normal;
 			dgFloat64 N = normal.DotProduct3(origin - p0);
@@ -571,14 +571,14 @@ class dgHACDClusterGraph: public dgGraph<dgHACDCluster, dgHACDEdge>
 
 		void CastBackFace (dgListNode* const clusterNodeA, const dgBigVector& p0, const dgBigVector& p1, const dgBigVector& p2, dgFloat32 distanceThreshold)
 		{
-			dgBigVector origin ((p0 + p1 + p2).Scale3 (dgFloat32 (1.0f/3.0f)));
+			dgBigVector origin ((p0 + p1 + p2).Scale (dgFloat32 (1.0f/3.0f)));
 
 			dgFloat32 rayDistance = distanceThreshold * dgFloat32 (2.0f);
 
 
 			m_clusterA = &clusterNodeA->GetInfo().m_nodeData;
 			dgHACDClusterFace& faceA = m_clusterA->GetFirst()->GetInfo();
-			dgBigVector end (origin - faceA.m_normal.Scale3 (rayDistance));
+			dgBigVector end (origin - faceA.m_normal.Scale (rayDistance));
 
 			dgAssert (0);
 /*
@@ -713,7 +713,7 @@ class dgHACDClusterGraph: public dgGraph<dgHACDCluster, dgHACDEdge>
 				dgHACDClusterFace& face = cluster.Append()->GetInfo();
 				face.m_edge = edge;
 				face.m_area = dgFloat64(0.5f) * mag;
-				face.m_normal = normal.Scale3(dgFloat64(1.0f) / mag);
+				face.m_normal = normal.Scale(dgFloat64(1.0f) / mag);
 
 				m_concavityTreeArray[color] = new (allocator) dgHACDConvacityLookAheadTree (allocator, edge, dgFloat64 (0.0f));
 
@@ -775,9 +775,9 @@ class dgHACDClusterGraph: public dgGraph<dgHACDCluster, dgHACDEdge>
 			ptr = ptr->m_next->m_next;
 			do {
 				dgBigVector p2 (points[ptr->m_incidentVertex]);
-				dgBigVector p01 ((p0 + p1).Scale3 (dgFloat32 (0.5f)));
-				dgBigVector p12 ((p1 + p2).Scale3 (dgFloat32 (0.5f)));
-				dgBigVector p20 ((p2 + p0).Scale3 (dgFloat32 (0.5f)));
+				dgBigVector p01 ((p0 + p1).Scale (dgFloat32 (0.5f)));
+				dgBigVector p12 ((p1 + p2).Scale (dgFloat32 (0.5f)));
+				dgBigVector p20 ((p2 + p0).Scale (dgFloat32 (0.5f)));
 
 				backFaces.CastBackFace (clusterNodeA, p0, p01, p20, distanceThreshold);
 				backFaces.CastBackFace (clusterNodeA, p1, p12, p01, distanceThreshold);

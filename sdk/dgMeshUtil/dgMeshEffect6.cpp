@@ -319,9 +319,9 @@ class dgTriangleAnglesToUV: public dgSymmetricBiconjugateGradientSolve
 			dgBigVector e20 (p2 - p0);
 			dgBigVector e12 (p2 - p1);
 
-			e10 = e10.Scale3 (dgFloat64 (1.0) / sqrt (e10.DotProduct3(e10)));
-			e20 = e20.Scale3 (dgFloat64 (1.0) / sqrt (e20.DotProduct3(e20)));
-			e12 = e20.Scale3 (dgFloat64 (1.0) / sqrt (e12.DotProduct3(e12)));
+			e10 = e10.Scale (dgFloat64 (1.0) / sqrt (e10.DotProduct3(e10)));
+			e20 = e20.Scale (dgFloat64 (1.0) / sqrt (e20.DotProduct3(e20)));
+			e12 = e20.Scale (dgFloat64 (1.0) / sqrt (e12.DotProduct3(e12)));
 
 			m_triangleAngles[i * 3 + 0] = acos (dgClamp(e10.DotProduct3(e20), dgFloat64 (-1.0f), dgFloat64 (1.0f)));
 			m_triangleAngles[i * 3 + 1] = acos (dgClamp(e10.DotProduct3(e20), dgFloat64 (-1.0f), dgFloat64 (1.0f)));
@@ -1057,8 +1057,8 @@ dgAssert (0);
 			dgBigVector e10 (p1 - p0);
 			dgBigVector e20 (p2 - p0);
 
-			e10 = e10.Scale3 (dgFloat64 (1.0) / sqrt (e10.DotProduct3(e10)));
-			e20 = e20.Scale3 (dgFloat64 (1.0) / sqrt (e20.DotProduct3(e20)));
+			e10 = e10.Scale (dgFloat64 (1.0) / sqrt (e10.DotProduct3(e10)));
+			e20 = e20.Scale (dgFloat64 (1.0) / sqrt (e20.DotProduct3(e20)));
 
 			m_beta[i] = acos (dgClamp(e10.DotProduct3(e20), dgFloat64 (-1.0f), dgFloat64 (1.0f)));
 			dgAssert (m_beta[i] > dgFloat64 (0.0f));
@@ -1456,7 +1456,7 @@ dgBigVector dgMeshEffect::GetOrigin ()const
     for (dgInt32 i = 0; i < m_points.m_vertex.m_count; i ++) {
         origin += m_points.m_vertex[i];
     }	
-    return origin.Scale3 (dgFloat64 (1.0f) / m_points.m_vertex.m_count);
+    return origin.Scale (dgFloat64 (1.0f) / m_points.m_vertex.m_count);
 }
 
 /*
@@ -1512,7 +1512,7 @@ void dgMeshEffect::CalculateNormals (dgFloat64 angleInRadians)
             do {
                 dgVector normal (FaceNormal (edgePtr, &m_points.m_vertex[0].m_x, sizeof (dgBigVector)));
 				dgAssert (normal.m_w == dgFloat32 (0.0f));
-                normal = normal.Scale4 (dgFloat32 (1.0f) / dgFloat32 (sqrt(normal.DotProduct3(normal)) + dgFloat32(1.0e-16f)));
+                normal = normal.Scale (dgFloat32 (1.0f) / dgFloat32 (sqrt(normal.DotProduct3(normal)) + dgFloat32(1.0e-16f)));
                 faceNormal[edgeIndex] = normal;
                 normalsMap.Insert(edgeIndex, edgePtr);
                 edgeIndex ++;
@@ -1547,7 +1547,7 @@ void dgMeshEffect::CalculateNormals (dgFloat64 angleInRadians)
                 normal0 = normal1;
             } 
 
-            normal = normal.Scale3 (dgFloat32 (1.0f) / dgFloat32(sqrt(normal.DotProduct3(normal)) + dgFloat32(1.0e-16f)));
+            normal = normal.Scale (dgFloat32 (1.0f) / dgFloat32(sqrt(normal.DotProduct3(normal)) + dgFloat32(1.0e-16f)));
 			dgTriplex n;
 			n.m_x = normal.m_x;
 			n.m_y = normal.m_y;
@@ -1568,8 +1568,9 @@ void dgMeshEffect::SphericalMapping (dgInt32 material, const dgMatrix& matrix)
     dgStack<dgBigVector>sphere (m_points.m_vertex.m_count);
     for (dgInt32 i = 0; i < m_points.m_vertex.m_count; i ++) {
 		dgBigVector point(matrix.RotateVector(m_points.m_vertex[i] - origin));
+		dgAssert(point.m_w == dgFloat32(0.0f));
 		dgAssert(point.DotProduct3(point) > dgFloat32(0.0f));
-		point = point.Scale3(dgFloat64(1.0f) / sqrt(point.DotProduct3(point)));
+		point = point.Normalize();
 
 		dgFloat64 u = dgAsin(dgClamp(point.m_x, dgFloat64(-1.0f + 1.0e-6f), dgFloat64(1.0f - 1.0e-6f)));
 		dgFloat64 v = dgAtan2(point.m_y, point.m_z);
@@ -1644,8 +1645,9 @@ void dgMeshEffect::CylindricalMapping (dgInt32 cylinderMaterial, dgInt32 capMate
         dgBigVector point (uvAligment.RotateVector (m_points.m_vertex[i] - origin));
         dgFloat64 u = (point.m_x - pMin.m_x) * scale.m_x;
 
-        dgAssert (point.DotProduct3(point) > dgFloat32 (0.0f));
-        point = point.Scale3 (dgFloat64 (1.0f) / sqrt (point.DotProduct3(point)));
+		dgAssert(point.m_w == dgFloat32(0.0f));
+        dgAssert(point.DotProduct3(point) > dgFloat32 (0.0f));
+        point = point.Normalize();
         dgFloat64 v = dgAtan2 (point.m_y, point.m_z);
 
         v = v + dgPI;
@@ -1700,7 +1702,7 @@ void dgMeshEffect::CylindricalMapping (dgInt32 cylinderMaterial, dgInt32 capMate
 			for (dgEdge* ptr = edge->m_next; ptr != edge; ptr = ptr->m_next) {
 				dgVector p2(uvAligment.RotateVector(m_points.m_vertex[ptr->m_next->m_incidentVertex] - origin));
 				dgBigVector e2(p2 - p0);
-				normal += e1.CrossProduct3(e2);
+				normal += e1.CrossProduct(e2);
 				e1 = e2;
 			}
 			normal = normal.Normalize();
@@ -1764,7 +1766,7 @@ void dgMeshEffect::BoxMapping (dgInt32 front, dgInt32 side, dgInt32 top)
 
             dgBigVector e0 (p1 - p0);
             dgBigVector e1 (p2 - p0);
-            dgBigVector n (e0.CrossProduct3(e1));
+            dgBigVector n (e0.CrossProduct(e1));
 
             dgInt32 index = 0;
             dgFloat64 maxProjection = dgFloat32 (0.0f);
@@ -1819,7 +1821,7 @@ void dgMeshEffect::UniformBoxMapping (dgInt32 material, const dgMatrix& textureM
             dgEdge* const edge = &(*iter);
             if ((edge->m_mark < mark) && (edge->m_incidentFace > 0)) {
                 dgBigVector n (FaceNormal(edge, &m_points.m_vertex[0].m_x, sizeof (dgBigVector)));
-                dgVector normal (rotationMatrix.RotateVector(dgVector (n.Scale3 (dgFloat64 (1.0f) / sqrt (n.DotProduct3(n))))));
+                dgVector normal (rotationMatrix.RotateVector(dgVector (n.Normalize())));
                 normal.m_x = dgAbs (normal.m_x);
                 normal.m_y = dgAbs (normal.m_y);
                 normal.m_z = dgAbs (normal.m_z);

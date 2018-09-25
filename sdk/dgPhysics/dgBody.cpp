@@ -266,7 +266,7 @@ dgFloat32 dgBody::RayCast (const dgLineBox& line, OnRayCastAction filter, OnRayP
 {
 	dgAssert (filter);
 	dgVector l0 (line.m_l0);
-	dgVector l1 (line.m_l0 + (line.m_l1 - line.m_l0).Scale4 (dgMin(maxT, dgFloat32 (1.0f))));
+	dgVector l1 (line.m_l0 + (line.m_l1 - line.m_l0).Scale (dgMin(maxT, dgFloat32 (1.0f))));
 	if (dgRayBoxClip (l0, l1, m_minAABB, m_maxAABB)) {
 //	if (1) {
 //l0 = dgVector (-20.3125000f, 3.54991579f, 34.3441200f, 0.0f);
@@ -277,14 +277,16 @@ dgFloat32 dgBody::RayCast (const dgLineBox& line, OnRayCastAction filter, OnRayP
 		dgVector localP0 (globalMatrix.UntransformVector (l0));
 		dgVector localP1 (globalMatrix.UntransformVector (l1));
 		dgVector p1p0 (localP1 - localP0);
-		if (p1p0.DotProduct3(p1p0) > dgFloat32 (1.0e-12f)) {
+		dgAssert (p1p0.m_w == dgFloat32 (0.0f));
+		if (p1p0.DotProduct(p1p0).GetScalar() > dgFloat32 (1.0e-12f)) {
 			dgFloat32 t = m_collision->RayCast (localP0, localP1, dgFloat32 (1.0f), contactOut, preFilter, this, userData);
 			if (t < dgFloat32 (1.0f)) {
 				dgAssert (localP0.m_w == dgFloat32 (0.0f));
 				dgAssert (localP1.m_w == dgFloat32 (0.0f));
-				dgVector p (globalMatrix.TransformVector(localP0 + (localP1 - localP0).Scale4(t)));
+				dgVector p (globalMatrix.TransformVector(localP0 + (localP1 - localP0).Scale(t)));
 				dgVector l1l0 (line.m_l1 - line.m_l0);
-				t = l1l0.DotProduct3(p - line.m_l0) / l1l0.DotProduct3(l1l0);
+				dgAssert (l1l0.m_w == dgFloat32 (0.0f));
+				t = l1l0.DotProduct(p - line.m_l0).GetScalar() / l1l0.DotProduct(l1l0).GetScalar();
 				if (t < maxT) {
 					dgAssert (t >= dgFloat32 (0.0f));
 					dgAssert (t <= dgFloat32 (1.0f));
@@ -301,8 +303,8 @@ void dgBody::IntegrateVelocity (dgFloat32 timestep)
 {
 	dgAssert (m_veloc.m_w == dgFloat32 (0.0f));
 	dgAssert (m_omega.m_w == dgFloat32 (0.0f));
-	m_globalCentreOfMass += m_veloc.Scale4 (timestep); 
-	dgFloat32 omegaMag2 = m_omega.DotProduct4(m_omega).GetScalar();
+	m_globalCentreOfMass += m_veloc.Scale (timestep); 
+	dgFloat32 omegaMag2 = m_omega.DotProduct(m_omega).GetScalar();
 #ifdef _DEBUG
 	const dgFloat32 err = dgFloat32(90.0f * dgDEG2RAD);
 	const dgFloat32 err2 = err * err;
@@ -315,7 +317,7 @@ void dgBody::IntegrateVelocity (dgFloat32 timestep)
 	// this is correct
 	if (omegaMag2 > ((dgFloat32 (0.0125f) * dgDEG2RAD) * (dgFloat32 (0.0125f) * dgDEG2RAD))) {
 		dgFloat32 invOmegaMag = dgRsqrt (omegaMag2);
-		dgVector omegaAxis (m_omega.Scale4 (invOmegaMag));
+		dgVector omegaAxis (m_omega.Scale (invOmegaMag));
 		dgFloat32 omegaAngle = invOmegaMag * omegaMag2 * timestep;
 		dgQuaternion rotation (omegaAxis, omegaAngle);
 		m_rotation = m_rotation * rotation;
@@ -325,14 +327,7 @@ void dgBody::IntegrateVelocity (dgFloat32 timestep)
 
 	m_matrix.m_posit = m_globalCentreOfMass - m_matrix.RotateVector(m_localCentreOfMass);
 	dgAssert (m_matrix.TestOrthogonal());
-
-//if (m_uniqueID == 307) {
-//dgTrace(("w(%f %f %f)\n", m_omega[0], m_omega[1], m_omega[2]));
-//}
-//dgVector angularMomentum (CalculateAngularMomentum());
-//dgTrace(("E(%f) L(%f %f %f) W(%f %f %f)\n", m_omega.DotProduct3(angularMomentum), angularMomentum.m_x, angularMomentum.m_y, angularMomentum.m_z, m_omega.m_x, m_omega.m_y, m_omega.m_z));
 }
-
 
 dgVector dgBody::CalculateInverseDynamicForce (const dgVector& desiredVeloc, dgFloat32 timestep) const
 {
@@ -345,7 +340,7 @@ dgVector dgBody::CalculateInverseDynamicForce (const dgVector& desiredVeloc, dgF
 			massAccel *= (dgFloat32 (2.0f) * dgFloat32 (LINEAR_SOLVER_SUB_STEPS) / dgFloat32 (LINEAR_SOLVER_SUB_STEPS + 1));
 		} 
 	}
-	return (desiredVeloc - m_veloc).Scale4 (massAccel);
+	return (desiredVeloc - m_veloc).Scale (massAccel);
 */
 }
 
@@ -597,17 +592,17 @@ dgMatrix dgBody::CalculateInertiaMatrix () const
 	const dgVector Ixx(m_mass[0]);
 	const dgVector Iyy(m_mass[1]);
 	const dgVector Izz(m_mass[2]);
-	return dgMatrix (m_matrix.m_front.Scale4(m_matrix.m_front[0]) * Ixx +
-					 m_matrix.m_up.Scale4(m_matrix.m_up[0])		  * Iyy +
-					 m_matrix.m_right.Scale4(m_matrix.m_right[0]) * Izz,
+	return dgMatrix (m_matrix.m_front.Scale(m_matrix.m_front[0]) * Ixx +
+					 m_matrix.m_up.Scale(m_matrix.m_up[0])		  * Iyy +
+					 m_matrix.m_right.Scale(m_matrix.m_right[0]) * Izz,
 
-					 m_matrix.m_front.Scale4(m_matrix.m_front[1]) * Ixx +
-					 m_matrix.m_up.Scale4(m_matrix.m_up[1])       * Iyy +
-					 m_matrix.m_right.Scale4(m_matrix.m_right[1]) * Izz,
+					 m_matrix.m_front.Scale(m_matrix.m_front[1]) * Ixx +
+					 m_matrix.m_up.Scale(m_matrix.m_up[1])       * Iyy +
+					 m_matrix.m_right.Scale(m_matrix.m_right[1]) * Izz,
 
-					 m_matrix.m_front.Scale4(m_matrix.m_front[2]) * Ixx +
-					 m_matrix.m_up.Scale4(m_matrix.m_up[2])       * Iyy +
-					 m_matrix.m_right.Scale4(m_matrix.m_right[2]) * Izz,
+					 m_matrix.m_front.Scale(m_matrix.m_front[2]) * Ixx +
+					 m_matrix.m_up.Scale(m_matrix.m_up[2])       * Iyy +
+					 m_matrix.m_right.Scale(m_matrix.m_right[2]) * Izz,
 					 dgVector::m_wOne);
 #endif
 }
@@ -624,17 +619,17 @@ dgMatrix dgBody::CalculateInvInertiaMatrix () const
 	const dgVector invIxx(m_invMass[0]);
 	const dgVector invIyy(m_invMass[1]);
 	const dgVector invIzz(m_invMass[2]);
-	return dgMatrix(m_matrix.m_front.Scale4(m_matrix.m_front[0]) * invIxx +
-					m_matrix.m_up.Scale4(m_matrix.m_up[0])		 * invIyy +
-					m_matrix.m_right.Scale4(m_matrix.m_right[0]) * invIzz,
+	return dgMatrix(m_matrix.m_front.Scale(m_matrix.m_front[0]) * invIxx +
+					m_matrix.m_up.Scale(m_matrix.m_up[0])		 * invIyy +
+					m_matrix.m_right.Scale(m_matrix.m_right[0]) * invIzz,
 
-					m_matrix.m_front.Scale4(m_matrix.m_front[1]) * invIxx +
-					m_matrix.m_up.Scale4(m_matrix.m_up[1])		 * invIyy +
-					m_matrix.m_right.Scale4(m_matrix.m_right[1]) * invIzz,
+					m_matrix.m_front.Scale(m_matrix.m_front[1]) * invIxx +
+					m_matrix.m_up.Scale(m_matrix.m_up[1])		 * invIyy +
+					m_matrix.m_right.Scale(m_matrix.m_right[1]) * invIzz,
 
-					m_matrix.m_front.Scale4(m_matrix.m_front[2]) * invIxx +
-					m_matrix.m_up.Scale4(m_matrix.m_up[2])		 * invIyy +
-					m_matrix.m_right.Scale4(m_matrix.m_right[2]) * invIzz,
+					m_matrix.m_front.Scale(m_matrix.m_front[2]) * invIxx +
+					m_matrix.m_up.Scale(m_matrix.m_up[2])		 * invIyy +
+					m_matrix.m_right.Scale(m_matrix.m_right[2]) * invIzz,
 					dgVector::m_wOne);
 #endif
 }
@@ -693,8 +688,8 @@ void dgBody::AddImpulse (const dgVector& pointDeltaVeloc, const dgVector& pointP
 	// change of momentum
 	dgVector changeOfMomentum (contactMatrix.RotateVector (pointDeltaVeloc));
 
-	m_impulseForce += changeOfMomentum.Scale4(1.0f / timestep);
-	m_impulseTorque += globalContact.CrossProduct3(m_impulseForce);
+	m_impulseForce += changeOfMomentum.Scale(1.0f / timestep);
+	m_impulseTorque += globalContact.CrossProduct(m_impulseForce);
 
 	m_sleeping	= false;
 	m_equilibrium = false;
@@ -703,8 +698,8 @@ void dgBody::AddImpulse (const dgVector& pointDeltaVeloc, const dgVector& pointP
 
 void dgBody::ApplyImpulsePair (const dgVector& linearImpulseIn, const dgVector& angularImpulseIn, dgFloat32 timestep)
 {
-	m_impulseForce += linearImpulseIn.Scale4(1.0f / timestep);
-	m_impulseTorque += angularImpulseIn.Scale4(1.0f / timestep);
+	m_impulseForce += linearImpulseIn.Scale(1.0f / timestep);
+	m_impulseTorque += angularImpulseIn.Scale(1.0f / timestep);
 
 	m_sleeping	= false;
 	m_equilibrium = false;
@@ -725,14 +720,14 @@ void dgBody::ApplyImpulsesAtPoint (dgInt32 count, dgInt32 strideInBytes, const d
 		dgInt32 index = i * stride;
 		dgVector r (pointArray[index], pointArray[index + 1], pointArray[index + 2], dgFloat32 (0.0f));
 		dgVector L (impulseArray[index], impulseArray[index + 1], impulseArray[index + 2], dgFloat32 (0.0f));
-		dgVector Q ((r - com).CrossProduct3(L));
+		dgVector Q ((r - com).CrossProduct(L));
 
 		impulse += L;
 		angularImpulse += Q;
 	}
 
-	m_impulseForce += impulse.Scale4(1.0f / timestep);
-	m_impulseTorque += angularImpulse.Scale4(1.0f / timestep);
+	m_impulseForce += impulse.Scale(1.0f / timestep);
+	m_impulseTorque += angularImpulse.Scale(1.0f / timestep);
 
 	m_sleeping	= false;
 	m_equilibrium = false;

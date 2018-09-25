@@ -82,7 +82,7 @@ DG_INLINE dgInt32 dgCompareBox (const dgVector& p0, const dgVector& p1, const dg
 
 DG_INLINE void dgMovingAABB (dgVector& p0, dgVector& p1, const dgVector& veloc, const dgVector& omega, dgFloat32 timestep, dgFloat32 maxRadius, dgFloat32 minRadius)
 {
-	dgVector linearStep (veloc.Scale4 (timestep));
+	dgVector linearStep (veloc.Scale (timestep));
 
 	// estimate the maximum effect of the angular velocity and enlarge that box by that value (use 45 degrees as max angle not 90)
 	dgFloat32 maxAngle = dgMin (dgSqrt (omega.DotProduct3(omega) * timestep * timestep), dgFloat32 (45.0f * dgDEG2RAD));
@@ -123,7 +123,7 @@ DG_INLINE dgFloat32 dgBoxDistanceToOrigin2 (const dgVector& minBox, const dgVect
 	dgAssert(maxBox.m_z >= minBox.m_z);
 	dgVector mask ((minBox * maxBox) > dgVector::m_zero);
 	dgVector dist (maxBox.Abs().GetMin (minBox.Abs()) & mask);
-	return dist.DotProduct4(dist).GetScalar();
+	return dist.DotProduct(dist).GetScalar();
 }
 
 
@@ -142,7 +142,7 @@ class dgFastRayTest
 		dgAssert(m_p1.m_w == dgFloat32(0.0f));
 		dgAssert(m_diff.m_w == dgFloat32(0.0f));
 
-		dgAssert (m_diff.DotProduct4(m_diff).GetScalar() > dgFloat32 (0.0f));
+		dgAssert (m_diff.DotProduct(m_diff).GetScalar() > dgFloat32 (0.0f));
 		m_isParallel = (m_diff.Abs() < dgVector(1.0e-8f));
 		m_dpInv = (((dgVector(dgFloat32(1.0e-20)) & m_isParallel) | m_diff.AndNot(m_isParallel)).Reciproc()) & dgVector::m_triplexMask;
 		m_unitDir = m_diff.Normalize();
@@ -250,7 +250,7 @@ class dgFastAABBInfo: public dgObb
 		,m_separationDistance(dgFloat32(1.0e10f))
 	{
 		SetTransposeAbsMatrix (matrix);
-		dgVector size1 (matrix[0].Abs().Scale4(size.m_x) + matrix[1].Abs().Scale4(size.m_y) + matrix[2].Abs().Scale4(size.m_z));
+		dgVector size1 (matrix[0].Abs().Scale(size.m_x) + matrix[1].Abs().Scale(size.m_y) + matrix[2].Abs().Scale(size.m_z));
 		m_p0 = (matrix[3] - size1) & dgVector::m_triplexMask;
 		m_p1 = (matrix[3] + size1) & dgVector::m_triplexMask;
 	}
@@ -271,7 +271,7 @@ class dgFastAABBInfo: public dgObb
 		m_absDir[0] = m_absDir[0].Abs();
 		m_absDir[1] = m_absDir[1].Abs();
 		m_absDir[2] = m_absDir[2].Abs();
-		m_absDir[3] = dgVector::m_wOne;
+		//m_absDir[3] = dgVector::m_wOne;
 	}
 
 	DG_INLINE dgFloat32 PolygonBoxRayDistance (const dgVector& faceNormal, dgInt32 indexCount, const dgInt32* const indexArray, dgInt32 stride, const dgFloat32* const vertexArray, const dgFastRayTest& ray) const
@@ -314,13 +314,13 @@ class dgFastAABBInfo: public dgObb
 			dist0 = (dist1 > dgFloat32 (0.0f)) ? dgMax (dist0, dist1) : dgFloat32 (0.0f);
 			if (dist0 <= dgFloat32(0.0f)) {
 				dgVector p1p0((minBox.Abs()).GetMin(maxBox.Abs()).AndNot(mask2));
-				dist2 = p1p0.DotProduct4(p1p0);
+				dist2 = p1p0.DotProduct(p1p0);
 				dist2 = dist2.Sqrt() * dgVector::m_negOne;
 				dist0 = dist2.GetScalar();
 			}
 		} else {
 			dgVector p1p0((minBox.Abs()).GetMin(maxBox.Abs()).AndNot(mask));
-			dist = p1p0.DotProduct4(p1p0);
+			dist = p1p0.DotProduct(p1p0);
 			dist = dist.Sqrt() * dgVector::m_negOne;
 			dist0 = dist.GetScalar();
 		}
@@ -355,7 +355,7 @@ class dgFastAABBInfo: public dgObb
 		faceBoxP1 = faceBoxP1 & dgVector::m_triplexMask;
 
 		dgMatrix matrix = *this * faceMatrix;
-		dgVector size (matrix[0].Abs().Scale4(m_size.m_x) + matrix[1].Abs().Scale4(m_size.m_y) + matrix[2].Abs().Scale4(m_size.m_z));
+		dgVector size (matrix[0].Abs().Scale(m_size.m_x) + matrix[1].Abs().Scale(m_size.m_y) + matrix[2].Abs().Scale(m_size.m_z));
 		dgVector boxP0 ((matrix.m_posit - size) & dgVector::m_triplexMask);
 		dgVector boxP1 ((matrix.m_posit + size) & dgVector::m_triplexMask);
 
@@ -371,9 +371,9 @@ class dgFastAABBInfo: public dgObb
 
 		faceMatrix[0] = faceNormal;
 		faceMatrix[1] = dgVector (&vertexArray[indexArray[1] * stride]) - origin;
-		//faceMatrix[1] = faceMatrix[1] * (faceMatrix[1].DotProduct4(faceMatrix[1]).InvSqrt());
+		//faceMatrix[1] = faceMatrix[1] * (faceMatrix[1].DotProduct(faceMatrix[1]).InvSqrt());
 		faceMatrix[1] = faceMatrix[1].Normalize();
-		faceMatrix[2] = faceMatrix[0].CrossProduct3(faceMatrix[1]);
+		faceMatrix[2] = faceMatrix[0].CrossProduct(faceMatrix[1]);
 		faceMatrix[3] = origin | dgVector::m_wOne; 
 		return faceMatrix.Inverse();
 	}

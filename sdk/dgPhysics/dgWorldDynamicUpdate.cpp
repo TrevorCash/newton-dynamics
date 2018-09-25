@@ -653,8 +653,8 @@ void dgWorldDynamicUpdate::SpanningTree (dgDynamicBody* const body, dgDynamicBod
 
 					dgVector relVeloc(veloc1 - veloc0);
 					dgVector relOmega(omega1 - omega0);
-					dgVector relVelocMag2(relVeloc.DotProduct4(relVeloc));
-					dgVector relOmegaMag2(relOmega.DotProduct4(relOmega));
+					dgVector relVelocMag2(relVeloc.DotProduct(relVeloc));
+					dgVector relOmegaMag2(relOmega.DotProduct(relOmega));
 
 					if ((relOmegaMag2.m_w > dgFloat32(1.0f)) || ((relVelocMag2.m_w * timestep * timestep) > (dist * dist))) {
 						dgTriplex normals[16];
@@ -669,10 +669,10 @@ void dgWorldDynamicUpdate::SpanningTree (dgDynamicBody* const body, dgDynamicBod
 						for (dgInt32 j = 0; j < ccdContactCount; j++) {
 							dgVector point(&points[j].m_x);
 							dgVector normal(&normals[j].m_x);
-							dgVector vel0(veloc0 + omega0.CrossProduct3(point - com0));
-							dgVector vel1(veloc1 + omega1.CrossProduct3(point - com1));
+							dgVector vel0(veloc0 + omega0.CrossProduct(point - com0));
+							dgVector vel1(veloc1 + omega1.CrossProduct(point - com1));
 							dgVector vRel(vel1 - vel0);
-							dgFloat32 contactDistTravel = vRel.DotProduct4(normal).m_w * timestep;
+							dgFloat32 contactDistTravel = vRel.DotProduct(normal).m_w * timestep;
 							ccdJoint |= (contactDistTravel > dist);
 						}
 					}
@@ -1095,10 +1095,10 @@ void dgWorldDynamicUpdate::BuildJacobianMatrix(dgBodyCluster* const cluster, dgI
 	dgJacobian* const internalForces = &m_solverMemory.m_internalForcesBuffer[cluster->m_bodyStart];
 
 	dgAssert(((dgDynamicBody*)bodyArray[0].m_body)->IsRTTIType(dgBody::m_dynamicBodyRTTI));
-	dgAssert((((dgDynamicBody*)bodyArray[0].m_body)->m_accel.DotProduct3(((dgDynamicBody*)bodyArray[0].m_body)->m_accel)) == dgFloat32(0.0f));
-	dgAssert((((dgDynamicBody*)bodyArray[0].m_body)->m_alpha.DotProduct3(((dgDynamicBody*)bodyArray[0].m_body)->m_alpha)) == dgFloat32(0.0f));
-	dgAssert((((dgDynamicBody*)bodyArray[0].m_body)->m_externalForce.DotProduct3(((dgDynamicBody*)bodyArray[0].m_body)->m_externalForce)) == dgFloat32(0.0f));
-	dgAssert((((dgDynamicBody*)bodyArray[0].m_body)->m_externalTorque.DotProduct3(((dgDynamicBody*)bodyArray[0].m_body)->m_externalTorque)) == dgFloat32(0.0f));
+	dgAssert((((dgDynamicBody*)bodyArray[0].m_body)->m_accel.DotProduct(((dgDynamicBody*)bodyArray[0].m_body)->m_accel)).GetScalar() == dgFloat32(0.0f));
+	dgAssert((((dgDynamicBody*)bodyArray[0].m_body)->m_alpha.DotProduct(((dgDynamicBody*)bodyArray[0].m_body)->m_alpha)).GetScalar() == dgFloat32(0.0f));
+	dgAssert((((dgDynamicBody*)bodyArray[0].m_body)->m_externalForce.DotProduct(((dgDynamicBody*)bodyArray[0].m_body)->m_externalForce)).GetScalar() == dgFloat32(0.0f));
+	dgAssert((((dgDynamicBody*)bodyArray[0].m_body)->m_externalTorque.DotProduct(((dgDynamicBody*)bodyArray[0].m_body)->m_externalTorque)).GetScalar() == dgFloat32(0.0f));
 
 	internalForces[0].m_linear = dgVector::m_zero;
 	internalForces[0].m_angular = dgVector::m_zero;
@@ -1220,10 +1220,10 @@ void dgWorldDynamicUpdate::IntegrateVelocity(const dgBodyCluster* const cluster,
 			dgAssert(body->m_alpha.m_w == dgFloat32(0.0f));
 			dgAssert(body->m_veloc.m_w == dgFloat32(0.0f));
 			dgAssert(body->m_omega.m_w == dgFloat32(0.0f));
-			dgFloat32 accel2 = body->m_accel.DotProduct4(body->m_accel).GetScalar();
-			dgFloat32 alpha2 = body->m_alpha.DotProduct4(body->m_alpha).GetScalar();
-			dgFloat32 speed2 = body->m_veloc.DotProduct4(body->m_veloc).GetScalar();
-			dgFloat32 omega2 = body->m_omega.DotProduct4(body->m_omega).GetScalar();
+			dgFloat32 accel2 = body->m_accel.DotProduct(body->m_accel).GetScalar();
+			dgFloat32 alpha2 = body->m_alpha.DotProduct(body->m_alpha).GetScalar();
+			dgFloat32 speed2 = body->m_veloc.DotProduct(body->m_veloc).GetScalar();
+			dgFloat32 omega2 = body->m_omega.DotProduct(body->m_omega).GetScalar();
 
 			maxAccel = dgMax(maxAccel, accel2);
 			maxAlpha = dgMax(maxAlpha, alpha2);
@@ -1233,8 +1233,8 @@ void dgWorldDynamicUpdate::IntegrateVelocity(const dgBodyCluster* const cluster,
 			if (equilibrium) {
 				dgVector veloc(body->m_veloc * velocDragVect);
 				dgVector omega(body->m_omega * velocDragVect);
-				body->m_veloc = (veloc.DotProduct4(veloc) > m_velocTol) & veloc;
-				body->m_omega = (omega.DotProduct4(omega) > m_velocTol) & omega;
+				body->m_veloc = (veloc.DotProduct(veloc) > m_velocTol) & veloc;
+				body->m_omega = (omega.DotProduct(omega) > m_velocTol) & omega;
 			}
 
 			body->m_equilibrium = equilibrium ? 1 : 0;

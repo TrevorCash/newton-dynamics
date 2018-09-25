@@ -428,7 +428,7 @@ dgBigVector dgPolyhedra::FaceNormal (const dgEdge* const face, const dgFloat64* 
 	for (edge = edge->m_next; edge != face; edge = edge->m_next) {
 		dgBigVector p2 (&pool[edge->m_incidentVertex * stride]);
 		dgBigVector e2 (p2 - p0);
-		normal += e1.CrossProduct3(e2);
+		normal += e1.CrossProduct(e2);
 		e1 = e2;
 	} 
 	dgAssert (normal.m_w == dgFloat32 (0.0f));
@@ -791,7 +791,7 @@ dgBigPlane dgPolyhedra::UnboundedLoopPlane (dgInt32 i0, dgInt32 i1, dgInt32 i2, 
 	dgBigVector E0 (p1 - p0); 
 	dgBigVector E1 (p2 - p0); 
 
-	dgBigVector N ((E0.CrossProduct3(E1)).CrossProduct3(E0)); 
+	dgBigVector N ((E0.CrossProduct(E1)).CrossProduct(E0)); 
 	dgFloat64 dist = - N.DotProduct3(p0);
 	dgBigPlane plane (N, dist);
 
@@ -934,7 +934,7 @@ dgEdge* dgPolyhedra::FindEarTip (dgEdge* const face, const dgFloat64* const pool
 	if (val < dgFloat64 (1.0e-10f)) {
 		val = dgFloat64 (1.0e-10f);
 	}
-	d0 = d0.Scale4 (dgFloat64 (1.0f) / val);
+	d0 = d0.Scale (dgFloat64 (1.0f) / val);
 
 	dgFloat64 minAngle = dgFloat32 (10.0f);
 	do {
@@ -944,8 +944,8 @@ dgEdge* dgPolyhedra::FindEarTip (dgEdge* const face, const dgFloat64* const pool
 		if (val1 < dgFloat64 (1.0e-10f)) {
 			val1 = dgFloat64 (1.0e-10f);
 		}
-		d1 = d1.Scale4 (dgFloat32 (1.0f) / val1);
-		dgBigVector n (d0.CrossProduct3(d1));
+		d1 = d1.Scale (dgFloat32 (1.0f) / val1);
+		dgBigVector n (d0.CrossProduct(d1));
 
 		dgFloat64 angle = normal.DotProduct3(n);
 		if (angle >= dgFloat64 (0.0f)) {
@@ -987,13 +987,13 @@ dgEdge* dgPolyhedra::FindEarTip (dgEdge* const face, const dgFloat64* const pool
 				dgBigVector p (&pool [ptr->m_incidentVertex * stride]);
 
 				//dgFloat64 side = ((p - p0) * p10) % normal;
-				dgFloat64 side = normal.DotProduct3((p - q0).CrossProduct3(p10));
+				dgFloat64 side = normal.DotProduct3((p - q0).CrossProduct(p10));
 				if (side < dgFloat64 (0.05f)) {
 					//side = ((p - p1) * p21) % normal;
-					side = normal.DotProduct3((p - q1).CrossProduct3(p21));
+					side = normal.DotProduct3((p - q1).CrossProduct(p21));
 					if (side < dgFloat64 (0.05f)) {
 						//side = ((p - p2) * p02) % normal;
-						side = normal.DotProduct3((p - q2).CrossProduct3(p02));
+						side = normal.DotProduct3((p - q2).CrossProduct(p02));
 						if (side < dgFloat32 (0.05f)) {
 							break;
 
@@ -1025,7 +1025,7 @@ dgEdge* dgPolyhedra::TriangulateFace (dgEdge* const faceIn, const dgFloat64* con
 		}
 		return face;
 	}
-	normal = normal.Scale4 (dgFloat64 (1.0f) / sqrt (dot));
+	normal = normal.Scale (dgFloat64 (1.0f) / sqrt (dot));
 	if (faceNormalOut) {
 		*faceNormalOut = normal;
 	}
@@ -1097,7 +1097,7 @@ void dgPolyhedra::MarkAdjacentCoplanarFaces (dgPolyhedra& polyhedraOut, dgEdge* 
 	if (dot > dgFloat64 (1.0e-12f)) {
 		dgInt32 testPointsCount = 1;
 		dot = dgFloat64 (1.0f) / sqrt (dot);
-		dgBigVector normal (normalAverage.Scale4 (dot));
+		dgBigVector normal (normalAverage.Scale (dot));
 
 		dgBigVector averageTestPoint (&pool[face->m_incidentVertex * stride]);
 		dgBigPlane testPlane(normal, - averageTestPoint.DotProduct3 (normal));
@@ -1153,7 +1153,7 @@ void dgPolyhedra::MarkAdjacentCoplanarFaces (dgPolyhedra& polyhedraOut, dgEdge* 
 							deleteCount ++;
 							dgAssert (deleteCount < dgInt32 (sizeof (deleteEdge) / sizeof (deleteEdge[0])));
 						} else {
-							dgBigVector testNormal (normal1.Scale4 (dgFloat64 (1.0f) / sqrt (dot)));
+							dgBigVector testNormal (normal1.Scale (dgFloat64 (1.0f) / sqrt (dot)));
 							dot = normal.DotProduct3(testNormal);
 							if (dot >= normalDeviation) {
 								dgBigVector testPoint (&pool[ptr1->m_prev->m_incidentVertex * stride]);
@@ -1162,10 +1162,10 @@ void dgPolyhedra::MarkAdjacentCoplanarFaces (dgPolyhedra& polyhedraOut, dgEdge* 
 									testPointsCount ++;
 
 									averageTestPoint += testPoint;
-									testPoint = averageTestPoint.Scale4 (dgFloat64 (1.0f) / dgFloat64(testPointsCount));
+									testPoint = averageTestPoint.Scale (dgFloat64 (1.0f) / dgFloat64(testPointsCount));
 
 									normalAverage += normal1;
-									testNormal = normalAverage.Scale4 (dgFloat64 (1.0f) / sqrt (normalAverage.DotProduct3 (normalAverage)));
+									testNormal = normalAverage.Scale (dgFloat64 (1.0f) / sqrt (normalAverage.DotProduct3 (normalAverage)));
 									testPlane = dgBigPlane (testNormal, - testPoint.DotProduct3 (testNormal));
 
 									polyhedraOut.AddFace(faceIndexCount, faceIndex, userIndex);
@@ -1228,11 +1228,12 @@ void dgPolyhedra::RefineTriangulation (const dgFloat64* const vertex, dgInt32 st
 
 	dgMatrix matrix (dgGetIdentityMatrix());
 	matrix.m_posit = p0;
-	matrix.m_front = dgVector (p1p0.Scale4 (dgFloat64 (1.0f) / sqrt (mag2)));
-	matrix.m_right = dgVector (normal.Scale4 (dgFloat64 (1.0f) / sqrt (normal.DotProduct3(normal))));
-	matrix.m_up = matrix.m_right.CrossProduct3(matrix.m_front);
+	matrix.m_front = dgVector (p1p0.Scale (dgFloat64 (1.0f) / sqrt (mag2)));
+	matrix.m_right = dgVector (normal.Scale (dgFloat64 (1.0f) / sqrt (normal.DotProduct3(normal))));
+	matrix.m_up = matrix.m_right.CrossProduct(matrix.m_front);
 	matrix = matrix.Inverse();
-	matrix.m_posit.m_w = dgFloat32 (1.0f);
+	dgAssert (matrix.m_posit.m_w == dgFloat32 (1.0f));
+//	matrix.m_posit.m_w = dgFloat32 (1.0f);
 
 	dgInt32 maxCount = dignonals.GetCount() * dignonals.GetCount();
 	while (dignonals.GetCount() && maxCount) {
@@ -1545,13 +1546,13 @@ void dgPolyhedra::RemoveOuterColinearEdges (dgPolyhedra& flatFace, const dgFloat
 		dgBigVector p0 (&vertex[ptr->m_incidentVertex * stride]);
 		dgBigVector p1 (&vertex[ptr->m_next->m_incidentVertex * stride]);
 		dgBigVector e0 (p1 - p0) ;
-		e0 = e0.Scale4 (dgRsqrt (e0.DotProduct3(e0) + dgFloat32 (1.0e-12f)));
+		e0 = e0.Scale (dgRsqrt (e0.DotProduct3(e0) + dgFloat32 (1.0e-12f)));
 		dgInt32 ignoreTest = 1;
 		do {
 			ignoreTest = 0;
 			dgBigVector p2 (&vertex[ptr->m_next->m_next->m_incidentVertex * stride]);
 			dgBigVector e1 (p2 - p1);
-			e1 = e1.Scale4 (dgRsqrt (e1.DotProduct3(e1) + dgFloat32 (1.0e-12f)));
+			e1 = e1.Scale (dgRsqrt (e1.DotProduct3(e1) + dgFloat32 (1.0e-12f)));
 			dgFloat64 dot = e1.DotProduct3(e0);
 			if (dot > dgFloat32 (dgFloat32 (0.9999f))) {
 
@@ -1614,8 +1615,8 @@ void dgPolyhedra::RemoveInteriorColinearEdges(dgPolyhedra& flatFace, const dgFlo
 					
 					dgBigVector e0(p1 - p0);
 					dgBigVector e1(p2 - p1);
-					e0 = e0.Scale4(dgRsqrt(e0.DotProduct3(e0) + dgFloat32(1.0e-12f)));
-					e1 = e1.Scale4(dgRsqrt(e1.DotProduct3(e1) + dgFloat32(1.0e-12f)));
+					e0 = e0.Scale(dgRsqrt(e0.DotProduct3(e0) + dgFloat32(1.0e-12f)));
+					e1 = e1.Scale(dgRsqrt(e1.DotProduct3(e1) + dgFloat32(1.0e-12f)));
 					dgFloat64 dot = e1.DotProduct3(e0);
 					if (dot > dgFloat32(0.9999f)) {
 						dgInt32 v = edge->m_twin->m_incidentVertex;
@@ -1678,16 +1679,16 @@ bool dgPolyhedra::IsEssensialPointDiagonal (dgEdge* const diagonal, const dgBigV
 		if (dot < dgFloat64 (1.0e-12f)) {
 			return false;
 		}
-		e1 = e1.Scale4 (dgFloat64 (1.0f) / sqrt(dot));
+		e1 = e1.Scale (dgFloat64 (1.0f) / sqrt(dot));
 
 		dgBigVector e2 (p2 - p0);
 		dot = e2.DotProduct3(e2);
 		if (dot < dgFloat64 (1.0e-12f)) {
 			return false;
 		}
-		e2 = e2.Scale4 (dgFloat64 (1.0f) / sqrt(dot));
+		e2 = e2.Scale (dgFloat64 (1.0f) / sqrt(dot));
 
-		dgBigVector n1 (e1.CrossProduct3(e2)); 
+		dgBigVector n1 (e1.CrossProduct(e2)); 
 
 		dot = normal.DotProduct3(n1);
 		if (dot >= dgFloat64 (0.0f)) {
@@ -1904,8 +1905,8 @@ bool dgPolyhedra::IsOkToCollapse (const dgBigVector* const pool, dgEdge* const e
 		if (triangle->m_incidentFace > 0) {
 			dgAssert ((edge->m_incidentFace < 0) || (edge->m_incidentVertex == edge->m_next->m_next->m_next->m_incidentVertex));
 
-			dgBigVector originalArea ((pool[triangle->m_next->m_incidentVertex] - q).CrossProduct3(pool[triangle->m_prev->m_incidentVertex] - q));
-			dgBigVector newArea ((pool[triangle->m_next->m_incidentVertex] - p).CrossProduct3(pool[triangle->m_prev->m_incidentVertex] - p));
+			dgBigVector originalArea ((pool[triangle->m_next->m_incidentVertex] - q).CrossProduct(pool[triangle->m_prev->m_incidentVertex] - q));
+			dgBigVector newArea ((pool[triangle->m_next->m_incidentVertex] - p).CrossProduct(pool[triangle->m_prev->m_incidentVertex] - p));
 
 			dgFloat64 projectedArea = newArea.DotProduct3(originalArea);
 			if (projectedArea <= dgFloat64 (0.0f)) {
@@ -2060,8 +2061,8 @@ dgFloat64 dgPolyhedra::EdgePenalty (const dgBigVector* const pool, dgEdge* const
 			return dist * maxPenalty;
 		}
 
-		edgeNormal = edgeNormal.Scale4 (dgFloat64 (1.0f) / sqrt(mag0));
-		twinNormal = twinNormal.Scale4 (dgFloat64 (1.0f) / sqrt(mag1));
+		edgeNormal = edgeNormal.Scale (dgFloat64 (1.0f) / sqrt(mag0));
+		twinNormal = twinNormal.Scale (dgFloat64 (1.0f) / sqrt(mag1));
 
 		dot = edgeNormal.DotProduct3(twinNormal);
 		if (dot < dgFloat64 (-0.9f)) {
@@ -2107,8 +2108,8 @@ dgFloat64 dgPolyhedra::EdgePenalty (const dgBigVector* const pool, dgEdge* const
 			dgInt32 k2 = adj->m_prev->m_incidentVertex;
 			const dgBigVector& q2 = pool[k2];
 
-			dgBigVector n0 ((q1 - q0).CrossProduct3(q2 - q0));
-			dgBigVector n1 ((q1 - p).CrossProduct3(q2 - p));
+			dgBigVector n0 ((q1 - q0).CrossProduct(q2 - q0));
+			dgBigVector n1 ((q1 - p).CrossProduct(q2 - p));
 			dgFloat64 project = n0.DotProduct3(n1);
 			if (project < dgFloat64 (0.0f)) {
 				penalty = true;
@@ -2364,8 +2365,8 @@ dgEdge* dgPolyhedra::BestEdgePolygonizeFace(const dgBigVector& normal, dgEdge* c
 		dgBigVector p2(&pool[e0->m_prev->m_incidentVertex * stride]);
 		//dgFloat64 test0 = (normal * (p1 - p0)) % r;
 		//dgFloat64 test1 = ((p2 - p0) * normal) % r;
-		dgFloat64 test0 = r.DotProduct3(normal.CrossProduct3(p1 - p0));
-		dgFloat64 test1 = r.DotProduct3((p2 - p0).CrossProduct3(normal));
+		dgFloat64 test0 = r.DotProduct3(normal.CrossProduct(p1 - p0));
+		dgFloat64 test1 = r.DotProduct3((p2 - p0).CrossProduct(normal));
 		
 		if ((test0 > 0.0f) && (test1 > 0.0f)) {
 			break;
@@ -2458,7 +2459,7 @@ bool dgPolyhedra::PolygonizeFace(dgEdge* const face, const dgFloat64* const pool
 			dgAssert(edge1->m_incidentFace > 0);
 
 			dgBigVector normal1(flatFace.FaceNormal(edge1, pool, strideInBytes));
-			normal1 = normal1.Scale4(dgFloat64(1.0f) / sqrt(normal1.DotProduct3(normal1)));
+			normal1 = normal1.Scale(dgFloat64(1.0f) / sqrt(normal1.DotProduct3(normal1)));
 
 			edge1 = NULL;
 			dgPolyhedra::Iterator iter0(flatFace);
@@ -2478,12 +2479,12 @@ bool dgPolyhedra::PolygonizeFace(dgEdge* const face, const dgFloat64* const pool
 			dgBigVector p0(&pool[ptr->m_prev->m_incidentVertex * stride]);
 			dgBigVector p1(&pool[ptr->m_incidentVertex * stride]);
 			dgBigVector e0(p1 - p0);
-			e0 = e0.Scale4(dgFloat64(1.0f) / sqrt(e0.DotProduct3(e0) + dgFloat64(1.0e-24f)));
+			e0 = e0.Scale(dgFloat64(1.0f) / sqrt(e0.DotProduct3(e0) + dgFloat64(1.0e-24f)));
 			do {
 				dgBigVector p2(&pool[ptr->m_next->m_incidentVertex * stride]);
 				dgBigVector e1(p2 - p1);
-				e1 = e1.Scale4(dgFloat64(1.0f) / sqrt(e1.DotProduct3(e1) + dgFloat32(1.0e-24f)));
-				dgFloat64 dot = normal2.DotProduct3(e0.CrossProduct3(e1));
+				e1 = e1.Scale(dgFloat64(1.0f) / sqrt(e1.DotProduct3(e1) + dgFloat32(1.0e-24f)));
+				dgFloat64 dot = normal2.DotProduct3(e0.CrossProduct(e1));
 				
 				if (dot > dgFloat32(5.0e-3f)) {
 					isConvex = 0;
@@ -2606,7 +2607,7 @@ void dgPolyhedra::RemoveInteriorEdges (dgPolyhedra& buildConvex, const dgFloat64
 					dgAssert(edge->m_incidentFace > 0);
 
 					dgBigVector normal(FaceNormal(edge, vertex, strideInBytes));
-					normal = normal.Scale4(dgFloat64(1.0f) / sqrt(normal.DotProduct3(normal)));
+					normal = normal.Scale(dgFloat64(1.0f) / sqrt(normal.DotProduct3(normal)));
 
 					edge = NULL;
 					dgPolyhedra::Iterator iter1(flatFace);
@@ -2626,12 +2627,12 @@ void dgPolyhedra::RemoveInteriorEdges (dgPolyhedra& buildConvex, const dgFloat64
 					dgBigVector p0(&vertex[ptr->m_prev->m_incidentVertex * stride]);
 					dgBigVector p1(&vertex[ptr->m_incidentVertex * stride]);
 					dgBigVector e0(p1 - p0);
-					e0 = e0.Scale4(dgFloat64(1.0f) / sqrt(e0.DotProduct3(e0) + dgFloat64(1.0e-24f)));
+					e0 = e0.Scale(dgFloat64(1.0f) / sqrt(e0.DotProduct3(e0) + dgFloat64(1.0e-24f)));
 					do {
 						dgBigVector p2(&vertex[ptr->m_next->m_incidentVertex * stride]);
 						dgBigVector e1(p2 - p1);
-						e1 = e1.Scale4(dgFloat64(1.0f) / sqrt(e1.DotProduct3(e1) + dgFloat32(1.0e-24f)));
-						dgFloat64 dot = normal2.DotProduct3(e0.CrossProduct3(e1));
+						e1 = e1.Scale(dgFloat64(1.0f) / sqrt(e1.DotProduct3(e1) + dgFloat32(1.0e-24f)));
+						dgFloat64 dot = normal2.DotProduct3(e0.CrossProduct(e1));
 
 						if (dot > dgFloat32(5.0e-3f)) {
 							isConvex = 0;

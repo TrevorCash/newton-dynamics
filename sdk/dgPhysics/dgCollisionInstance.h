@@ -357,7 +357,8 @@ DG_INLINE dgFloat32 dgCollisionInstance::GetBoxMaxRadius () const
 
 DG_INLINE dgVector dgCollisionInstance::SupportVertex(const dgVector& dir) const
 {
-	dgAssert (dgAbs(dir.DotProduct3(dir) - dgFloat32 (1.0f)) < dgFloat32 (1.0e-2f));
+	dgAssert (dir.m_w == dgFloat32 (0.0f));
+	dgAssert (dgAbs(dir.DotProduct(dir).GetScalar() - dgFloat32 (1.0f)) < dgFloat32 (1.0e-2f));
 	dgAssert (dir.m_w == dgFloat32 (0.0f));
 	switch (m_scaleType)
 	{
@@ -391,7 +392,8 @@ DG_INLINE dgVector dgCollisionInstance::SupportVertex(const dgVector& dir) const
 
 DG_INLINE dgVector dgCollisionInstance::SupportVertexSpecial (const dgVector& dir, dgInt32* const vertexIndex) const
 {
-	dgAssert(dgAbs(dir.DotProduct3(dir) - dgFloat32(1.0f)) < dgFloat32(1.0e-2f));
+	dgAssert (dir.m_w == dgFloat32 (0.0f));
+	dgAssert(dgAbs(dir.DotProduct(dir).GetScalar() - dgFloat32(1.0f)) < dgFloat32(1.0e-2f));
 	dgAssert(dir.m_w == dgFloat32(0.0f));
 	switch (m_scaleType) 
 	{
@@ -410,17 +412,17 @@ DG_INLINE dgVector dgCollisionInstance::SupportVertexSpecial (const dgVector& di
 		case m_nonUniform:
 		{
 			// support((p * S), n) = S * support (p, n * transp(S)) 
-			dgVector dir1(m_scale.CompProduct4(dir));
-			dir1 = dir1.CompProduct4(dir1.InvMagSqrt());
-			return m_scale.CompProduct4(m_childShape->SupportVertexSpecial(dir1, vertexIndex));
+			dgVector dir1(m_scale * dir);
+			dir1 = dir1 * (dir1.InvMagSqrt());
+			return m_scale * m_childShape->SupportVertexSpecial(dir1, vertexIndex);
 		}
 
 		case m_global:
 		default:
 		{
-			dgVector dir1(m_aligmentMatrix.UnrotateVector(m_scale.CompProduct4(dir)));
-			dir1 = dir1.CompProduct4(dir1.InvMagSqrt());
-			return m_scale.CompProduct4(m_aligmentMatrix.TransformVector(m_childShape->SupportVertexSpecial(dir1, vertexIndex)));
+			dgVector dir1(m_aligmentMatrix.UnrotateVector(m_scale * dir));
+			dir1 = dir1 * (dir1.InvMagSqrt());
+			return m_scale * m_aligmentMatrix.TransformVector(m_childShape->SupportVertexSpecial(dir1, vertexIndex));
 		}
 */
 	}
@@ -447,17 +449,17 @@ DG_INLINE dgVector dgCollisionInstance::SupportVertexSpecialProjectPoint (const 
 		case m_nonUniform:
 		{
 			// support((p * S), n) = S * support (p/S, n * transp(S)) 
-			dgVector dir1(m_scale.CompProduct4(dir));
-			dir1 = dir1.CompProduct4(dir1.InvMagSqrt());
-			return m_scale.CompProduct4(m_childShape->SupportVertexSpecialProjectPoint(point.CompProduct4(m_invScale), dir1));
+			dgVector dir1(m_scale * dir);
+			dir1 = dir1 * (dir1.InvMagSqrt());
+			return m_scale * m_childShape->SupportVertexSpecialProjectPoint(point * m_invScale, dir1);
 		}
 
 		case m_global:
 		default:
 		{
-			dgVector dir1(m_aligmentMatrix.UnrotateVector(m_scale.CompProduct4(dir)));
-			dir1 = dir1.CompProduct4(dir1.InvMagSqrt());
-			return m_scale.CompProduct4(m_aligmentMatrix.TransformVector(m_childShape->SupportVertexSpecialProjectPoint(m_aligmentMatrix.UntransformVector(point.CompProduct4(m_invScale)), dir1)));
+			dgVector dir1(m_aligmentMatrix.UnrotateVector(m_scale * dir));
+			dir1 = dir1 * (dir1.InvMagSqrt());
+			return m_scale * m_aligmentMatrix.TransformVector(m_childShape->SupportVertexSpecialProjectPoint(m_aligmentMatrix.UntransformVector(point * m_invScale), dir1));
 		}
 */
 	}
@@ -530,9 +532,9 @@ DG_INLINE dgCollisionInstance::dgScaleType dgCollisionInstance::GetCombinedScale
 DG_INLINE dgMatrix dgCollisionInstance::GetScaledTransform(const dgMatrix& matrix) const
 {
 	dgMatrix scaledMatrix(m_localMatrix * matrix);
-	scaledMatrix[0] = scaledMatrix[0].Scale3(m_scale[0]);
-	scaledMatrix[1] = scaledMatrix[1].Scale3(m_scale[1]);
-	scaledMatrix[2] = scaledMatrix[2].Scale3(m_scale[2]);
+	scaledMatrix[0] = scaledMatrix[0].Scale(m_scale[0]);
+	scaledMatrix[1] = scaledMatrix[1].Scale(m_scale[1]);
+	scaledMatrix[2] = scaledMatrix[2].Scale(m_scale[2]);
 	return m_aligmentMatrix * scaledMatrix;
 }
 
@@ -559,9 +561,9 @@ DG_INLINE void dgCollisionInstance::CalcObb (dgVector& origin, dgVector& size) c
 		case m_global:
 		{
 //			dgMatrix matrix1 (matrix);
-//			matrix1[0] = matrix1[0].Scale4(m_scale.m_x);
-//			matrix1[1] = matrix1[1].Scale4(m_scale.m_y);
-//			matrix1[2] = matrix1[2].Scale4(m_scale.m_z);
+//			matrix1[0] = matrix1[0].Scale(m_scale.m_x);
+//			matrix1[1] = matrix1[1].Scale(m_scale.m_y);
+//			matrix1[2] = matrix1[2].Scale(m_scale.m_z);
 //			m_childShape->CalcAABB (m_aligmentMatrix * matrix1, p0, p1);
 //			p0 -= m_padding;
 //			p1 += m_padding;

@@ -119,7 +119,7 @@ void dgBilateralConstraint::CalculateMatrixOffset (const dgVector& pivot, const 
 	length = dir.DotProduct3(dir);
 	length = dgSqrt (length);
 	dgAssert (length > dgFloat32 (0.0f));
-	matrix0 = dgMatrix (body0_Matrix.UnrotateVector (dir.Scale3 (dgFloat32 (1.0f) / length)));
+	matrix0 = dgMatrix (body0_Matrix.UnrotateVector (dir.Scale (dgFloat32 (1.0f) / length)));
 	matrix0.m_posit = body0_Matrix.UntransformVector (pivot);
 
 	matrix0.m_front.m_w = dgFloat32 (0.0f);
@@ -145,10 +145,10 @@ void dgBilateralConstraint::SetPivotAndPinDir (const dgVector& pivot, const dgVe
 	const dgMatrix& body0_Matrix = m_body0->GetMatrix();
 
 	dgAssert ((pinDirection0.DotProduct3(pinDirection0)) > dgFloat32 (0.0f));
-	matrix0.m_front = pinDirection0.Scale3 (dgRsqrt (pinDirection0.DotProduct3(pinDirection0)));
-	matrix0.m_right = matrix0.m_front.CrossProduct3(pinDirection1);
-	matrix0.m_right = matrix0.m_right.Scale3 (dgRsqrt (matrix0.m_right.DotProduct3(matrix0.m_right)));
-	matrix0.m_up = matrix0.m_right.CrossProduct3(matrix0.m_front); 
+	matrix0.m_front = pinDirection0.Scale (dgRsqrt (pinDirection0.DotProduct3(pinDirection0)));
+	matrix0.m_right = matrix0.m_front.CrossProduct(pinDirection1);
+	matrix0.m_right = matrix0.m_right.Scale (dgRsqrt (matrix0.m_right.DotProduct3(matrix0.m_right)));
+	matrix0.m_up = matrix0.m_right.CrossProduct(matrix0.m_front); 
 	matrix0.m_posit = pivot;
 	
 	matrix0.m_front.m_w = dgFloat32 (0.0f);
@@ -160,7 +160,6 @@ void dgBilateralConstraint::SetPivotAndPinDir (const dgVector& pivot, const dgVe
 
 	matrix1 = matrix0 * body1_Matrix.Inverse(); 
 	matrix0 = matrix0 * body0_Matrix.Inverse();
-
 }
 
 dgVector dgBilateralConstraint::CalculateGlobalMatrixAndAngle (const dgMatrix& localMatrix0, const dgMatrix& localMatrix1, dgMatrix& globalMatrix0, dgMatrix& globalMatrix1) const
@@ -265,6 +264,17 @@ void dgBilateralConstraint::SetSpringDamperAcceleration (dgInt32 index, dgContra
 	}
 }
 
+dgFloat32 dgBilateralConstraint::CalculateMotorAcceleration (dgInt32 index, dgContraintDescritor& desc) const
+{
+	return desc.m_zeroRowAcceleration[index];
+}
+
+dgFloat32 dgBilateralConstraint::GetInverseDynamicAcceleration(dgInt32 index) const
+{
+	dgAssert (index >= 0);
+	dgAssert (index < DG_BILATERAL_CONTRAINT_DOF);
+	return m_inverseDynamicsAcceleration[index];
+}
 
 void dgBilateralConstraint::CalculateAngularDerivative (dgInt32 index, dgContraintDescritor& desc, const dgVector& dir,	dgFloat32 stiffness, dgFloat32 jointAngle, dgForceImpactPair* const jointForce)
 {
@@ -299,7 +309,7 @@ void dgBilateralConstraint::CalculateAngularDerivative (dgInt32 index, dgContrai
 	m_motorAcceleration[index] = dgFloat32 (0.0f);
 	if (desc.m_timestep > dgFloat32 (0.0f)) {
 #ifdef _DEBUG
-		dgVector accel(omega0 * omega0.CrossProduct3(jacobian0.m_angular) + omega1 * omega1.CrossProduct3(jacobian1.m_angular));
+		dgVector accel(omega0 * omega0.CrossProduct(jacobian0.m_angular) + omega1 * omega1.CrossProduct(jacobian1.m_angular));
 		dgFloat32 relCentr = -accel.AddHorizontal().GetScalar();
 		dgAssert (dgAbs(relCentr) < dgFloat32 (1.0e-3f));
 #endif
@@ -340,7 +350,7 @@ void dgBilateralConstraint::CalculatePointDerivative (dgInt32 index, dgContraint
 	dgAssert (dir.m_w == dgFloat32 (0.0f));
 
 	dgJacobian &jacobian0 = desc.m_jacobian[index].m_jacobianM0; 
-	dgVector r0CrossDir (param.m_r0.CrossProduct3(dir));
+	dgVector r0CrossDir (param.m_r0.CrossProduct(dir));
 	jacobian0.m_linear[0] = dir.m_x;
 	jacobian0.m_linear[1] = dir.m_y;
 	jacobian0.m_linear[2] = dir.m_z;
@@ -351,7 +361,7 @@ void dgBilateralConstraint::CalculatePointDerivative (dgInt32 index, dgContraint
 	jacobian0.m_angular[3] = dgFloat32 (0.0f);
 
 	dgJacobian &jacobian1 = desc.m_jacobian[index].m_jacobianM1; 
-	dgVector r1CrossDir (dir.CrossProduct3(param.m_r1));
+	dgVector r1CrossDir (dir.CrossProduct(param.m_r1));
 	jacobian1.m_linear[0] = -dir.m_x;
 	jacobian1.m_linear[1] = -dir.m_y;
 	jacobian1.m_linear[2] = -dir.m_z;
@@ -365,22 +375,22 @@ void dgBilateralConstraint::CalculatePointDerivative (dgInt32 index, dgContraint
 	m_motorAcceleration[index] = dgFloat32 (0.0f);
 
 	dgVector velocError (param.m_veloc1 - param.m_veloc0);
-	dgFloat32 relVeloc = velocError.DotProduct4(dir).GetScalar();
+	dgFloat32 relVeloc = velocError.DotProduct(dir).GetScalar();
 	if (desc.m_timestep > dgFloat32 (0.0f)) {
 
 		dgVector positError (param.m_posit1 - param.m_posit0);
-		dgFloat32 relPosit = positError.DotProduct4(dir).GetScalar();
+		dgFloat32 relPosit = positError.DotProduct(dir).GetScalar();
 
 		//dgVector centrError (param.m_centripetal1 - param.m_centripetal0);
-		//dgFloat32 relCentr = centrError.DotProduct4(dir).GetScalar(); 
+		//dgFloat32 relCentr = centrError.DotProduct(dir).GetScalar(); 
 		//relCentr = dgClamp (relCentr, dgFloat32(-100000.0f), dgFloat32(100000.0f));
 
 		const dgVector& bodyVeloc0 = m_body0->m_veloc;
 		const dgVector& bodyOmega0 = m_body0->m_omega;
 		const dgVector& bodyVeloc1 = m_body1->m_veloc;
 		const dgVector& bodyOmega1 = m_body1->m_omega;
-		dgVector accel(bodyVeloc0 * bodyOmega0.CrossProduct3(jacobian0.m_linear) + bodyOmega0 * bodyOmega0.CrossProduct3(jacobian0.m_angular) +
-					   bodyVeloc1 * bodyOmega1.CrossProduct3(jacobian1.m_linear) + bodyOmega1 * bodyOmega1.CrossProduct3(jacobian1.m_angular));
+		dgVector accel(bodyVeloc0 * bodyOmega0.CrossProduct(jacobian0.m_linear) + bodyOmega0 * bodyOmega0.CrossProduct(jacobian0.m_angular) +
+					   bodyVeloc1 * bodyOmega1.CrossProduct(jacobian1.m_linear) + bodyOmega1 * bodyOmega1.CrossProduct(jacobian1.m_angular));
 		dgFloat32 relCentr = -accel.AddHorizontal().GetScalar();
 
 		//desc.m_zeroRowAcceleration[index] = (relPosit * desc.m_invTimestep + relVeloc) * desc.m_invTimestep;
@@ -412,19 +422,6 @@ void dgBilateralConstraint::CalculatePointDerivative (dgInt32 index, dgContraint
 	}
 }
 
-dgFloat32 dgBilateralConstraint::CalculateMotorAcceleration (dgInt32 index, dgContraintDescritor& desc) const
-{
-	return desc.m_zeroRowAcceleration[index];
-}
-
-dgFloat32 dgBilateralConstraint::GetInverseDynamicAcceleration(dgInt32 index) const
-{
-	dgAssert (index >= 0);
-	dgAssert (index < DG_BILATERAL_CONTRAINT_DOF);
-	return m_inverseDynamicsAcceleration[index];
-}
-
-
 void dgBilateralConstraint::JointAccelerations(dgJointAccelerationDecriptor* const params)
 {
 	const dgVector& bodyVeloc0 = m_body0->m_veloc;
@@ -452,8 +449,8 @@ void dgBilateralConstraint::JointAccelerations(dgJointAccelerationDecriptor* con
 				#if 1
 				dgFloat32 aRel = params->m_firstPassCoefFlag ? rhs[k].m_deltaAccel : rhs[k].m_coordenateAccel;
 				#else			
-				dgVector accel(bodyVeloc0 * bodyOmega0.CrossProduct3(Jt.m_jacobianM0.m_linear) + bodyOmega0 * bodyOmega0.CrossProduct3(Jt.m_jacobianM0.m_angular) +
-							   bodyVeloc1 * bodyOmega1.CrossProduct3(Jt.m_jacobianM1.m_linear) + bodyOmega1 * bodyOmega1.CrossProduct3(Jt.m_jacobianM1.m_angular));
+				dgVector accel(bodyVeloc0 * bodyOmega0.CrossProduct(Jt.m_jacobianM0.m_linear) + bodyOmega0 * bodyOmega0.CrossProduct(Jt.m_jacobianM0.m_angular) +
+							   bodyVeloc1 * bodyOmega1.CrossProduct(Jt.m_jacobianM1.m_linear) + bodyOmega1 * bodyOmega1.CrossProduct(Jt.m_jacobianM1.m_angular));
 				dgFloat32 aRel = rhs[k].m_deltaAccel - accel.AddHorizontal().GetScalar(); 
 				#endif
 

@@ -177,12 +177,7 @@ class dgVector
 		return dgVector (m_x + m_y + m_z + m_w);
 	}
 
-	DG_INLINE dgVector Scale3 (dgFloat32 scale) const
-	{
-		return dgVector (m_x * scale, m_y * scale, m_z * scale, m_w);
-	}
-
-	DG_INLINE dgVector Scale4 (dgFloat32 scale) const
+	DG_INLINE dgVector Scale (dgFloat32 scale) const
 	{
 		return dgVector (m_x * scale, m_y * scale, m_z * scale, m_w * scale);
 	}
@@ -194,14 +189,14 @@ class dgVector
 	}
 
 	// return cross product
-	DG_INLINE dgVector CrossProduct3 (const dgVector& B) const
+	DG_INLINE dgVector CrossProduct (const dgVector& B) const
 	{
 		return dgVector (m_y * B.m_z - m_z * B.m_y,
 			m_z * B.m_x - m_x * B.m_z,
 			m_x * B.m_y - m_y * B.m_x, m_w);
 	}
 
-	DG_INLINE dgVector CrossProduct4 (const dgVector& A, const dgVector& B) const
+	DG_INLINE dgVector CrossProduct (const dgVector& A, const dgVector& B) const
 	{
 		dgFloat32 cofactor[3][3];
 		dgFloat32 array[4][4];
@@ -259,7 +254,7 @@ class dgVector
 		return dgVector (dgFloor (m_x), dgFloor (m_y), dgFloor (m_z), dgFloor (m_w));
 	}
 
-	DG_INLINE dgVector DotProduct4 (const dgVector &A) const
+	DG_INLINE dgVector DotProduct (const dgVector &A) const
 	{
 		return dgVector (m_x * A.m_x + m_y * A.m_y + m_z * A.m_z + m_w * A.m_w);
 	}
@@ -281,14 +276,14 @@ class dgVector
 
 	DG_INLINE dgVector InvMagSqrt () const
 	{
-		return dgVector (dgRsqrt (DotProduct4(*this).m_x));
+		return dgVector (dgRsqrt (DotProduct(*this).m_x));
 	}
 
 	DG_INLINE dgVector Normalize () const
 	{
 		dgAssert (m_w == dgFloat32 (0.0f));
-		//return *this * dgVector (dgRsqrt (DotProduct4(*this).m_x));
-		//return Scale4 (dgRsqrt (DotProduct4(*this).GetScalar()));
+		//return *this * dgVector (dgRsqrt (DotProduct(*this).m_x));
+		//return Scale (dgRsqrt (DotProduct(*this).GetScalar()));
 		const dgVector& me = *this; 
 		return me * InvMagSqrt();
 	}
@@ -599,12 +594,7 @@ class dgBigVector
 		return dgBigVector (m_x + m_y + m_z + m_w);
 	}
 
-	DG_INLINE dgBigVector Scale3 (dgFloat64 scale) const
-	{
-		return dgBigVector (m_x * scale, m_y * scale, m_z * scale, m_w);
-	}
-
-	DG_INLINE dgBigVector Scale4 (dgFloat64 scale) const
+	DG_INLINE dgBigVector Scale (dgFloat64 scale) const
 	{
 		return dgBigVector (m_x * scale, m_y * scale, m_z * scale, m_w * scale);
 	}
@@ -616,12 +606,12 @@ class dgBigVector
 	}
 
 	// return cross product
-	DG_INLINE dgBigVector CrossProduct3 (const dgBigVector& B) const
+	DG_INLINE dgBigVector CrossProduct (const dgBigVector& B) const
 	{
 		return dgBigVector (m_y * B.m_z - m_z * B.m_y, m_z * B.m_x - m_x * B.m_z, m_x * B.m_y - m_y * B.m_x, m_w);
 	}
 
-	DG_INLINE dgBigVector CrossProduct4 (const dgBigVector& A, const dgBigVector& B) const
+	DG_INLINE dgBigVector CrossProduct (const dgBigVector& A, const dgBigVector& B) const
 	{
 		dgFloat64 cofactor[3][3];
 		dgFloat64 array[4][4];
@@ -679,7 +669,7 @@ class dgBigVector
 		return dgBigVector (floor (m_x), floor (m_y), floor (m_z), floor (m_w));
 	}
 
-	DG_INLINE dgBigVector DotProduct4 (const dgBigVector &A) const
+	DG_INLINE dgBigVector DotProduct (const dgBigVector &A) const
 	{
 		return dgBigVector (m_x * A.m_x + m_y * A.m_y + m_z * A.m_z + m_w * A.m_w);
 	}
@@ -701,14 +691,14 @@ class dgBigVector
 
 	DG_INLINE dgBigVector InvMagSqrt () const
 	{
-		return dgBigVector (dgFloat64 (1.0f) / sqrt (DotProduct4(*this).m_x));
+		return dgBigVector (dgFloat64 (1.0f) / sqrt (DotProduct(*this).m_x));
 	}
 
 	DG_INLINE dgBigVector Normalize() const
 	{
 		dgAssert (m_w == dgFloat64 (0.0f));
 		//const dgBigVector& me = *this;
-		//return *this * dgBigVector (dgRsqrt(DotProduct4(*this).m_x));
+		//return *this * dgBigVector (dgRsqrt(DotProduct(*this).m_x));
 		return *this * InvMagSqrt();
 	}
 

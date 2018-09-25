@@ -374,10 +374,9 @@ void dgCollisionInstance::SetGlobalScale (const dgVector& scale)
 
 	// extract the original local matrix
 	dgMatrix transpose (matrix.Transpose());
-	dgVector globalScale (dgSqrt (transpose[0].DotProduct3(transpose[0])), dgSqrt (transpose[1].DotProduct3(transpose[1])), dgSqrt (transpose[2].DotProduct3(transpose[2])), dgFloat32 (1.0f));
+	dgVector globalScale (dgSqrt (transpose[0].DotProduct(transpose[0]).GetScalar()), dgSqrt (transpose[1].DotProduct(transpose[1]).GetScalar()), dgSqrt (transpose[2].DotProduct(transpose[2]).GetScalar()), dgFloat32 (1.0f));
 	dgVector invGlobalScale (dgFloat32 (1.0f) / globalScale.m_x, dgFloat32 (1.0f) / globalScale.m_y, dgFloat32 (1.0f) / globalScale.m_z, dgFloat32 (1.0f));
 	dgMatrix localMatrix (m_aligmentMatrix.Transpose() * m_localMatrix);
-//	localMatrix.m_posit = matrix.m_posit * invGlobalScale | dgVector::m_wOne;
 	localMatrix.m_posit = matrix.m_posit * invGlobalScale;
 	dgAssert (localMatrix.m_posit.m_w == dgFloat32 (1.0f));
 
@@ -516,9 +515,9 @@ void dgCollisionInstance::CalcAABB (const dgMatrix& matrix, dgVector& p0, dgVect
 		case m_nonUniform:
 		{
 			dgMatrix matrix1 (matrix);
-			matrix1[0] = matrix1[0].Scale4(m_scale.m_x);
-			matrix1[1] = matrix1[1].Scale4(m_scale.m_y);
-			matrix1[2] = matrix1[2].Scale4(m_scale.m_z);
+			matrix1[0] = matrix1[0].Scale(m_scale.m_x);
+			matrix1[1] = matrix1[1].Scale(m_scale.m_y);
+			matrix1[2] = matrix1[2].Scale(m_scale.m_z);
 			m_childShape->CalcAABB (matrix1, p0, p1);
 			p0 -= m_padding;
 			p1 += m_padding;
@@ -529,9 +528,9 @@ void dgCollisionInstance::CalcAABB (const dgMatrix& matrix, dgVector& p0, dgVect
 		default:
 		{
 			dgMatrix matrix1 (matrix);
-			matrix1[0] = matrix1[0].Scale4(m_scale.m_x);
-			matrix1[1] = matrix1[1].Scale4(m_scale.m_y);
-			matrix1[2] = matrix1[2].Scale4(m_scale.m_z);
+			matrix1[0] = matrix1[0].Scale(m_scale.m_x);
+			matrix1[1] = matrix1[1].Scale(m_scale.m_y);
+			matrix1[2] = matrix1[2].Scale(m_scale.m_z);
 			m_childShape->CalcAABB (m_aligmentMatrix * matrix1, p0, p1);
 			p0 -= m_padding;
 			p1 += m_padding;
@@ -639,8 +638,8 @@ void dgCollisionInstance::CalculateBuoyancyAcceleration (const dgMatrix& matrix,
 	if (volumeIntegral.m_w > dgFloat32 (0.0f)) {
 		dgVector buoyanceCenter (volumeIntegral - origin);
 
-		dgVector force (gravity.Scale3 (-fluidDensity * volumeIntegral.m_w));
-		dgVector torque (buoyanceCenter.CrossProduct3(force));
+		dgVector force (gravity.Scale (-fluidDensity * volumeIntegral.m_w));
+		dgVector torque (buoyanceCenter.CrossProduct(force));
 
 		unitForce += force;
 		unitTorque += torque;

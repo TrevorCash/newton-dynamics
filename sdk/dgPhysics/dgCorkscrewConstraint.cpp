@@ -107,7 +107,7 @@ dgFloat32 dgCorkscrewConstraint::GetJointOmega () const
 //	if (m_body1) {
 //		omega1 = m_body1->GetOmega();
 //	}
-	return dir.DotProduct3(omega0 - omega1);
+	return dir.DotProduct(omega0 - omega1).GetScalar();
 }
 
 dgFloat32 dgCorkscrewConstraint::GetJointVeloc () const
@@ -122,7 +122,7 @@ dgFloat32 dgCorkscrewConstraint::GetJointVeloc () const
 //	if (m_body1) {
 //		veloc1 = m_body1->GetVelocity();
 //	}
-	return dir.DotProduct3(veloc0 - veloc1);
+	return dir.DotProduct(veloc0 - veloc1).GetScalar();
 }
 
 
@@ -188,10 +188,10 @@ dgVector dgCorkscrewConstraint::GetJointForce () const
 
 	CalculateGlobalMatrixAndAngle (m_localMatrix0, m_localMatrix1, matrix0, matrix1);
 
-	return dgVector (matrix0.m_up.Scale3 (m_jointForce[0].m_force) + 
-		             matrix0.m_right.Scale3 (m_jointForce[1].m_force) + 
-					 matrix0.m_up.Scale3 (m_jointForce[2].m_force) +
-					 matrix0.m_right.Scale3 (m_jointForce[3].m_force));
+	return dgVector (matrix0.m_up.Scale (m_jointForce[0].m_force) + 
+		             matrix0.m_right.Scale (m_jointForce[1].m_force) + 
+					 matrix0.m_up.Scale (m_jointForce[2].m_force) +
+					 matrix0.m_right.Scale (m_jointForce[3].m_force));
 
 }
 
@@ -203,12 +203,12 @@ dgUnsigned32 dgCorkscrewConstraint::JacobianDerivative (dgContraintDescritor& pa
 	dgVector angle (CalculateGlobalMatrixAndAngle (m_localMatrix0, m_localMatrix1, matrix0, matrix1));
 
 	m_angle = -angle.m_x;
-	m_posit = matrix0.m_front.DotProduct3(matrix0.m_posit - matrix1.m_posit);
-	matrix1.m_posit += matrix1.m_front.Scale3 (m_posit);
+	m_posit = matrix0.m_front.DotProduct(matrix0.m_posit - matrix1.m_posit).GetScalar();
+	matrix1.m_posit += matrix1.m_front.Scale (m_posit);
 
-	dgAssert (dgAbs (dgFloat32 (1.0f) - matrix0.m_front.DotProduct3(matrix0.m_front)) < dgFloat32 (1.0e-5f)); 
-	dgAssert (dgAbs (dgFloat32 (1.0f) - matrix0.m_up.DotProduct3(matrix0.m_up)) < dgFloat32 (1.0e-5f)); 
-	dgAssert (dgAbs (dgFloat32 (1.0f) - matrix0.m_right.DotProduct3(matrix0.m_right)) < dgFloat32 (1.0e-5f)); 
+	dgAssert (dgAbs (dgFloat32 (1.0f) - matrix0.m_front.DotProduct(matrix0.m_front).GetScalar()) < dgFloat32 (1.0e-5f)); 
+	dgAssert (dgAbs (dgFloat32 (1.0f) - matrix0.m_up.DotProduct(matrix0.m_up).GetScalar()) < dgFloat32 (1.0e-5f)); 
+	dgAssert (dgAbs (dgFloat32 (1.0f) - matrix0.m_right.DotProduct(matrix0.m_right).GetScalar()) < dgFloat32 (1.0e-5f)); 
 
 	const dgVector& dir1 = matrix0.m_up;
 	const dgVector& dir2 = matrix0.m_right;
@@ -216,10 +216,10 @@ dgUnsigned32 dgCorkscrewConstraint::JacobianDerivative (dgContraintDescritor& pa
 //	const dgVector& p0 = matrix0.m_posit;
 //	const dgVector& p1 = matrix1.m_posit;
 	dgVector p0 (matrix0.m_posit);
-	dgVector p1 (matrix1.m_posit + matrix1.m_front.Scale3 (matrix1.m_front.DotProduct3(p0 - matrix1.m_posit)));
+	dgVector p1 (matrix1.m_posit + matrix1.m_front.Scale (matrix1.m_front.DotProduct(p0 - matrix1.m_posit).GetScalar()));
 
-	dgVector q0 (p0 + matrix0.m_front.Scale3(MIN_JOINT_PIN_LENGTH));
-	dgVector q1 (p1 + matrix1.m_front.Scale3(MIN_JOINT_PIN_LENGTH));
+	dgVector q0 (p0 + matrix0.m_front.Scale(MIN_JOINT_PIN_LENGTH));
+	dgVector q1 (p1 + matrix1.m_front.Scale(MIN_JOINT_PIN_LENGTH));
 
 	dgPointParam pointDataP;
 	dgPointParam pointDataQ;

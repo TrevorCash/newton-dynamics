@@ -88,10 +88,10 @@ void dgWorldDynamicUpdate::ResolveClusterForces(dgBodyCluster* const cluster, dg
 			if (body->IsRTTIType (dgBody::m_dynamicBodyRTTI)) {
 				dgAssert (body->m_invMass.m_w);
 
-				const dgFloat32 accel2 = body->m_accel.DotProduct3(body->m_accel);
-				const dgFloat32 alpha2 = body->m_alpha.DotProduct3(body->m_alpha);
-				const dgFloat32 speed2 = body->m_veloc.DotProduct3(body->m_veloc);
-				const dgFloat32 omega2 = body->m_omega.DotProduct3(body->m_omega);
+				const dgFloat32 accel2 = body->m_accel.DotProduct(body->m_accel).GetScalar();
+				const dgFloat32 alpha2 = body->m_alpha.DotProduct(body->m_alpha).GetScalar();
+				const dgFloat32 speed2 = body->m_veloc.DotProduct(body->m_veloc).GetScalar();
+				const dgFloat32 omega2 = body->m_omega.DotProduct(body->m_omega).GetScalar();
 
 				maxAccel = dgMax (maxAccel, accel2);
 				maxAlpha = dgMax (maxAlpha, alpha2);
@@ -102,8 +102,8 @@ void dgWorldDynamicUpdate::ResolveClusterForces(dgBodyCluster* const cluster, dg
 				if (equilibrium) {
 					dgVector veloc (body->m_veloc * forceDampVect);
 					dgVector omega = body->m_omega * forceDampVect;
-					body->m_veloc = (veloc.DotProduct4(veloc) > m_velocTol) & veloc;
-					body->m_omega = (omega.DotProduct4(omega) > m_velocTol) & omega;
+					body->m_veloc = (veloc.DotProduct(veloc) > m_velocTol) & veloc;
+					body->m_omega = (omega.DotProduct(omega) > m_velocTol) & omega;
 
 				}
 				body->m_equilibrium = equilibrium ? 1 : 0;
@@ -264,11 +264,11 @@ void dgWorldDynamicUpdate::ResolveClusterForces(dgBodyCluster* const cluster, dg
 									
 									for (dgList<dgContactMaterial>::dgListNode* node = contact->GetFirst(); node; node = node->GetNext()) {
 										const dgContactMaterial* const contactMaterial = &node->GetInfo();
-										dgVector vel0 (veloc0 + omega0.CrossProduct3(contactMaterial->m_point - com0));
-										dgVector vel1 (veloc1 + omega1.CrossProduct3(contactMaterial->m_point - com1));
+										dgVector vel0 (veloc0 + omega0.CrossProduct(contactMaterial->m_point - com0));
+										dgVector vel1 (veloc1 + omega1.CrossProduct(contactMaterial->m_point - com1));
 										dgVector vRel (vel0 - vel1);
 										dgAssert (contactMaterial->m_normal.m_w == dgFloat32 (0.0f));
-										dgFloat32 speed = vRel.DotProduct4(contactMaterial->m_normal).m_w;
+										dgFloat32 speed = vRel.DotProduct(contactMaterial->m_normal).m_w;
 										isColliding |= (speed < dgFloat32 (0.0f));
 									}
 								}
@@ -361,7 +361,7 @@ void dgWorldDynamicUpdate::CalculateNetAcceleration(dgBody* const body, const dg
 	// the initial velocity and angular velocity were stored in m_accel and body->m_alpha for memory saving
 	dgVector accel (invTimeStep * (body->m_veloc - body->m_accel));
 	dgVector alpha (invTimeStep * (body->m_omega - body->m_alpha));
-	dgVector accelTest((accel.DotProduct4(accel) > maxAccNorm2) | (alpha.DotProduct4(alpha) > maxAccNorm2));
+	dgVector accelTest((accel.DotProduct(accel) > maxAccNorm2) | (alpha.DotProduct(alpha) > maxAccNorm2));
 	accel = accel & accelTest;
 	alpha = alpha & accelTest;
 
@@ -467,7 +467,6 @@ dgFloat32 dgWorldDynamicUpdate::CalculateJointForce_3_13(const dgJointInfo* cons
 
 	return accNorm.GetScalar() * accNorm.GetScalar();
 }
-
 
 dgFloat32 dgWorldDynamicUpdate::CalculateJointForce(const dgJointInfo* const jointInfo, const dgBodyInfo* const bodyArray, dgJacobian* const internalForces, const dgLeftHandSide* const matrixRow, dgRightHandSide* const rightHandSide) const
 {
@@ -640,9 +639,9 @@ dgJacobian dgWorldDynamicUpdate::IntegrateForceAndToque(dgDynamicBody* const bod
 	dgAssert(omega.m_w == dgFloat32(0.0f));
 
 	// integrate rotation here
-	dgFloat32 omegaMag2 = omega.DotProduct4(omega).GetScalar() + dgFloat32(1.0e-12f);
+	dgFloat32 omegaMag2 = omega.DotProduct(omega).GetScalar() + dgFloat32(1.0e-12f);
 	dgFloat32 invOmegaMag = dgRsqrt(omegaMag2);
-	dgVector omegaAxis(omega.Scale4(invOmegaMag));
+	dgVector omegaAxis(omega.Scale(invOmegaMag));
 	dgFloat32 omegaAngle = invOmegaMag * omegaMag2 * timestep.GetScalar();
 	dgQuaternion deltaRotation(omegaAxis, omegaAngle);
 	body->m_gyroRotation = body->m_gyroRotation * deltaRotation;
@@ -652,7 +651,7 @@ dgJacobian dgWorldDynamicUpdate::IntegrateForceAndToque(dgDynamicBody* const bod
 	matrix = dgMatrix (body->m_gyroRotation, dgVector::m_wOne);
 	localOmega = matrix.UnrotateVector(omega);
 	dgVector angularMomentum(inertia * localOmega);
-	body->m_gyroTorque = matrix.RotateVector(localOmega.CrossProduct3(angularMomentum));
+	body->m_gyroTorque = matrix.RotateVector(localOmega.CrossProduct(angularMomentum));
 	
 	velocStep.m_angular = matrix.RotateVector(gradientStep);
 #else
@@ -660,7 +659,7 @@ dgJacobian dgWorldDynamicUpdate::IntegrateForceAndToque(dgDynamicBody* const bod
 	dgVector externTorque(torque);
 	velocStep.m_angular = body->m_invWorldInertiaMatrix.RotateVector(externTorque) * timestep;
 #endif
-	velocStep.m_linear = force.Scale4(body->m_invMass.m_w) * timestep;
+	velocStep.m_linear = force.Scale(body->m_invMass.m_w) * timestep;
 	return velocStep;
 }
 
@@ -776,8 +775,8 @@ void dgWorldDynamicUpdate::CalculateClusterReactionForces(const dgBodyCluster* c
 //}
 
 					} else {
-						const dgVector velocStep2(velocStep.m_linear.DotProduct4(velocStep.m_linear));
-						const dgVector omegaStep2(velocStep.m_angular.DotProduct4(velocStep.m_angular));
+						const dgVector velocStep2(velocStep.m_linear.DotProduct(velocStep.m_linear));
+						const dgVector omegaStep2(velocStep.m_angular.DotProduct(velocStep.m_angular));
 						const dgVector test(((velocStep2 > speedFreeze2) | (omegaStep2 > speedFreeze2)) & dgVector::m_negOne);
 						const dgInt32 equilibrium = test.GetSignMask() ? 0 : 1;
 						body->m_resting &= equilibrium;
@@ -793,7 +792,7 @@ void dgWorldDynamicUpdate::CalculateClusterReactionForces(const dgBodyCluster* c
 				const dgVector& linearMomentum = internalForces[i].m_linear;
 				const dgVector& angularMomentum = internalForces[i].m_angular;
 
-				body->m_veloc += linearMomentum.Scale4(body->m_invMass.m_w);
+				body->m_veloc += linearMomentum.Scale(body->m_invMass.m_w);
 				body->m_omega += body->m_invWorldInertiaMatrix.RotateVector(angularMomentum);
 			}
 		}

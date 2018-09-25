@@ -432,7 +432,7 @@ DG_INLINE void dgBody::SetOmega (const dgVector& omega)
 
 DG_INLINE dgVector dgBody::GetVelocityAtPoint (const dgVector& point) const
 {
-	return m_veloc + m_omega.CrossProduct3(point - m_globalCentreOfMass);
+	return m_veloc + m_omega.CrossProduct(point - m_globalCentreOfMass);
 }
 
 DG_INLINE void dgBody::SetVelocityNoSleep(const dgVector& velocity)
@@ -613,7 +613,7 @@ DG_INLINE void dgBody::CalcInvInertiaMatrix ()
 
 DG_INLINE dgVector dgBody::CalculateLinearMomentum() const
 {
-	return dgVector (m_veloc.Scale4 (m_mass.m_w));
+	return dgVector (m_veloc.Scale (m_mass.m_w));
 }
 
 DG_INLINE dgVector dgBody::CalculateAngularMomentum() const

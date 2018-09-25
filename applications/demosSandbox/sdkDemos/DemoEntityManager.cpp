@@ -336,7 +336,7 @@ DemoEntityManager::DemoEntityManager ()
 //	m_hideVisualMeshes = true;
 //	m_autoSleepMode = true;
 	m_broadPhaseType = 1;
-//	m_solverPasses = 4;
+	m_solverPasses = 12;
 //	m_workerThreads = 4;
 //	m_showNormalForces = false;
 //	m_showCenterOfMass = false;
@@ -736,40 +736,30 @@ void DemoEntityManager::ShowMainMenuBar()
 			}
 			ImGui::Separator();
 
+			ImGui::Text("iterative solver passes %d", m_solverPasses);
+			ImGui::SliderInt("", &m_solverPasses, 4, 20);
+
+			ImGui::Text("worker threads %d", m_workerThreads);
+			ImGui::SliderInt(" ", &m_workerThreads, 1, 20);
+			ImGui::Separator();
+
 			ImGui::RadioButton("default broad phase", &m_broadPhaseType, 0);
 			ImGui::RadioButton("persistence broad phase", &m_broadPhaseType, 1);
 			ImGui::Separator();
 
-			ImGui::RadioButton("Iterative solver one passes", &m_solverPasses, 1);
-			ImGui::RadioButton("Iterative solver tow passes", &m_solverPasses, 2);
-			ImGui::RadioButton("Iterative solver four passes", &m_solverPasses, 4);
-			ImGui::RadioButton("Iterative solver eight passes", &m_solverPasses, 8);
+			ImGui::RadioButton("hide collision Mesh", &m_collisionDisplayMode, 0);
+			ImGui::RadioButton("show solid collision Mesh", &m_collisionDisplayMode, 1);
+			ImGui::RadioButton("show wire frame collision Mesh", &m_collisionDisplayMode, 2);
 			ImGui::Separator();
 
-			ImGui::RadioButton("Hide collision Mesh", &m_collisionDisplayMode, 0);
-			ImGui::RadioButton("Show solid collision Mesh", &m_collisionDisplayMode, 1);
-			ImGui::RadioButton("Show wire frame collision Mesh", &m_collisionDisplayMode, 2);
-			ImGui::Separator();
-
-			ImGui::Checkbox("Show aabb", &m_showAABB);
-			ImGui::Checkbox("Hide visual meshes", &m_hideVisualMeshes);
-			ImGui::Checkbox("Show contact points", &m_showContactPoints);
-			ImGui::Checkbox("Show normal forces", &m_showNormalForces);
-			ImGui::Checkbox("Show center of mass", &m_showCenterOfMass);
-			ImGui::Checkbox("Show body frame", &m_showBodyFrame);
+			ImGui::Checkbox("show aabb", &m_showAABB);
+			ImGui::Checkbox("hide visual meshes", &m_hideVisualMeshes);
+			ImGui::Checkbox("show contact points", &m_showContactPoints);
+			ImGui::Checkbox("show normal forces", &m_showNormalForces);
+			ImGui::Checkbox("show center of mass", &m_showCenterOfMass);
+			ImGui::Checkbox("show body frame", &m_showBodyFrame);
 			ImGui::Checkbox("show Joint debug info", &m_showJointDebugInfo);
 			ImGui::Checkbox("show colliding faces", &m_showCollidingFaces);
-			ImGui::Separator();
-			
-			ImGui::Text ("select worker threads");
-			ImGui::RadioButton("one", &m_workerThreads, 1);
-			ImGui::RadioButton("two", &m_workerThreads, 2);
-			ImGui::RadioButton("three", &m_workerThreads, 3);
-			ImGui::RadioButton("four", &m_workerThreads, 4);
-			ImGui::RadioButton("six", &m_workerThreads, 6);
-			ImGui::RadioButton("eight", &m_workerThreads, 8);
-			ImGui::RadioButton("twelve", &m_workerThreads, 12);
-			ImGui::RadioButton("sixteen", &m_workerThreads, 16);
 
 			ImGui::EndMenu();
 

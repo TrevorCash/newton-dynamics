@@ -101,8 +101,7 @@ void dgCollision::MassProperties ()
 {
 	// using general central theorem, to extract the Inertia relative to the center of mass 
 	//IImatrix = IIorigin + unitmass * [(displacemnet % displacemnet) * identityMatrix - transpose(displacement) * displacement)];
-	//IIorigin = IImatrix - unitmass * [(displacemnet % displacemnet) * identityMatrix - transpose(displacement) * displacement)];
-
+	
 	dgMatrix inertia (dgGetIdentityMatrix());
 	inertia[0][0] = m_inertia[0];
 	inertia[1][1] = m_inertia[1];
@@ -115,18 +114,16 @@ void dgCollision::MassProperties ()
 	inertia[2][1] = m_crossInertia[0];
 
 	dgVector origin (m_centerOfMass);
-	dgFloat32 mag = origin.DotProduct3(origin);
+	dgFloat32 originMag2 = origin.DotProduct(origin & dgVector::m_triplexMask).GetScalar();
 
-	dgFloat32 unitMass = dgFloat32 (1.0f);
-	for (dgInt32 i = 0; i < 3; i ++) {
-		inertia[i][i] -= unitMass * (mag - origin[i] * origin[i]);
-		for (dgInt32 j = i + 1; j < 3; j ++) {
-			dgFloat32 crossIJ = unitMass * origin[i] * origin[j];
-			inertia[i][j] += crossIJ;
-			inertia[j][i] += crossIJ;
-		}
+	dgMatrix Covariance (origin, origin);
+	dgMatrix parallel (dgGetIdentityMatrix());
+	for (dgInt32 i = 0; i < 3; i ++ ) {
+		parallel[i][i] = originMag2;
+		inertia[i] += (parallel[i] - Covariance[i]);
+		dgAssert (inertia[i][i] > dgFloat32 (0.0f));
 	}
-
+	
 	m_inertia[0] = inertia[0][0];
 	m_inertia[1] = inertia[1][1];
 	m_inertia[2] = inertia[2][2];

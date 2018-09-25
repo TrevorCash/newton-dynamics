@@ -81,8 +81,8 @@ dgContactSolver::dgContactSolver(dgCollisionParamProxy* const proxy)
 DG_INLINE void dgContactSolver::SupportVertex(const dgVector& dir0, dgInt32 vertexIndex)
 {
 	dgAssert(dir0.m_w == dgFloat32(0.0f));
-	dgAssert(dgAbs(dir0.DotProduct3(dir0) - dgFloat32(1.0f)) < dgFloat32(1.0e-3f));
-	dgVector dir1 (dir0.Scale4(dgFloat32 (-1.0f)));
+	dgAssert(dgAbs(dir0.DotProduct(dir0).GetScalar() - dgFloat32(1.0f)) < dgFloat32(1.0e-3f));
+	dgVector dir1 (dir0.Scale(dgFloat32 (-1.0f)));
 
 	const dgMatrix& matrix0 = m_instance0->m_globalMatrix;
 	const dgMatrix& matrix1 = m_instance1->m_globalMatrix;
@@ -100,13 +100,13 @@ DG_INLINE dgBigVector dgContactSolver::ReduceLine(dgInt32& indexOut)
 	const dgBigVector dp(p1 - p0);
 	dgBigVector v;
 
-	const dgFloat64 mag2 = dp.DotProduct4(dp).GetScalar();
+	const dgFloat64 mag2 = dp.DotProduct(dp).GetScalar();
 	dgAssert (mag2 > dgFloat64 (0.0f));
 	if (mag2 < dgFloat32(1.0e-24f)) {
 		v = p0;
 		indexOut = 1;
 	} else {
-		const dgFloat64 alpha0 = - p0.DotProduct4(dp).GetScalar();
+		const dgFloat64 alpha0 = - p0.DotProduct(dp).GetScalar();
 		if (alpha0 > mag2) {
 			v = p1;
 			indexOut = 1;
@@ -116,7 +116,7 @@ DG_INLINE dgBigVector dgContactSolver::ReduceLine(dgInt32& indexOut)
 			v = p0;
 			indexOut = 1;
 		} else {
-			v = p0 + dp.Scale4(alpha0 / mag2);
+			v = p0 + dp.Scale(alpha0 / mag2);
 		}
 	}
 	return v;
@@ -129,15 +129,15 @@ DG_INLINE dgBigVector dgContactSolver::ReduceTriangle (dgInt32& indexOut)
 	const dgBigVector p2(m_hullDiff[2]);
 	const dgBigVector e10 (p1 - p0);
 	const dgBigVector e20 (p2 - p0);
-	const dgFloat64 a00 = e10.DotProduct4(e10).GetScalar();
-	const dgFloat64 a11 = e20.DotProduct4(e20).GetScalar();
-	const dgFloat64 a01 = e10.DotProduct4(e20).GetScalar();
+	const dgFloat64 a00 = e10.DotProduct(e10).GetScalar();
+	const dgFloat64 a11 = e20.DotProduct(e20).GetScalar();
+	const dgFloat64 a01 = e10.DotProduct(e20).GetScalar();
 
 	const dgFloat64 det = a00 * a11 - a01 * a01;
 	dgAssert(det >= dgFloat32(0.0f));
 	if (dgAbs(det) > dgFloat32(1.0e-24f)) {
-		const dgFloat64 b0 = -e10.DotProduct4(p0).GetScalar();
-		const dgFloat64 b1 = -e20.DotProduct4(p0).GetScalar();
+		const dgFloat64 b0 = -e10.DotProduct(p0).GetScalar();
+		const dgFloat64 b1 = -e20.DotProduct(p0).GetScalar();
 
 		const dgFloat64 u2 = b1 * a00 - a01 * b0;
 		const dgFloat64 u1 = b0 * a11 - a01 * b1;
@@ -151,7 +151,7 @@ DG_INLINE dgBigVector dgContactSolver::ReduceTriangle (dgInt32& indexOut)
 			m_hullSum[0] = m_hullSum[2];
 			m_hullDiff[0] = m_hullDiff[2];
 		} else {
-			return p0 + (e10.Scale4(u1) + e20.Scale4(u2)).Scale4(dgFloat64(1.0f) / det);
+			return p0 + (e10.Scale(u1) + e20.Scale(u2)).Scale(dgFloat64(1.0f) / det);
 		}
 		indexOut = 2;
 		return ReduceLine(indexOut);
@@ -171,23 +171,23 @@ DG_INLINE dgBigVector dgContactSolver::ReduceTetrahedrum (dgInt32& indexOut)
 	const dgBigVector e20(p2 - p0);
 	const dgBigVector e30(p3 - p0);
 
-	const dgFloat64 d0 = sqrt (e10.DotProduct4(e10).GetScalar());
+	const dgFloat64 d0 = sqrt (e10.DotProduct(e10).GetScalar());
 	if (d0 > dgFloat64(0.0f)) {
 		const dgFloat64 invd0 = dgFloat64(1.0f) / d0;
-		const dgFloat64 l10 = e20.DotProduct4(e10).GetScalar() * invd0;
-		const dgFloat64 l20 = e30.DotProduct4(e10).GetScalar() * invd0;
-		const dgFloat64 desc11 = e20.DotProduct4(e20).GetScalar() - l10 * l10;
+		const dgFloat64 l10 = e20.DotProduct(e10).GetScalar() * invd0;
+		const dgFloat64 l20 = e30.DotProduct(e10).GetScalar() * invd0;
+		const dgFloat64 desc11 = e20.DotProduct(e20).GetScalar() - l10 * l10;
 		if (desc11 > dgFloat64(0.0f)) {
 			const dgFloat64 d1 = sqrt(desc11);
 			const dgFloat64 invd1 = dgFloat64(1.0f) / d1;
-			const dgFloat64 l21 = (e30.DotProduct4(e20).GetScalar() - l20 * l10) * invd1;
-			const dgFloat64 desc22 = e30.DotProduct4(e30).GetScalar() - l20 * l20 - l21 * l21;
+			const dgFloat64 l21 = (e30.DotProduct(e20).GetScalar() - l20 * l10) * invd1;
+			const dgFloat64 desc22 = e30.DotProduct(e30).GetScalar() - l20 * l20 - l21 * l21;
 			if (desc22 > dgFloat64(0.0f)) {
 				const dgFloat64 d2 = sqrt(desc22);
 				const dgFloat64 invd2 = dgFloat64(1.0f) / d2;
-				const dgFloat64 b0 = -e10.DotProduct4(p0).GetScalar();
-				const dgFloat64 b1 = -e20.DotProduct4(p0).GetScalar();
-				const dgFloat64 b2 = -e30.DotProduct4(p0).GetScalar();
+				const dgFloat64 b0 = -e10.DotProduct(p0).GetScalar();
+				const dgFloat64 b1 = -e20.DotProduct(p0).GetScalar();
+				const dgFloat64 b2 = -e30.DotProduct(p0).GetScalar();
 
 				dgFloat64 u1 = b0 * invd0;
 				dgFloat64 u2 = (b1 - l10 * u1) * invd1;
@@ -263,7 +263,7 @@ dgInt32 dgContactSolver::CalculateClosestSimplex()
 	dgInt32 cycling = 0;
 	dgFloat64 minDist = dgFloat32 (1.0e20f);
 	do {
-		dgFloat64 dist = v.DotProduct4(v).GetScalar();
+		dgFloat64 dist = v.DotProduct(v).GetScalar();
 		if (dist < dgFloat32 (1.0e-9f)) {
 			// very deep penetration, resolve with generic minkowsky solver
 			return -index; 
@@ -279,14 +279,14 @@ dgInt32 dgContactSolver::CalculateClosestSimplex()
 			return -index;
 		}
 
-		const dgVector dir (v.Scale4 (-dgRsqrt(dist)));
+		const dgVector dir (v.Scale (-dgRsqrt(dist)));
 		dgAssert (dir.m_w == dgFloat32 (0.0f));
 		SupportVertex (dir, index);
 
 		const dgBigVector w (m_hullDiff[index]);
 		const dgVector wv (w - v);
 		dgAssert (wv.m_w == dgFloat32 (0.0f));
-		const dgFloat64 dist1 = dir.DotProduct4(wv).GetScalar();
+		const dgFloat64 dist1 = dir.DotProduct(wv).GetScalar();
 		if (dist1 < dgFloat64 (1.0e-3f)) {
 			m_normal = dir;
 			break;
@@ -362,14 +362,14 @@ DG_INLINE void dgContactSolver::PushFace(dgMinkFace* const face)
 	dgInt32 i2 = face->m_vertex[2];
 
 	dgPlane plane(m_hullDiff[i0], m_hullDiff[i1], m_hullDiff[i2]);
-	dgFloat32 mag2 = plane.DotProduct3(plane);
+	dgFloat32 mag2 = plane.DotProduct(plane & dgVector::m_triplexMask).GetScalar();
 	face->m_alive = 1;
 	if (mag2 > dgFloat32(1.0e-16f)) {
 		face->m_plane = plane.Scale(dgRsqrt(mag2));
 		dgMinkFace* face1 = face;
 		Push(face1, face->m_plane.m_w);
 	} else {
-		face->m_plane = dgPlane(dgFloat32(0.0f), dgFloat32(0.0f), dgFloat32(0.0f), dgFloat32(0.0f));
+		face->m_plane = dgPlane(dgVector::m_zero);
 	}
 }
 
@@ -377,9 +377,10 @@ dgInt32 dgContactSolver::CalculateIntersectingPlane(dgInt32 count)
 {
 	dgAssert(count >= 1);
 	if (count == 1) {
-		SupportVertex(m_proxy->m_contactJoint->m_separtingVector.Scale4(dgFloat32(-1.0f)), 1);
+		SupportVertex(m_proxy->m_contactJoint->m_separtingVector.Scale(dgFloat32(-1.0f)), 1);
 		dgVector err(m_hullDiff[1] - m_hullDiff[0]);
-		if (err.DotProduct3(err) < dgFloat32(1.0e-8f)) {
+		dgAssert (err.m_w == dgFloat32 (0.0f));
+		if (err.DotProduct(err).GetScalar() < dgFloat32(1.0e-8f)) {
 			return -1;
 		}
 		count = 2;
@@ -387,15 +388,17 @@ dgInt32 dgContactSolver::CalculateIntersectingPlane(dgInt32 count)
 	
 	if (count == 2) {
 		dgVector e0(m_hullDiff[1] - m_hullDiff[0]);
-		dgAssert(e0.DotProduct3(e0) > dgFloat32(0.0f));
-		dgMatrix matrix(e0.Scale4(dgRsqrt(e0.DotProduct3(e0))));
+		dgAssert (e0.m_w == dgFloat32 (0.0f));
+		dgAssert(e0.DotProduct(e0).GetScalar() > dgFloat32(0.0f));
+		dgMatrix matrix(e0.Scale(dgRsqrt(e0.DotProduct(e0).GetScalar())));
 		dgMatrix rotation(dgPitchMatrix(dgFloat32(45.0f * dgDEG2RAD)));
 		dgFloat32 maxArea = dgFloat32(0.0f);
 		for (dgInt32 i = 0; i < 8; i++) {
 			SupportVertex(matrix[1], 3);
 			dgVector e1(m_hullDiff[3] - m_hullDiff[0]);
-			dgVector area(e0.CrossProduct3(e1));
-			dgFloat32 area2 = area.DotProduct3(area);
+			dgAssert (e1.m_w == dgFloat32 (0.0f));
+			dgVector area(e0.CrossProduct(e1));
+			dgFloat32 area2 = area.DotProduct(area).GetScalar();
 			if (area2 > maxArea) {
 				m_hullSum[2] = m_hullSum[3];
 				m_hullDiff[2] = m_hullDiff[3];
@@ -414,16 +417,17 @@ dgInt32 dgContactSolver::CalculateIntersectingPlane(dgInt32 count)
 	if (count == 3) {
 		dgVector e10(m_hullDiff[1] - m_hullDiff[0]);
 		dgVector e20(m_hullDiff[2] - m_hullDiff[0]);
-		dgVector normal(e10.CrossProduct3(e20));
-		dgFloat32 mag2 = normal.DotProduct3(normal);
+		dgVector normal(e10.CrossProduct(e20));
+		dgAssert (normal.m_w == dgFloat32 (0.0f));
+		dgFloat32 mag2 = normal.DotProduct(normal).GetScalar();
 		dgAssert(mag2 > dgFloat32(0.0f));
-		normal = normal.Scale4(dgRsqrt(mag2));
+		normal = normal.Scale(dgRsqrt(mag2));
 		SupportVertex(normal, 3);
-		volume = normal.DotProduct3(m_hullDiff[3] - m_hullDiff[0]);
+		volume = normal.DotProduct(m_hullDiff[3] - m_hullDiff[0]).GetScalar();
 		if (dgAbs(volume) < dgFloat32(1.0e-10f)) {
-			normal = normal.Scale4(dgFloat32(-1.0f));
+			normal = normal.Scale(dgFloat32(-1.0f));
 			SupportVertex(normal, 3);
-			volume = - normal.DotProduct3(m_hullDiff[3] - m_hullDiff[0]);
+			volume = - normal.DotProduct(m_hullDiff[3] - m_hullDiff[0]).GetScalar();
 			if (dgAbs(volume) < dgFloat32(1.0e-10f)) {
 				volume = dgFloat32(0.0f);
 			}
@@ -433,8 +437,9 @@ dgInt32 dgContactSolver::CalculateIntersectingPlane(dgInt32 count)
 		dgVector e0(m_hullDiff[1] - m_hullDiff[0]);
 		dgVector e1(m_hullDiff[2] - m_hullDiff[0]);
 		dgVector e2(m_hullDiff[3] - m_hullDiff[0]);
-		dgVector n(e1.CrossProduct3(e2));
-		volume = e0.DotProduct3(n);
+		dgVector n(e1.CrossProduct(e2));
+		dgAssert (n.m_w == dgFloat32 (0.0f));
+		volume = e0.DotProduct(n).GetScalar();
 	}
 
 
@@ -462,7 +467,8 @@ dgInt32 dgContactSolver::CalculateIntersectingPlane(dgInt32 count)
 		for (; i < nCount; i++) {
 			SupportVertex(m_hullDirs[i], 1);
 			e1 = m_hullDiff[1] - m_hullDiff[0];
-			error2 = e1.DotProduct3(e1);
+			dgAssert (e1.m_w == dgFloat32 (0.0f));
+			error2 = e1.DotProduct(e1).GetScalar();
 			if (error2 > DG_CALCULATE_SEPARATING_PLANE_ERROR) {
 				break;
 			}
@@ -471,8 +477,9 @@ dgInt32 dgContactSolver::CalculateIntersectingPlane(dgInt32 count)
 		for (i++; i < nCount; i++) {
 			SupportVertex(m_hullDirs[i], 2);
 			e2 = m_hullDiff[2] - m_hullDiff[0];
-			normal = e1.CrossProduct3(e2);
-			error2 = normal.DotProduct3(normal);
+			normal = e1.CrossProduct(e2);
+			dgAssert (normal.m_w == dgFloat32 (0.0f));
+			error2 = normal.DotProduct(normal).GetScalar();
 			if (error2 > DG_CALCULATE_SEPARATING_PLANE_ERROR) {
 				break;
 			}
@@ -482,7 +489,8 @@ dgInt32 dgContactSolver::CalculateIntersectingPlane(dgInt32 count)
 		for (i++; i < nCount; i++) {
 			SupportVertex(m_hullDirs[i], 3);
 			e3 = m_hullDiff[3] - m_hullDiff[0];
-			error2 = normal.DotProduct3(e3);
+			dgAssert (normal.m_w == dgFloat32 (0.0f));
+			error2 = normal.DotProduct(e3).GetScalar();
 			if (dgAbs(error2) > DG_CALCULATE_SEPARATING_PLANE_ERROR) {
 				break;
 			}
@@ -503,8 +511,9 @@ dgInt32 dgContactSolver::CalculateIntersectingPlane(dgInt32 count)
 			dgVector f0(m_hullDiff[1] - m_hullDiff[0]);
 			dgVector f1(m_hullDiff[2] - m_hullDiff[0]);
 			dgVector f2(m_hullDiff[3] - m_hullDiff[0]);
-			dgVector n(f1.CrossProduct3(f2));
-			dgFloat32 volume1 = f0.DotProduct3(n);
+			dgVector n(f1.CrossProduct(f2));
+			dgAssert (n.m_w == dgFloat32 (0.0f));
+			dgFloat32 volume1 = f0.DotProduct(n).GetScalar();
 			dgAssert(volume1 < dgFloat32(0.0f));
 		}
 #endif
@@ -707,12 +716,13 @@ DG_INLINE void dgContactSolver::CalculateContactFromFeacture(dgInt32 featureType
 			const dgVector& p0 = m_hullDiff[0];
 			const dgVector& p1 = m_hullDiff[1];
 			dgVector dp(p1 - p0);
-			dgAssert(dp.DotProduct3(dp) > dgFloat32(0.0f));
-			dgFloat32 alpha0 = - p0.DotProduct3(dp) / dp.DotProduct3(dp);
+			dgAssert(dp.m_w == dgFloat32 (0.0f));
+			dgAssert(dp.DotProduct(dp).GetScalar() > dgFloat32(0.0f));
+			dgFloat32 alpha0 = - p0.DotProduct(dp).GetScalar() / dp.DotProduct(dp).GetScalar();
 			dgAssert(alpha0 <= dgFloat32(1.01f));
 			dgAssert(alpha0 >= dgFloat32(-0.01f));
-			d = p0 + dp.Scale4(alpha0);
-			s = m_hullSum[0] + (m_hullSum[1] - m_hullSum[0]).Scale4(alpha0);
+			d = p0 + dp.Scale(alpha0);
+			s = m_hullSum[0] + (m_hullSum[1] - m_hullSum[0]).Scale(alpha0);
 			break;
 		}
 
@@ -721,14 +731,15 @@ DG_INLINE void dgContactSolver::CalculateContactFromFeacture(dgInt32 featureType
 		{
 			dgVector e10(m_hullDiff[1] - m_hullDiff[0]);
 			dgVector e20(m_hullDiff[2] - m_hullDiff[0]);
-			dgVector normal(e10.CrossProduct3(e20));
-			dgAssert(normal.DotProduct3(normal) > dgFloat32(0.0f));
+			dgVector normal(e10.CrossProduct(e20));
+			dgAssert(normal.m_w == dgFloat32 (0.0f));
+			dgAssert(normal.DotProduct(normal).GetScalar() > dgFloat32(0.0f));
 
 			dgFloat32 alphas[3];
 			for (dgInt32 i0 = 2, i1 = 0; i1 < 3; i1++) {
 				const dgVector& p1p0 = m_hullDiff[i0];
 				const dgVector& p2p0 = m_hullDiff[i1];
-				alphas[i0] = normal.DotProduct3(p1p0.CrossProduct3(p2p0));
+				alphas[i0] = normal.DotProduct(p1p0.CrossProduct(p2p0)).GetScalar();
 				i0 = i1;
 			}
 
@@ -740,19 +751,21 @@ DG_INLINE void dgContactSolver::CalculateContactFromFeacture(dgInt32 featureType
 				alphas[0] *= alphaDen;
 				alphas[1] *= alphaDen;
 				alphas[2] *= alphaDen;
-				s = m_hullSum[0].Scale4(alphas[1]) + m_hullSum[1].Scale4(alphas[2]) + m_hullSum[2].Scale4(alphas[0]);
-				d = m_hullDiff[0].Scale4(alphas[1]) + m_hullDiff[1].Scale4(alphas[2]) + m_hullDiff[2].Scale4(alphas[0]);
+				s = m_hullSum[0].Scale(alphas[1]) + m_hullSum[1].Scale(alphas[2]) + m_hullSum[2].Scale(alphas[0]);
+				d = m_hullDiff[0].Scale(alphas[1]) + m_hullDiff[1].Scale(alphas[2]) + m_hullDiff[2].Scale(alphas[0]);
 			} else {
 				// this is a degenerated face that is so small that lose accuracy in 32 bit floats
 				// get the closest point from the longest edge
 
-				dgVector dir((e10.DotProduct3(e10) > e20.DotProduct3(e20)) ? e10 : e20);
+				dgAssert(e10.m_w == dgFloat32 (0.0f));
+				dgAssert(e20.m_w == dgFloat32 (0.0f));
+				dgVector dir((e10.DotProduct(e10).GetScalar() > e20.DotProduct(e20).GetScalar()) ? e10 : e20);
 				dgInt32 i0 = 0;
 				dgInt32 i1 = 0;
-				dgFloat32 dist0 = dir.DotProduct3(m_hullDiff[0]);
+				dgFloat32 dist0 = dir.DotProduct(m_hullDiff[0]).GetScalar();
 				dgFloat32 dist1 = -dist0;
 				for (dgInt32 i = 1; i < 3; i++) {
-					dgFloat32 test = dir.DotProduct3(m_hullDiff[i]);
+					dgFloat32 test = dir.DotProduct(m_hullDiff[i]).GetScalar();
 					if (test > dist0) {
 						i0 = i;
 						dist0 = test;
@@ -768,12 +781,13 @@ DG_INLINE void dgContactSolver::CalculateContactFromFeacture(dgInt32 featureType
 					const dgVector& p0 = m_hullDiff[i0];
 					const dgVector& p1 = m_hullDiff[i1];
 					dgVector dp(p1 - p0);
-					dgAssert(dp.DotProduct3(dp) > dgFloat32(0.0f));
-					dgFloat32 alpha0 = - p0.DotProduct3(dp) / dp.DotProduct3(dp);
+					dgAssert(dp.m_w == dgFloat32 (0.0f));
+					dgAssert(dp.DotProduct(dp).GetScalar() > dgFloat32(0.0f));
+					dgFloat32 alpha0 = - p0.DotProduct(dp).GetScalar() / dp.DotProduct(dp).GetScalar();
 					dgAssert(alpha0 <= dgFloat32(1.01f));
 					dgAssert(alpha0 >= dgFloat32(-0.01f));
-					d = p0 + dp.Scale4(alpha0);
-					s = m_hullSum[0] + (m_hullSum[i1] - m_hullSum[i0]).Scale4(alpha0);
+					d = p0 + dp.Scale(alpha0);
+					s = m_hullSum[0] + (m_hullSum[i1] - m_hullSum[i0]).Scale(alpha0);
 				} else {
 					s = m_hullSum[i0];
 					d = m_hullDiff[i0];
@@ -784,7 +798,8 @@ DG_INLINE void dgContactSolver::CalculateContactFromFeacture(dgInt32 featureType
 
 	m_closestPoint0 = dgVector::m_half * (s + d);
 	m_closestPoint1 = dgVector::m_half * (s - d);
-	dgAssert(dgAbs(m_normal.DotProduct3(m_normal) - dgFloat32(1.0f)) < dgFloat32(1.0e-4f));
+	dgAssert(m_normal.m_w == dgFloat32 (0.0f));
+	dgAssert(dgAbs(m_normal.DotProduct(m_normal).GetScalar() - dgFloat32(1.0f)) < dgFloat32(1.0e-4f));
 	m_proxy->m_contactJoint->m_separtingVector = m_normal;
 }
 
@@ -835,7 +850,7 @@ bool dgContactSolver::CalculateClosestPoints()
 		const dgMatrix& matrix0 = m_instance0->m_globalMatrix;
 		const dgMatrix& matrix1 = m_instance1->m_globalMatrix;
 		m_closestPoint0 = matrix0.TransformVector(m_instance0->SupportVertexSpecialProjectPoint(matrix0.UntransformVector(m_closestPoint0), matrix0.UnrotateVector(m_normal)));
-		m_closestPoint1 = matrix1.TransformVector(m_instance1->SupportVertexSpecialProjectPoint(matrix1.UntransformVector(m_closestPoint1), matrix1.UnrotateVector(m_normal.Scale4(-1.0f))));
+		m_closestPoint1 = matrix1.TransformVector(m_instance1->SupportVertexSpecialProjectPoint(matrix1.UntransformVector(m_closestPoint1), matrix1.UnrotateVector(m_normal.Scale(-1.0f))));
 		m_vertexIndex = simplexPointCount;
 	}
 	return simplexPointCount >= 0;
@@ -848,6 +863,7 @@ dgInt32 dgContactSolver::ConvexPolygonToLineIntersection(const dgVector& normal,
 
 	dgAssert(count1 >= 3);
 	dgAssert(count2 <= 2);
+	dgAssert(normal.m_w == dgFloat32 (0.0f));
 
 	dgVector* ptr = NULL;
 	// face line intersection
@@ -855,9 +871,10 @@ dgInt32 dgContactSolver::ConvexPolygonToLineIntersection(const dgVector& normal,
 		ptr = (dgVector*)&shape2[0];
 		dgInt32 i0 = count1 - 1;
 		for (dgInt32 i1 = 0; i1 < count1; i1++) {
-			dgVector n(normal.CrossProduct3(shape1[i1] - shape1[i0]));
-			dgAssert(n.DotProduct3(n) > dgFloat32(0.0f));
-			dgPlane plane(n, - n.DotProduct3(shape1[i0]));
+			dgVector n(normal.CrossProduct(shape1[i1] - shape1[i0]));
+			dgAssert(n.m_w == dgFloat32 (0.0f));
+			dgAssert(n.DotProduct(n).GetScalar() > dgFloat32(0.0f));
+			dgPlane plane(n, - n.DotProduct(shape1[i0]).GetScalar());
 
 			dgFloat32 test0 = plane.Evalue(ptr[0]);
 			dgFloat32 test1 = plane.Evalue(ptr[1]);
@@ -868,23 +885,25 @@ dgInt32 dgContactSolver::ConvexPolygonToLineIntersection(const dgVector& normal,
 					count += 2;
 				} else {
 					dgVector dp(ptr[1] - ptr[0]);
-					dgFloat32 den = plane.DotProduct3(dp);
+					dgAssert (dp.m_w == dgFloat32 (0.0f));
+					dgFloat32 den = plane.DotProduct(dp).GetScalar();
 					if (dgAbs(den) < 1.0e-10f) {
 						den = 1.0e-10f;
 					}
 					output[count + 0] = ptr[0];
 					dgAssert (dp.m_w == dgFloat32 (0.0f));
-					output[count + 1] = ptr[0] - dp.Scale4(test0 / den);
+					output[count + 1] = ptr[0] - dp.Scale(test0 / den);
 					count += 2;
 				}
 			} else if (test1 >= dgFloat32(0.0f)) {
 				dgVector dp(ptr[1] - ptr[0]);
-				dgFloat32 den = plane.DotProduct3(dp);
+				dgAssert (dp.m_w == dgFloat32 (0.0f));
+				dgFloat32 den = plane.DotProduct(dp).GetScalar();
 				if (dgAbs(den) < 1.0e-10f) {
 					den = 1.0e-10f;
 				}
 				dgAssert (dp.m_w == dgFloat32 (0.0f));
-				output[count] = ptr[0] - dp.Scale4(test0 / den);
+				output[count] = ptr[0] - dp.Scale(test0 / den);
 				count++;
 				output[count] = ptr[1];
 				count++;
@@ -904,9 +923,10 @@ dgInt32 dgContactSolver::ConvexPolygonToLineIntersection(const dgVector& normal,
 		const dgVector& p = shape2[0];
 		dgInt32 i0 = count1 - 1;
 		for (dgInt32 i1 = 0; i1 < count1; i1++) {
-			dgVector n(normal.CrossProduct3(shape1[i1] - shape1[i0]));
-			dgAssert(n.DotProduct3(n) > dgFloat32(0.0f));
-			dgPlane plane(n, - n.DotProduct3(shape1[i0]));
+			dgVector n(normal.CrossProduct(shape1[i1] - shape1[i0]));
+			dgAssert(n.m_w == dgFloat32 (0.0f));
+			dgAssert(n.DotProduct(n).GetScalar() > dgFloat32(0.0f));
+			dgPlane plane(n, - n.DotProduct(shape1[i0]).GetScalar());
 			dgFloat32 test0 = plane.Evalue(p);
 			if (test0 < dgFloat32(-1.e-3f)) {
 				return 0;
@@ -933,54 +953,6 @@ DG_INLINE dgContactSolver::dgPerimenterEdge* dgContactSolver::ReduceContacts(dgP
 	dgInt32 buffer[DG_MAX_EDGE_COUNT];
 	dgUpHeap<dgPerimenterEdge*, dgFloat32> heap(buffer, sizeof (buffer));
 
-#if 0
-	dgPerimenterEdge* ptr = poly;
-	do {
-		dgVector error(*ptr->m_next->m_vertex - *ptr->m_vertex);
-		dgAssert(error.m_w == 0.0f);
-		dgFloat32 dist2 = error.DotProduct4(error).GetScalar();
-		ptr->m_alived = 1;
-		heap.Push(ptr, dist2);
-		ptr = ptr->m_next;
-	} while (ptr != poly);
-
-	while (heap.GetCount() > maxCount) {
-		dgPerimenterEdge* edge = heap[0];
-		heap.Pop();
-		if (edge->m_alived) {
-			edge->m_next->m_alived = 0;
-			edge->m_next = edge->m_next->m_next;
-
-			dgVector error(*edge->m_next->m_vertex - *edge->m_vertex);
-			dgAssert(error.m_w == 0.0f);
-			dgFloat32 dist2 = error.DotProduct4(error).GetScalar();
-			heap.Push(edge, dist2);
-		}
-	}
-
-	while ((heap.GetCount() > 1) && (heap.Value(0) < DG_MINK_VERTEX_ERR2)) {
-		dgPerimenterEdge* edge = heap[0];
-		heap.Pop();
-		if (edge->m_alived) {
-			edge->m_next->m_alived = 0;
-			edge->m_next = edge->m_next->m_next;
-
-			dgVector error(*edge->m_next->m_vertex - *edge->m_vertex);
-			dgAssert(error.m_w == 0.0f);
-			dgFloat32 dist2 = error.DotProduct4(error).GetScalar();
-			heap.Push(edge, dist2);
-		}
-	}
-
-	poly = heap[0];
-	heap.Pop();
-	while (!poly->m_alived) {
-		dgAssert(heap.GetCount());
-		poly = heap[0];
-		heap.Pop();
-	}
-#else 
-
 	dgInt32 restart = 1;
 	while (restart) {
 		restart = 0;
@@ -992,7 +964,7 @@ DG_INLINE dgContactSolver::dgPerimenterEdge* dgContactSolver::ReduceContacts(dgP
 			do {
 				dgVector error(*ptr->m_next->m_vertex - *ptr->m_vertex);
 				dgAssert(error.m_w == 0.0f);
-				dgFloat32 dist2 = error.DotProduct4(error).GetScalar();
+				dgFloat32 dist2 = error.DotProduct(error).GetScalar();
 				if (dist2 < DG_MINK_VERTEX_ERR2) {
 					ptr0->m_next = ptr->m_next;
 					if (ptr == poly) {
@@ -1027,22 +999,21 @@ DG_INLINE dgContactSolver::dgPerimenterEdge* dgContactSolver::ReduceContacts(dgP
 
 			ptr->m_next = ptr->m_next->m_next;
 			dgVector error(*ptr->m_next->m_vertex - *ptr->m_vertex);
-			dgFloat32 dist2 = error.DotProduct3(error);
+			dgAssert(error.m_w == 0.0f);
+			dgFloat32 dist2 = error.DotProduct(error).GetScalar();
 			heap.Push(ptr, dist2);
 		}
 		poly = heap[0];
 	}
-#endif
 
 	return poly;
 }
-
 
 dgInt32 dgContactSolver::ConvexPolygonsIntersection(const dgVector& normal, dgInt32 count0, dgVector* const shape0, dgInt32 count1, dgVector* const shape1, dgVector* const contactOut, dgInt32 maxContacts) const
 {
 	dgInt32 count = 0;
 	if (count1 <= 2) {
-		count = ConvexPolygonToLineIntersection(normal.Scale4 (dgFloat32 (-1.0f)), count0, shape0, count1, shape1, contactOut, &contactOut[count0 + count1 + maxContacts]);
+		count = ConvexPolygonToLineIntersection(normal.Scale (dgFloat32 (-1.0f)), count0, shape0, count1, shape1, contactOut, &contactOut[count0 + count1 + maxContacts]);
 	} else if (count0 <= 2) {
 		count = ConvexPolygonToLineIntersection(normal, count1, shape1, count0, shape0, contactOut, &contactOut[count0 + count1 + maxContacts]);
 	} else {
@@ -1072,8 +1043,9 @@ dgInt32 dgContactSolver::ConvexPolygonsIntersection(const dgVector& normal, dgIn
 		dgInt32 edgeIndex = count1;
 		dgPerimenterEdge* poly = &subdivision[0];
 		for (dgInt32 j1 = count0 - 1; j1 >= 0; j1--) {
-			dgVector n(normal.CrossProduct3(shape0[j1] - shape0[j0]));
-			dgPlane plane(n, - n.DotProduct3(shape0[j0]));
+			dgVector n(normal.CrossProduct(shape0[j1] - shape0[j0]));
+			dgAssert(n.m_w == 0.0f);
+			dgPlane plane(n, - n.DotProduct(shape0[j0]).GetScalar());
 			j0 = j1;
 			count = 0;
 			dgPerimenterEdge* tmp = poly;
@@ -1088,7 +1060,8 @@ dgInt32 dgContactSolver::ConvexPolygonsIntersection(const dgVector& normal, dgIn
 						const dgVector& p0 = *tmp->m_vertex;
 						const dgVector& p1 = *tmp->m_next->m_vertex;
 						dgVector dp(p1 - p0);
-						dgFloat32 den = plane.DotProduct3(dp);
+						dgAssert(dp.m_w == 0.0f);
+						dgFloat32 den = plane.DotProduct(dp).GetScalar();
 						if (dgAbs(den) < dgFloat32(1.0e-24f)) {
 							den = (den >= dgFloat32(0.0f)) ? dgFloat32(1.0e-24f) : dgFloat32(-1.0e-24f);
 						}
@@ -1100,7 +1073,7 @@ dgInt32 dgContactSolver::ConvexPolygonsIntersection(const dgVector& normal, dgIn
 							den = dgFloat32(-1.0f);
 						}
 						dgAssert (dp.m_w == dgFloat32 (0.0f));
-						output[0] = p0 - dp.Scale4(den);
+						output[0] = p0 - dp.Scale(den);
 						edgeClipped[0] = tmp;
 						count++;
 					}
@@ -1109,7 +1082,8 @@ dgInt32 dgContactSolver::ConvexPolygonsIntersection(const dgVector& normal, dgIn
 					const dgVector& p1 = *tmp->m_next->m_vertex;
 					isInside |= 1;
 					dgVector dp(p1 - p0);
-					dgFloat32 den = plane.DotProduct3(dp);
+					dgAssert(dp.m_w == 0.0f);
+					dgFloat32 den = plane.DotProduct(dp).GetScalar();
 					if (dgAbs(den) < dgFloat32(1.0e-24f)) {
 						den = (den >= dgFloat32(0.0f)) ? dgFloat32(1.0e-24f) : dgFloat32(-1.0e-24f);
 					}
@@ -1120,7 +1094,7 @@ dgInt32 dgContactSolver::ConvexPolygonsIntersection(const dgVector& normal, dgIn
 						den = dgFloat32(-1.0f);
 					}
 					dgAssert (dp.m_w == dgFloat32 (0.0f));
-					output[1] = p0 - dp.Scale4(den);
+					output[1] = p0 - dp.Scale(den);
 					edgeClipped[1] = tmp;
 					count++;
 				}
@@ -1164,8 +1138,6 @@ dgInt32 dgContactSolver::ConvexPolygonsIntersection(const dgVector& normal, dgIn
 	return count;
 }
 
-
-
 dgFloat32 dgContactSolver::RayCast (const dgVector& localP0, const dgVector& localP1, dgFloat32 maxT, dgContactPoint& contactOut)
 {
 	dgVector normal(dgFloat32 (0.0f));
@@ -1195,7 +1167,7 @@ dgFloat32 dgContactSolver::RayCast (const dgVector& localP0, const dgVector& loc
 
 		do {
 			dgAssert (v.m_w == dgFloat32 (0.0f));
-			const dgFloat64 distance = v.DotProduct4(v).GetScalar();
+			const dgFloat64 distance = v.DotProduct(v).GetScalar();
 			if (distance < dgFloat32 (1.0e-9f)) {
 				index = -1; 
 				break;
@@ -1212,13 +1184,13 @@ dgFloat32 dgContactSolver::RayCast (const dgVector& localP0, const dgVector& loc
 				break;
 			}
 
-			dgVector dir (v.Scale4 (-dgRsqrt(dgFloat32 (distance))));
+			dgVector dir (v.Scale (-dgRsqrt(dgFloat32 (distance))));
 			dgAssert (dir.m_w == dgFloat32 (0.0f));
 			m_hullDiff[index] = collision->SupportVertex (dir, NULL) - point;
 			const dgBigVector w (m_hullDiff[index]);
 			const dgVector wv (w - v);
 			dgAssert (wv.m_w == dgFloat32 (0.0f));
-			const dgFloat32 distance1 = dir.DotProduct4(wv).GetScalar();
+			const dgFloat32 distance1 = dir.DotProduct(wv).GetScalar();
 			if (distance1 < dgFloat64 (1.0e-3f)) {
 				normal = dir;
 				break;
@@ -1252,12 +1224,12 @@ dgFloat32 dgContactSolver::RayCast (const dgVector& localP0, const dgVector& loc
 		dgAssert (index);
 		if (index > 0) {
 			dgVector q (v + point);
-			dgFloat32 den = normal.DotProduct4(p0p1).GetScalar();
+			dgFloat32 den = normal.DotProduct(p0p1).GetScalar();
 			if (dgAbs (den) < dgFloat32(1.0e-12f))  {
 				den = dgSign(den) * dgFloat32(1.0e-12f);
 			}
 			dgAssert (normal.m_w == dgFloat32 (0.0f));
-			dgFloat32 t1 = normal.DotProduct4(localP0 - q).GetScalar() / den;
+			dgFloat32 t1 = normal.DotProduct(localP0 - q).GetScalar() / den;
 
 			if (t1 < param) {
 				index = -1;
@@ -1268,7 +1240,7 @@ dgFloat32 dgContactSolver::RayCast (const dgVector& localP0, const dgVector& loc
 			}
 			param = t1;
 	
-			point = localP0 - p0p1.Scale4 (param);
+			point = localP0 - p0p1.Scale (param);
 			dgVector step (point0 - point);
 			point0 = point;
 			for(dgInt32 i = 0; i < index; i ++) {
@@ -1341,34 +1313,34 @@ dgInt32 dgContactSolver::CalculateConvexCastContacts()
 			break;
 		}
 		dgAssert(m_normal.m_w == dgFloat32(0.0f));
-		dgFloat32 den = m_normal.DotProduct4(relVeloc).GetScalar();
+		dgFloat32 den = m_normal.DotProduct(relVeloc).GetScalar();
 		if (den <= dgFloat32(1.0e-6f)) {
 			// bodies are residing from each other, even if they are touching they are not considered to be colliding because the motion will move them apart 
 			// get the closet point and the normal at contact point
 			m_proxy->m_timestep = dgFloat32 (1.0e10f);
-			m_proxy->m_normal = m_normal.Scale4(-1.0f);
+			m_proxy->m_normal = m_normal.Scale(-1.0f);
 			m_proxy->m_closestPointBody0 = m_closestPoint0;
 			m_proxy->m_closestPointBody1 = m_closestPoint1;
 			break;
 		}
 
-		dgFloat32 num = m_normal.DotProduct4(m_closestPoint1 - m_closestPoint0).GetScalar() - m_proxy->m_skinThickness;
+		dgFloat32 num = m_normal.DotProduct(m_closestPoint1 - m_closestPoint0).GetScalar() - m_proxy->m_skinThickness;
 		if ((num <= dgFloat32(1.0e-5f)) && (tacc <= timestep)) {
 			// bodies collide at time tacc, but we do not set it yet
-			dgVector step(relVeloc.Scale4(tacc));
+			dgVector step(relVeloc.Scale(tacc));
 			m_proxy->m_timestep = tacc;
 			m_proxy->m_closestPointBody0 = m_closestPoint0 + step;
 			m_proxy->m_closestPointBody1 = m_closestPoint1 + step;
-			m_proxy->m_normal = m_normal.Scale4 (dgFloat32 (-1.0f));
-			m_proxy->m_contactJoint->m_closestDistance = m_proxy->m_normal.DotProduct4(m_closestPoint0 - m_closestPoint1).GetScalar();
+			m_proxy->m_normal = m_normal.Scale (dgFloat32 (-1.0f));
+			m_proxy->m_contactJoint->m_closestDistance = m_proxy->m_normal.DotProduct(m_closestPoint0 - m_closestPoint1).GetScalar();
 			dgFloat32 penetration = dgMax(num * dgFloat32(-1.0f) + DG_PENETRATION_TOL, dgFloat32(0.0f));
 			m_proxy->m_contactJoint->m_closestDistance = penetration;
 			if (m_proxy->m_contacts && !m_proxy->m_intersectionTestOnly) {
 				if (m_proxy->m_instance0->GetCollisionMode() & m_proxy->m_instance1->GetCollisionMode()) {
 
-					m_normal = m_normal.Scale4 (dgFloat32 (-1.0f));
+					m_normal = m_normal.Scale (dgFloat32 (-1.0f));
 					m_proxy->m_contactJoint->m_contactActive = 1;
-					dgVector contactPoint((m_closestPoint0 + m_closestPoint1).Scale4(dgFloat32(0.5f)));
+					dgVector contactPoint((m_closestPoint0 + m_closestPoint1).Scale(dgFloat32(0.5f)));
 					count = CalculateContacts(m_closestPoint0, m_closestPoint1, m_normal);
 					if (count) {
 						count = dgMin(m_proxy->m_maxContacts, count);
@@ -1390,14 +1362,14 @@ dgInt32 dgContactSolver::CalculateConvexCastContacts()
 		if ((tacc + dt) >= timestep) {
 			// object do not collide on this timestep
 			m_proxy->m_timestep = tacc + dt;
-			m_proxy->m_normal = m_normal.Scale4 (dgFloat32 (-1.0f));
+			m_proxy->m_normal = m_normal.Scale (dgFloat32 (-1.0f));
 			m_proxy->m_closestPointBody0 = m_closestPoint0;
 			m_proxy->m_closestPointBody1 = m_closestPoint1;
 			break;
 		}
 
 		tacc += dt;
-		dgVector step(relVeloc.Scale4(dt));
+		dgVector step(relVeloc.Scale(dt));
 		TranslateSimplex(step);
 
 		iter++;
@@ -1413,18 +1385,18 @@ dgInt32 dgContactSolver::CalculateConvexToConvexContacts ()
 	dgInt32 count = 0;
 	if (m_proxy->m_intersectionTestOnly) {
 		CalculateClosestPoints();
-		dgFloat32 penetration = m_normal.DotProduct4(m_closestPoint1 - m_closestPoint0).GetScalar() - m_proxy->m_skinThickness - DG_PENETRATION_TOL;
+		dgFloat32 penetration = m_normal.DotProduct(m_closestPoint1 - m_closestPoint0).GetScalar() - m_proxy->m_skinThickness - DG_PENETRATION_TOL;
 		dgInt32 retVal = (penetration <= dgFloat32(0.0f)) ? -1 : 0;
 		m_proxy->m_contactJoint->m_contactActive = retVal;
 		return retVal;
 	} else {
 		bool colliding = CalculateClosestPoints();
 		if (colliding) { 
-			dgFloat32 penetration = m_normal.DotProduct4(m_closestPoint1 - m_closestPoint0).GetScalar() - m_proxy->m_skinThickness - DG_PENETRATION_TOL;
+			dgFloat32 penetration = m_normal.DotProduct(m_closestPoint1 - m_closestPoint0).GetScalar() - m_proxy->m_skinThickness - DG_PENETRATION_TOL;
 			if (penetration <= dgFloat32(1.0e-5f)) {
 				m_proxy->m_contactJoint->m_contactActive = 1;
 				if (m_instance0->GetCollisionMode() & m_instance1->GetCollisionMode()) {
-					count = CalculateContacts(m_closestPoint0, m_closestPoint1, m_normal.Scale4(-1.0f));
+					count = CalculateContacts(m_closestPoint0, m_closestPoint1, m_normal.Scale(-1.0f));
 				}
 			}
 
@@ -1433,7 +1405,7 @@ dgInt32 dgContactSolver::CalculateConvexToConvexContacts ()
 			m_proxy->m_contactJoint->m_closestDistance = penetration;
 			m_proxy->m_contactJoint->m_separationDistance = penetration;
 
-			m_normal = m_normal.Scale4 (dgFloat32 (-1.0f));
+			m_normal = m_normal.Scale (dgFloat32 (-1.0f));
 			penetration = -penetration;
 			m_proxy->m_normal = m_normal;
 			count = dgMin(m_proxy->m_maxContacts, count);
@@ -1460,123 +1432,6 @@ dgInt32 dgContactSolver::CalculateConvexToConvexContacts ()
 
 dgInt32 dgContactSolver::CalculateContacts(const dgVector& point0, const dgVector& point1, const dgVector& normal)
 {
-#if 0
-	dgInt32 count = 0;
-
-	const dgInt32 baseCount = 16;
-
-	dgVector* const contactsOut = &m_hullDiff[0];
-	dgAssert(m_instance1->IsType(dgCollision::dgCollisionConvexShape_RTTI));
-	dgAssert(m_instance0->IsType(dgCollision::dgCollisionConvexShape_RTTI));
-
-	dgInt32 count1 = 0;
-	dgVector* const shape1 = &contactsOut[baseCount];
-
-	dgAssert(normal.m_w == dgFloat32(0.0f));
-	dgVector origin((point0 + point1).Scale4(dgFloat32(0.5f)));
-	dgVector relVeloc((m_proxy->m_body1->GetVelocity() - m_proxy->m_body0->GetVelocity()).Scale4(m_proxy->m_timestep));
-	dgFloat32 relSpeed(relVeloc.DotProduct4(normal).GetScalar());
-	dgVector penetrationStep(normal.Scale4(DG_PENETRATION_TOL * dgFloat32(2.0f)));
-	dgVector velocStep(normal.CompProduct4((relSpeed > (DG_PENETRATION_TOL * dgFloat32(2.0f))) ? relSpeed : DG_PENETRATION_TOL * dgFloat32(2.0f)));
-
-	dgVector instance1StepAcc(velocStep);
-	const dgMatrix& matrix1 = m_instance1->m_globalMatrix;
-	dgVector normalOnInstance1(matrix1.UnrotateVector(normal));
-	for (dgInt32 i = 0; i < 4; i++) {
-		dgVector origin1(origin - instance1StepAcc);
-		dgVector pointOnInstance1(matrix1.UntransformVector(origin1));
-		count1 = m_instance1->CalculatePlaneIntersection(normalOnInstance1, pointOnInstance1, shape1);
-		if (count1) {
-			break;
-		}
-		instance1StepAcc += penetrationStep;
-	}
-
-	if (count1) {
-		for (int i = 0; i < count1; i++) {
-			shape1[i] = matrix1.TransformVector(shape1[i]) + instance1StepAcc;
-		}
-
-		dgInt32 count0 = 0;
-		dgVector* const shape0 = &contactsOut[baseCount + count1];
-
-		dgVector instance0StepAcc(velocStep);
-		const dgMatrix& matrix0 = m_instance0->m_globalMatrix;
-		dgVector normalOnInstance0(matrix0.UnrotateVector(normal.CompProduct4(dgVector::m_negOne)));
-		for (dgInt32 i = 0; i < 4; i++) {
-			dgVector origin0(origin + instance0StepAcc);
-			dgVector pointOnInstance0(matrix0.UntransformVector(origin0));
-			count0 = m_instance0->CalculatePlaneIntersection(normalOnInstance0, pointOnInstance0, shape0);
-			if (count0) {
-				break;
-			}
-			instance0StepAcc += penetrationStep;
-		}
-
-		if (count0) {
-			for (int i = 0; i < count0; i++) {
-				shape0[i] = matrix0.TransformVector(shape0[i]) - instance0StepAcc;
-			}
-
-			if (count1 == 1) {
-				count = 1;
-				contactsOut[0] = shape1[0];
-			} else if (count0 == 1) {
-				count = 1;
-				contactsOut[0] = shape0[0];
-			} else if ((count1 == 2) && (count0 == 2)) {
-				dgVector p0(shape1[0]);
-				dgVector p1(shape1[1]);
-				const dgVector& q0 = shape0[0];
-				const dgVector& q1 = shape0[1];
-				dgVector p10(p1 - p0);
-				dgVector q10(q1 - q0);
-				p10 = p10.Scale4(dgRsqrt(p10.DotProduct3(p10) + dgFloat32(1.0e-8f)));
-				q10 = q10.Scale4(dgRsqrt(q10.DotProduct3(q10) + dgFloat32(1.0e-8f)));
-				dgFloat32 dot = q10.DotProduct3(p10);
-				if (dgAbs(dot) > dgFloat32(0.998f)) {
-					dgFloat32 pl0 = p0.DotProduct3(p10);
-					dgFloat32 pl1 = p1.DotProduct3(p10);
-					dgFloat32 ql0 = q0.DotProduct3(p10);
-					dgFloat32 ql1 = q1.DotProduct3(p10);
-					if (pl0 > pl1) {
-						dgSwap(pl0, pl1);
-						dgSwap(p0, p1);
-						p10 = p10.Scale4(dgFloat32(-1.0f));
-					}
-					if (ql0 > ql1) {
-						dgSwap(ql0, ql1);
-					}
-					if (!((ql0 > pl1) && (ql1 < pl0))) {
-						dgFloat32 clip0 = (ql0 > pl0) ? ql0 : pl0;
-						dgFloat32 clip1 = (ql1 < pl1) ? ql1 : pl1;
-
-						count = 2;
-						contactsOut[0] = p0 + p10.Scale4(clip0 - pl0);
-						contactsOut[1] = p0 + p10.Scale4(clip1 - pl0);
-					}
-				} else {
-					count = 1;
-					dgVector c0;
-					dgVector c1;
-					dgRayToRayDistance(p0, p1, q0, q1, c0, c1);
-					contactsOut[0] = (c0 + c1).Scale4(dgFloat32(0.5f));
-				}
-			} else {
-				dgAssert((count1 >= 2) && (count0 >= 2));
-				count = ConvexPolygonsIntersection(normal, count0, shape0, count1, shape1, contactsOut, baseCount);
-			}
-		}
-	}
-
-	if (!count && m_proxy->m_continueCollision) {
-		count = 1;
-		contactsOut[0] = origin;
-	}
-
-	return count;
-
-#else
 	dgInt32 count = 0;
 
 	const dgInt32 baseCount = 16;
@@ -1590,16 +1445,16 @@ dgInt32 dgContactSolver::CalculateContacts(const dgVector& point0, const dgVecto
 
 	dgAssert(normal.m_w == dgFloat32(0.0f));
 
-	dgVector origin((point0 + point1).Scale4(dgFloat32(0.5f)));
+	dgVector origin((point0 + point1).Scale(dgFloat32(0.5f)));
 	const dgMatrix& matrix1 = m_instance1->m_globalMatrix;
 	dgVector ponintOnInstance1(matrix1.UntransformVector(origin));
 	dgVector normalOnInstance1(matrix1.UnrotateVector(normal));
-	dgFloat32 dist = (normal.DotProduct4(point0 - point1)).GetScalar();
+	dgFloat32 dist = (normal.DotProduct(point0 - point1)).GetScalar();
 	if (dist < dgFloat32(0.0f)) {
 		count1 = m_instance1->CalculatePlaneIntersection(normalOnInstance1, ponintOnInstance1, shape1);
 	}
 	if (!count1) {
-		dgVector step(normal.Scale4(DG_PENETRATION_TOL * dgFloat32(2.0f)));
+		dgVector step(normal.Scale(DG_PENETRATION_TOL * dgFloat32(2.0f)));
 		dgVector alternatePoint(point1);
 		for (dgInt32 i = 0; (i < 3) && !count1; i++) {
 			alternatePoint -= step;
@@ -1607,7 +1462,7 @@ dgInt32 dgContactSolver::CalculateContacts(const dgVector& point0, const dgVecto
 			count1 = m_instance1->CalculatePlaneIntersection(normalOnInstance1, alternatePointOnInstance1, shape1);
 		}
 		//dgAssert(count1);
-		step = matrix1.UnrotateVector(normal * ((alternatePoint - origin).DotProduct4(normal)));
+		step = matrix1.UnrotateVector(normal * ((alternatePoint - origin).DotProduct(normal)));
 		for (dgInt32 i = 0; i < count1; i++) {
 			shape1[i] -= step;
 		}
@@ -1623,12 +1478,12 @@ dgInt32 dgContactSolver::CalculateContacts(const dgVector& point0, const dgVecto
 
 		const dgMatrix& matrix0 = m_instance0->m_globalMatrix;
 		dgVector pointOnInstance0(matrix0.UntransformVector(origin));
-		dgVector normalOnInstance0(matrix0.UnrotateVector(normal.Scale4(dgFloat32(-1.0f))));
+		dgVector normalOnInstance0(matrix0.UnrotateVector(normal.Scale(dgFloat32(-1.0f))));
 		if (dist < dgFloat32(0.0f)) {
 			count0 = m_instance0->CalculatePlaneIntersection(normalOnInstance0, pointOnInstance0, shape0);
 		}
 		if (!count0) {
-			dgVector step(normal.Scale4(DG_PENETRATION_TOL * dgFloat32(2.0f)));
+			dgVector step(normal.Scale(DG_PENETRATION_TOL * dgFloat32(2.0f)));
 			dgVector alternatePoint(point0);
 			for (dgInt32 i = 0; (i < 3) && !count0; i++) {
 				alternatePoint += step;
@@ -1636,7 +1491,7 @@ dgInt32 dgContactSolver::CalculateContacts(const dgVector& point0, const dgVecto
 				count0 = m_instance0->CalculatePlaneIntersection(normalOnInstance0, alternatePointOnInstance0, shape0);
 			}
 			dgAssert(count0);
-			step = matrix0.UnrotateVector(normal * ((alternatePoint - origin).DotProduct4(normal)));
+			step = matrix0.UnrotateVector(normal * ((alternatePoint - origin).DotProduct(normal)));
 			for (dgInt32 i = 0; i < count0; i++) {
 				shape0[i] -= step;
 			}
@@ -1660,18 +1515,20 @@ dgInt32 dgContactSolver::CalculateContacts(const dgVector& point0, const dgVecto
 				const dgVector& q1 = shape0[1];
 				dgVector p10(p1 - p0);
 				dgVector q10(q1 - q0);
-				p10 = p10.Scale4(dgRsqrt(p10.DotProduct3(p10) + dgFloat32(1.0e-8f)));
-				q10 = q10.Scale4(dgRsqrt(q10.DotProduct3(q10) + dgFloat32(1.0e-8f)));
-				dgFloat32 dot = q10.DotProduct3(p10);
+				dgAssert(p10.m_w == dgFloat32(0.0f));
+				dgAssert(q10.m_w == dgFloat32(0.0f));
+				p10 = p10.Scale(dgRsqrt(p10.DotProduct(p10).GetScalar() + dgFloat32(1.0e-8f)));
+				q10 = q10.Scale(dgRsqrt(q10.DotProduct(q10).GetScalar() + dgFloat32(1.0e-8f)));
+				dgFloat32 dot = q10.DotProduct(p10).GetScalar();
 				if (dgAbs(dot) > dgFloat32(0.998f)) {
-					dgFloat32 pl0 = p0.DotProduct3(p10);
-					dgFloat32 pl1 = p1.DotProduct3(p10);
-					dgFloat32 ql0 = q0.DotProduct3(p10);
-					dgFloat32 ql1 = q1.DotProduct3(p10);
+					dgFloat32 pl0 = p0.DotProduct(p10).GetScalar();
+					dgFloat32 pl1 = p1.DotProduct(p10).GetScalar();
+					dgFloat32 ql0 = q0.DotProduct(p10).GetScalar();
+					dgFloat32 ql1 = q1.DotProduct(p10).GetScalar();
 					if (pl0 > pl1) {
 						dgSwap(pl0, pl1);
 						dgSwap(p0, p1);
-						p10 = p10.Scale4(dgFloat32(-1.0f));
+						p10 = p10.Scale(dgFloat32(-1.0f));
 					}
 					if (ql0 > ql1) {
 						dgSwap(ql0, ql1);
@@ -1681,15 +1538,15 @@ dgInt32 dgContactSolver::CalculateContacts(const dgVector& point0, const dgVecto
 						dgFloat32 clip1 = (ql1 < pl1) ? ql1 : pl1;
 
 						count = 2;
-						contactsOut[0] = p0 + p10.Scale4(clip0 - pl0);
-						contactsOut[1] = p0 + p10.Scale4(clip1 - pl0);
+						contactsOut[0] = p0 + p10.Scale(clip0 - pl0);
+						contactsOut[1] = p0 + p10.Scale(clip1 - pl0);
 					}
 				} else {
 					count = 1;
 					dgVector c0;
 					dgVector c1;
 					dgRayToRayDistance(p0, p1, q0, q1, c0, c1);
-					contactsOut[0] = (c0 + c1).Scale4(dgFloat32(0.5f));
+					contactsOut[0] = (c0 + c1).Scale(dgFloat32(0.5f));
 				}
 			} else {
 				dgAssert((count1 >= 2) && (count0 >= 2));
@@ -1704,5 +1561,4 @@ dgInt32 dgContactSolver::CalculateContacts(const dgVector& point0, const dgVecto
 	}
 
 	return count;
-#endif
 }

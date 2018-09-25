@@ -187,7 +187,7 @@ DG_INLINE void dgDynamicBody::SetAngularDamping (const dgVector& angularDamp)
 	tmp = dgClamp (angularDamp.m_z, dgFloat32(0.0f), dgFloat32(1.0f));
 	m_dampCoef.m_z = DG_MAX_SPEED_ATT * tmp;
 
-	m_angularDampOn = m_dampCoef.DotProduct3(m_dampCoef) > dgFloat32 (1.0e-12f);
+	m_angularDampOn = m_dampCoef.DotProduct(m_dampCoef & dgVector::m_triplexMask).GetScalar() > dgFloat32 (1.0e-12f);
 	m_cachedTimeStep = dgFloat32(0.0f);
 }
 
@@ -215,12 +215,12 @@ DG_INLINE void dgDynamicBody::SetTorque (const dgVector& torque)
 
 DG_INLINE dgVector dgDynamicBody::PredictLinearVelocity(dgFloat32 timestep) const
 {
-	return 	m_veloc + m_externalForce.Scale4 (timestep * m_invMass.m_w);
+	return 	m_veloc + m_externalForce.Scale (timestep * m_invMass.m_w);
 }
 
 DG_INLINE dgVector dgDynamicBody::PredictAngularVelocity(dgFloat32 timestep) const
 {
-	return m_omega + m_invWorldInertiaMatrix.RotateVector(m_externalTorque).Scale4 (timestep);
+	return m_omega + m_invWorldInertiaMatrix.RotateVector(m_externalTorque).Scale (timestep);
 }
 
 

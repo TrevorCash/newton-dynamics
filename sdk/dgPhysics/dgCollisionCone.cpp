@@ -188,7 +188,8 @@ void dgCollisionCone::SetCollisionBBox (const dgVector& p0__, const dgVector& p1
 
 dgVector dgCollisionCone::SupportVertex (const dgVector& dir, dgInt32* const vertexIndex) const
 {
-	dgAssert(dgAbs(dir.DotProduct3(dir) - dgFloat32(1.0f)) < dgFloat32(1.0e-3f));
+	dgAssert (dir.m_w == dgFloat32 (0.0f));
+	dgAssert(dgAbs(dir.DotProduct(dir).GetScalar() - dgFloat32(1.0f)) < dgFloat32(1.0e-3f));
 
 	if (dir.m_x < dgFloat32(-0.9999f)) {
 		return dgVector(-m_height, dgFloat32(0.0f), dgFloat32(0.0f), dgFloat32(0.0f));
@@ -197,18 +198,18 @@ dgVector dgCollisionCone::SupportVertex (const dgVector& dir, dgInt32* const ver
 	} else {
 		dgVector dir_yz(dir);
 		dir_yz.m_x = dgFloat32(0.0f);
-		dgFloat32 mag2 = dir_yz.DotProduct4(dir_yz).GetScalar();
+		dgFloat32 mag2 = dir_yz.DotProduct(dir_yz).GetScalar();
 		dgAssert(mag2 > dgFloat32(0.0f));
-		dir_yz = dir_yz.Scale4(dgFloat32(1.0f) / dgSqrt(mag2));
+		dir_yz = dir_yz.Scale(dgFloat32(1.0f) / dgSqrt(mag2));
 
-		dgVector p0(dir_yz.Scale4(m_radius));
+		dgVector p0(dir_yz.Scale(m_radius));
 		dgVector p1(dgVector::m_zero);
 
 		p0.m_x = -m_height;
 		p1.m_x =  m_height;
 
-		dgFloat32 dist0 = dir.DotProduct4(p0).GetScalar();
-		dgFloat32 dist1 = dir.DotProduct4(p1).GetScalar();
+		dgFloat32 dist0 = dir.DotProduct(p0).GetScalar();
+		dgFloat32 dist1 = dir.DotProduct(p1).GetScalar();
 
 		if (dist1 >= dist0) {
 			p0 = p1;
@@ -219,7 +220,8 @@ dgVector dgCollisionCone::SupportVertex (const dgVector& dir, dgInt32* const ver
 
 dgVector dgCollisionCone::SupportVertexSpecial(const dgVector& dir, dgFloat32 skinThickness, dgInt32* const vertexIndex) const
 {
-	dgAssert(dgAbs(dir.DotProduct3(dir) - dgFloat32(1.0f)) < dgFloat32(1.0e-3f));
+	dgAssert (dir.m_w == dgFloat32 (0.0f));
+	dgAssert(dgAbs(dir.DotProduct(dir).GetScalar() - dgFloat32(1.0f)) < dgFloat32(1.0e-3f));
 
 	if (dir.m_x < dgFloat32(-0.9999f)) {
 		return dgVector(-(m_height - DG_PENETRATION_TOL), dgFloat32(0.0f), dgFloat32(0.0f), dgFloat32(0.0f));
@@ -228,18 +230,18 @@ dgVector dgCollisionCone::SupportVertexSpecial(const dgVector& dir, dgFloat32 sk
 	} else {
 		dgVector dir_yz(dir);
 		dir_yz.m_x = dgFloat32(0.0f);
-		dgFloat32 mag2 = dir_yz.DotProduct4(dir_yz).GetScalar();
+		dgFloat32 mag2 = dir_yz.DotProduct(dir_yz).GetScalar();
 		dgAssert(mag2 > dgFloat32(0.0f));
-		dir_yz = dir_yz.Scale4(dgFloat32(1.0f) / dgSqrt(mag2));
+		dir_yz = dir_yz.Scale(dgFloat32(1.0f) / dgSqrt(mag2));
 
-		dgVector p0(dir_yz.Scale4(m_radius - DG_PENETRATION_TOL));
+		dgVector p0(dir_yz.Scale(m_radius - DG_PENETRATION_TOL));
 		dgVector p1(dgVector::m_zero);
 
 		p0.m_x = -(m_height - DG_PENETRATION_TOL);
 		p1.m_x =  m_height - DG_PENETRATION_TOL;
 
-		dgFloat32 dist0 = dir.DotProduct4(p0).GetScalar();
-		dgFloat32 dist1 = dir.DotProduct4(p1).GetScalar();
+		dgFloat32 dist0 = dir.DotProduct(p0).GetScalar();
+		dgFloat32 dist1 = dir.DotProduct(p1).GetScalar();
 
 		if (dist1 >= dist0) {
 			p0 = p1;
@@ -250,10 +252,10 @@ dgVector dgCollisionCone::SupportVertexSpecial(const dgVector& dir, dgFloat32 sk
 
 dgVector dgCollisionCone::SupportVertexSpecialProjectPoint(const dgVector& point, const dgVector& dir) const
 {
-	dgAssert(dgAbs(dir.DotProduct3(dir) - dgFloat32(1.0f)) < dgFloat32(1.0e-3f));
-	return point + dir.Scale4(DG_PENETRATION_TOL);
+	dgAssert (dir.m_w == dgFloat32 (0.0f));
+	dgAssert(dgAbs(dir.DotProduct(dir).GetScalar() - dgFloat32(1.0f)) < dgFloat32(1.0e-3f));
+	return point + dir.Scale(DG_PENETRATION_TOL);
 }
-
 
 void dgCollisionCone::MassProperties ()
 {
@@ -333,13 +335,13 @@ dgInt32 dgCollisionCone::CalculatePlaneIntersection (const dgVector& normal, con
 
 		count = 0;
 		int i0 = 2;
-		dgVector test0((m_profile[i0] - origin1).DotProduct4(normal1));
+		dgVector test0((m_profile[i0] - origin1).DotProduct(normal1));
 		for (int i = 0; (i < 3) && (count < 2); i++) {
-			dgVector test1((m_profile[i] - origin1).DotProduct4(normal1));
+			dgVector test1((m_profile[i] - origin1).DotProduct(normal1));
 			dgVector acrossPlane(test0 * test1);
 			if (acrossPlane.m_x < 0.0f) {
 				dgVector step(m_profile[i] - m_profile[i0]);
-				contactsOut[count] = m_profile[i0] - step.Scale4(test0.m_x / (step.DotProduct4(normal1).m_x));
+				contactsOut[count] = m_profile[i0] - step.Scale(test0.m_x / (step.DotProduct(normal1).m_x));
 				count++;
 			}
 			i0 = i;

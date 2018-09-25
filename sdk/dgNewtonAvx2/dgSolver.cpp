@@ -952,15 +952,15 @@ void dgSolver::IntegrateBodiesVelocity(dgInt32 threadID)
 			const dgVector force(body->m_externalForce + forceAndTorque.m_linear * w);
 			const dgVector torque(body->m_externalTorque + forceAndTorque.m_angular * w);
 
-			const dgVector velocStep((force.Scale4(body->m_invMass.m_w)) * timestep4);
+			const dgVector velocStep((force.Scale(body->m_invMass.m_w)) * timestep4);
 			const dgVector omegaStep((body->m_invWorldInertiaMatrix.RotateVector(torque)) * timestep4);
 
 			if (!body->m_resting) {
 				body->m_veloc += velocStep;
 				body->m_omega += omegaStep;
 			} else {
-				const dgVector velocStep2(velocStep.DotProduct4(velocStep));
-				const dgVector omegaStep2(omegaStep.DotProduct4(omegaStep));
+				const dgVector velocStep2(velocStep.DotProduct(velocStep));
+				const dgVector omegaStep2(omegaStep.DotProduct(omegaStep));
 				const dgVector test(((velocStep2 > speedFreeze2) | (omegaStep2 > speedFreeze2)) & m_negOne);
 				const dgInt32 equilibrium = test.GetSignMask() ? 0 : 1;
 				body->m_resting &= equilibrium;
