@@ -235,6 +235,16 @@ class dgVector
 		return _mm_div_ps (m_one.m_type, m_type);
 	}
 
+	DG_INLINE dgVector MulAdd(const dgVector& A, const dgVector& B) const
+	{
+		return _mm_add_ps(m_type, _mm_mul_ps(A.m_type, B.m_type));
+	}
+
+	DG_INLINE dgVector MulSub(const dgVector& A, const dgVector& B) const
+	{
+		return _mm_sub_ps(m_type, _mm_mul_ps(A.m_type, B.m_type));
+	}
+
 	DG_INLINE dgVector AddHorizontal () const
 	{
 		__m128 tmp (_mm_hadd_ps (m_type, m_type));
@@ -562,6 +572,16 @@ class dgBigVector
 		m_typeLow = _mm_mul_pd(m_typeLow, A.m_typeLow);
 		m_typeHigh = _mm_mul_pd(m_typeHigh, A.m_typeHigh);
 		return *this;
+	}
+
+	DG_INLINE dgBigVector MulAdd(const dgBigVector& A, const dgBigVector& B) const
+	{
+		return *this + A * B;
+	}
+
+	DG_INLINE dgBigVector MulSub(const dgBigVector& A, const dgBigVector& B) const
+	{
+		return *this - A * B;
 	}
 
 	DG_INLINE dgFloat64 DotProduct3(const dgBigVector& A) const

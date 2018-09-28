@@ -37,6 +37,11 @@ add_subdirectory(dContainers)
 add_subdirectory(dCustomJoints)
 add_subdirectory(thirdParty)
 
+
+if (NEWTON_WITH_SSE_PLUGIN)
+	add_subdirectory(dgNewtonSse)
+endif()
+
 if (NEWTON_WITH_SSE4_PLUGIN)
 	add_subdirectory(dgNewtonSse4.2)
 endif()
@@ -49,3 +54,6 @@ if (NEWTON_WITH_AVX2_PLUGIN)
 	add_subdirectory(dgNewtonAvx2)
 endif()
 
+if (NEWTON_WITH_DX12_PLUGIN)
+	add_subdirectory(dgNewtonDx12)
+endif()

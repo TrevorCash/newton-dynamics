@@ -23,45 +23,22 @@
 #include "dgWorldBase.h"
 
 
+using namespace DirectX;
+using namespace Microsoft::WRL;
+//using namespace Windows::Foundation;
+//using namespace Windows::Graphics::Display;
+//using namespace Windows::UI::Core;
+//using namespace Windows::UI::Xaml::Controls;
+//using namespace Platform;
+
+
 // This is an example of an exported function.
 dgWorldPlugin* GetPlugin(dgWorld* const world, dgMemoryAllocator* const allocator)
 {
-	union cpuInfo
-	{
-		int m_data[4];
-		struct
-		{
-			int m_eax;
-			int m_ebx;
-			int m_ecx;
-			int m_edx;
-		};
-	} info;
-
-	__cpuid(info.m_data, 0);
-	if (info.m_eax < 7) {
-		return NULL;
-	}
-
-	// check for instruction set support (avx2 is bit 5 in reg ebx)
-	__cpuid(info.m_data, 7);
-	if (!(info.m_ebx & (1 << 5))) {
-		return NULL;
-	}
-
+	
 	static dgWorldBase module(world, allocator);
+	module.m_score = 5;
 
-	union {
-		char m_vendor[256];
-		int m_reg[3];
-	};
-	memset(m_vendor, 0, sizeof(m_vendor));
-	__cpuid(info.m_data, 0);
-
-	m_reg[0] = info.m_ebx;
-	m_reg[1] = info.m_edx;
-	m_reg[2] = info.m_ecx;
-	module.m_score = _stricmp(m_vendor, "GenuineIntel") ? 3 : 4;
 	return &module;
 }
 
@@ -69,6 +46,12 @@ dgWorldBase::dgWorldBase(dgWorld* const world, dgMemoryAllocator* const allocato
 	:dgWorldPlugin(world, allocator)
 	,dgSolver(world, allocator)
 {
+	CreateDXGIFactory1(IID_PPV_ARGS(&m_dxgiFactory));
+	GetHardwareAdapter();
+
+	//ComPtr<IDXGIAdapter1> adapter;
+	//ComPtr<DX::ID3D11Device> device;
+	//ComPtr<ID3D11DeviceContext> context;
 }
 
 dgWorldBase::~dgWorldBase()
@@ -77,17 +60,48 @@ dgWorldBase::~dgWorldBase()
 
 const char* dgWorldBase::GetId() const
 {
-#ifdef _DEBUG
-	return "newtonAVX2_d";
-#else
-	return "newtonAVX2";
-#endif
+	return m_deviceName;
+//	return "gpu experimental";
 }
 
 dgInt32 dgWorldBase::GetScore() const
 {
 	return m_score;
 }
+
+
+void dgWorldBase::GetHardwareAdapter()
+{
+	IDXGIAdapter1* adapter = nullptr;
+	for (UINT adapterIndex = 0; DXGI_ERROR_NOT_FOUND != m_dxgiFactory->EnumAdapters1(adapterIndex, &adapter); adapterIndex++)
+	{
+		DXGI_ADAPTER_DESC1 desc;
+		adapter->GetDesc1(&desc);
+
+		if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
+		{
+			// Don't select the Basic Render Driver adapter.
+			continue;
+		}
+
+		// Check to see if the adapter supports Direct3D 12, but don't create the
+		// actual device yet.
+		if (SUCCEEDED(D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_11_0, _uuidof(ID3D12Device), nullptr)))
+		{
+			for (int i = 0; desc.Description[i]; i++) {
+				wctomb(&m_deviceName[i], desc.Description[i]);
+				m_deviceName[i + 1] = 0;
+			}
+			#ifdef _DEBUG
+			strcat(m_deviceName, "_d");
+			#endif
+			m_adapter = adapter;
+			break;
+		}
+		adapter->Release();
+	}
+}
+
 
 void dgWorldBase::CalculateJointForces(const dgBodyCluster& cluster, dgBodyInfo* const bodyArray, dgJointInfo* const jointArray, dgFloat32 timestep)
 {

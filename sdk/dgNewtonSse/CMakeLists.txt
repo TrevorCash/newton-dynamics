@@ -10,8 +10,8 @@
 
 cmake_minimum_required(VERSION 3.12.0)
 
-set (projectName "dgNewtonAvx")
-#message (${projectName})
+set (projectName "dgNewtonSse")
+message (${projectName})
 
 # low level core
 file(GLOB source *.cpp *.h)
@@ -19,8 +19,10 @@ file(GLOB source *.cpp *.h)
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /fp:fast")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /fp:fast")
 
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /arch:AVX")
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /arch:AVX")
+if(!CMAKE_CL_64)
+	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /arch:SSE2")
+	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /arch:SSE2")
+endif ()
 
 add_definitions(-DNEWTONCPU_EXPORTS)
 add_library(${projectName} SHARED ${source})
@@ -31,18 +33,9 @@ if (MSVC)
 	set_source_files_properties(dgNewtonPluginStdafx.cpp PROPERTIES COMPILE_FLAGS "/YcdgNewtonPluginStdafx.h")
 endif(MSVC)
 
-target_include_directories(${projectName} PUBLIC 
-$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-$<INSTALL_INTERFACE:${DEST_THIRDPARTY_HEADERS_DIR}/sdk> 
-)
 
-
-install (TARGETS ${projectName} EXPORT Urho3D
-    LIBRARY DESTINATION ${DEST_LIBRARY_DIR}
-    RUNTIME DESTINATION ${DEST_BIN_DIR}
-    ARCHIVE DESTINATION ${DEST_ARCHIVE_DIR}
-)
-
+#install(TARGETS ${projectName} RUNTIME DESTINATION ${dllPath})
+#install(TARGETS ${projectName} ARCHIVE DESTINATION ${libraryPath})
 
 add_custom_command(
 	TARGET ${projectName} POST_BUILD
@@ -50,7 +43,7 @@ add_custom_command(
 	ARGS -E copy $(TargetPath) ${dllPath}/newtonPlugins/${CMAKE_CFG_INTDIR}/$(TargetFileName))
 
 
-if (NEWTON_BUILD_SANDBOX_DEMOS)
+if (BUILD_SANDBOX_DEMOS)
 	add_custom_command(
 		TARGET ${projectName} POST_BUILD
 		COMMAND ${CMAKE_COMMAND}

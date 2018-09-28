@@ -76,6 +76,11 @@ class dgTemplateVector
 		return (&m_x)[i];
 	}
 
+	DG_INLINE T GetScalar() const
+	{
+		return m_x;
+	}
+
 	DG_INLINE dgTemplateVector<T> Scale (T scale) const
 	{
 		return dgTemplateVector<T> (m_x * scale, m_y * scale, m_z * scale, m_w * scale);
@@ -115,6 +120,16 @@ class dgTemplateVector
 	{
 		T val(m_x + m_y + m_z + m_w);
 		return dgTemplateVector<T>(val, val, val, val);
+	}
+
+	DG_INLINE dgTemplateVector<T> MulAdd(const dgTemplateVector<T>& A, const dgTemplateVector<T>& B) const
+	{
+		return *this + A * B;
+	}
+
+	DG_INLINE dgTemplateVector<T> MulSub(const dgTemplateVector<T>& A, const dgTemplateVector<T>& B) const
+	{
+		return *this - A * B;
 	}
 
 	// return dot product

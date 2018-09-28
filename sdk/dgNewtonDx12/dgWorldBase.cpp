@@ -26,49 +26,29 @@
 // This is an example of an exported function.
 dgWorldPlugin* GetPlugin(dgWorld* const world, dgMemoryAllocator* const allocator)
 {
-	union cpuInfo
-	{
-		int m_data[4];
-		struct
-		{
-			int m_eax;
-			int m_ebx;
-			int m_ecx;
-			int m_edx;
-		};
-	} info;
-
-	__cpuid(info.m_data, 0);
-	if (info.m_eax < 7) {
-		return NULL;
-	}
-
-	// check for instruction set support (avx2 is bit 5 in reg ebx)
-	__cpuid(info.m_data, 7);
-	if (!(info.m_ebx & (1 << 5))) {
-		return NULL;
-	}
-
 	static dgWorldBase module(world, allocator);
-
-	union {
-		char m_vendor[256];
-		int m_reg[3];
-	};
-	memset(m_vendor, 0, sizeof(m_vendor));
-	__cpuid(info.m_data, 0);
-
-	m_reg[0] = info.m_ebx;
-	m_reg[1] = info.m_edx;
-	m_reg[2] = info.m_ecx;
-	module.m_score = _stricmp(m_vendor, "GenuineIntel") ? 3 : 4;
 	return &module;
 }
 
 dgWorldBase::dgWorldBase(dgWorld* const world, dgMemoryAllocator* const allocator)
 	:dgWorldPlugin(world, allocator)
 	,dgSolver(world, allocator)
+	,m_score(5)
+	,m_accelerator(accelerator::default_accelerator)
+//	,m_accelerator(accelerator::cpu_accelerator)
+//	,m_accelerator(accelerator::direct3d_warp)
+//	,m_accelerator(accelerator::direct3d_ref)
 {
+	std::wstring desc (m_accelerator.get_description());
+	for (int i = 0; i < desc.size(); i++) {
+		wctomb(&m_deviceName[i], desc[i]);
+		m_deviceName[i + 1] = 0;
+	}
+#ifdef _DEBUG
+	strcat(m_deviceName, "_d");
+#endif
+
+	TestAmp();
 }
 
 dgWorldBase::~dgWorldBase()
@@ -77,11 +57,8 @@ dgWorldBase::~dgWorldBase()
 
 const char* dgWorldBase::GetId() const
 {
-#ifdef _DEBUG
-	return "newtonAVX2_d";
-#else
-	return "newtonAVX2";
-#endif
+	return m_deviceName;
+//	return "gpu experimental";
 }
 
 dgInt32 dgWorldBase::GetScore() const
@@ -89,8 +66,42 @@ dgInt32 dgWorldBase::GetScore() const
 	return m_score;
 }
 
+
 void dgWorldBase::CalculateJointForces(const dgBodyCluster& cluster, dgBodyInfo* const bodyArray, dgJointInfo* const jointArray, dgFloat32 timestep)
 {
 	DG_TRACKTIME_NAMED(GetId());
 	dgSolver::CalculateJointForces(cluster, bodyArray, jointArray, timestep);
+}
+
+
+void ScaleElements(index<1> idx, array_view<int, 1> a) restrict(amp)
+{
+	a[idx] = a[idx] * 10;
+}
+
+void dgWorldBase::TestAmp()
+{
+	std::vector<int> data(5);
+
+	for (int count = 0; count < 5; count++)
+	{
+		data[count] = count;
+	}
+
+	array<int, 1> a(5, data.begin(), data.end());
+
+
+	parallel_for_each(
+		a.extent,
+		[=, &a](index<1> idx) restrict(amp)
+	{
+		ScaleElements(idx, a);
+	});
+
+
+	data = a;
+	for (int i = 0; i < 5; i++)
+	{
+		std::cout << data[i] << "\n";
+	}
 }
