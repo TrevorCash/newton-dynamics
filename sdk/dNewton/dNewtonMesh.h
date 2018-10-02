@@ -60,7 +60,6 @@ class dNewtonMesh: public dNewtonAlloc
 
 	CNEWTON_API void BeginBuild();
 		CNEWTON_API void BeginPolygon();
-	//		CNEWTON_API void AddFace (int vertexCount, const dFloat* const vertex, int strideInBytes, int materialIndex);
 			CNEWTON_API void AddPoint (dFloat64 x, dFloat64 y, dFloat64 z);
 			CNEWTON_API void AddMaterial (int materialIndex);
 			CNEWTON_API void AddLayer (int layer);

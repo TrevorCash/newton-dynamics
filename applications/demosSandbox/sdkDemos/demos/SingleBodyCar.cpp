@@ -24,197 +24,52 @@
 #define VEHICLE_THIRD_PERSON_VIEW_FILTER	0.125f
 
 
-static dFloat chassisShape[] = 
-{
-	-2.086454f, 0.152566f, -0.709441f,
-	-1.997459f, 0.059762f, -0.739932f,
-	-2.012946f, 0.136518f, -0.784495f,
-	-2.061989f, 0.078819f, -0.674259f,
-	-1.869019f, -0.019734f, -0.746968f,
-	-1.897917f, 0.113487f, -0.822021f,
-	-1.885685f, 0.026161f, -0.793876f,
-	-1.972096f, 0.009775f, -0.693023f,
-	-1.590980f, 0.158113f, -0.861893f,
-	-1.602427f, 0.048263f, -0.852512f,
-	-1.609834f, -0.073154f, -0.782149f,
-	-1.609834f, -0.036052f, -0.829058f,
-	-2.014405f, 0.210028f, -0.796222f,
-	-2.086342f, 0.213884f, -0.716477f,
-	-1.899488f, 0.199730f, -0.831403f,
-	-1.955945f, 0.523606f, -0.796221f,
-	-2.001843f, 0.549986f, -0.763385f,
-	-2.051377f, 0.575255f, -0.711786f,
-	-1.883000f, 0.455491f, -0.831403f,
-	-1.679823f, 0.538214f, -0.819676f,
-	-2.173587f, 0.155545f, -0.542915f,
-	-2.115996f, 0.048229f, -0.542915f,
-	-2.096815f, 0.031283f, -0.542915f,
-	-2.173587f, 0.213564f, -0.542915f,
-	-2.170762f, 0.032452f, -0.289608f,
-	-2.222964f, 0.158014f, -0.289608f,
-	-2.222964f, 0.213564f, -0.289608f,
-	-2.230410f, 0.157978f, -0.009146f,
-	-2.079632f, -0.037389f, -0.069481f,
-	-2.160463f, 0.632145f, -0.423298f,
-	-2.177409f, 0.641785f, -0.289608f,
-	-2.121689f, 0.611667f, -0.575751f,
-	-2.180047f, 0.647568f, -0.046670f,
-	-2.230410f, 0.213528f, 0.038257f,
-	-2.178321f, 0.032530f, 0.028381f,
-	-2.079632f, -0.037522f, 0.064146f,
-	-2.223003f, 0.213528f, 0.281195f,
-	-2.223003f, 0.157978f, 0.281195f,
-	-2.170801f, 0.032416f, 0.281194f,
-	-2.116035f, 0.048193f, 0.534502f,
-	-2.173625f, 0.213528f, 0.534502f,
-	-2.096854f, 0.031247f, 0.534502f,
-	-2.173626f, 0.155509f, 0.534502f,
-	-2.121728f, 0.611631f, 0.567338f,
-	-2.177448f, 0.641749f, 0.281195f,
-	-2.160502f, 0.632109f, 0.414885f,
-	-2.062028f, 0.078784f, 0.665846f,
-	-1.972135f, 0.009739f, 0.684609f,
-	-1.997498f, 0.059726f, 0.731518f,
-	-2.012985f, 0.136482f, 0.776081f,
-	-2.086493f, 0.152530f, 0.701027f,
-	-1.869058f, -0.019770f, 0.738554f,
-	-1.885724f, 0.026126f, 0.785463f,
-	-1.899527f, 0.199694f, 0.822990f,
-	-1.897956f, 0.113451f, 0.813608f,
-	-1.609873f, -0.073190f, 0.773736f,
-	-1.609873f, -0.036088f, 0.820644f,
-	-1.602466f, 0.048227f, 0.844098f,
-	-1.591019f, 0.158077f, 0.853480f,
-	-2.086381f, 0.213848f, 0.708063f,
-	-1.869797f, 0.404386f, 0.827680f,
-	-2.014444f, 0.209992f, 0.787808f,
-	-1.955984f, 0.523570f, 0.787808f,
-	-2.001882f, 0.549951f, 0.754972f,
-	-2.051428f, 0.575211f, 0.703373f,
-	-1.883039f, 0.455455f, 0.822990f,
-	-1.679862f, 0.538178f, 0.811263f,
-	-0.873980f, -0.174415f, -0.474514f,
-	-0.820557f, -0.160951f, -0.810294f,
-	-0.647632f, -0.136693f, -0.866585f,
-	-0.195411f, 0.544052f, -0.957154f,
-	-0.190473f, 0.573679f, -0.944809f,
-	-0.776203f, 0.906084f, -0.289608f,
-	-0.899646f, 0.869051f, -0.416262f,
-	-0.884833f, 0.841893f, -0.505388f,
-	-0.608319f, 0.893740f, -0.411571f,
-	-0.637946f, 0.849300f, -0.510079f,
-	-0.598444f, 0.913491f, -0.289608f,
-	-0.460186f, 0.888802f, -0.420953f,
-	-0.430560f, 0.898678f, -0.289608f,
-	-0.233049f, 0.861644f, -0.289608f,
-	-0.312053f, 0.822142f, -0.538224f,
-	-0.647671f, -0.136729f, 0.858171f,
-	-0.873980f, -0.174415f, 0.460584f,
-	-0.820596f, -0.160987f, 0.801881f,
-	-0.190443f, 0.573669f, 0.946512f,
-	-0.195381f, 0.544042f, 0.958857f,
-	-0.909561f, 0.883828f, 0.281195f,
-	-0.884872f, 0.841858f, 0.496975f,
-	-0.899685f, 0.869015f, 0.407848f,
-	-0.776242f, 0.906048f, 0.281195f,
-	-0.637985f, 0.849264f, 0.501666f,
-	-0.608358f, 0.893704f, 0.403157f,
-	-0.460225f, 0.888766f, 0.412539f,
-	-0.598483f, 0.913455f, 0.281195f,
-	-0.312092f, 0.822107f, 0.529811f,
-	-0.430599f, 0.898642f, 0.281195f,
-	-0.233088f, 0.861608f, 0.281195f,
-	0.117520f, -0.138259f, -0.866585f,
-	1.340888f, 0.463538f, -0.819634f,
-	1.291734f, 0.413010f, -0.871234f,
-	1.354360f, 0.482077f, -0.746887f,
-	1.385667f, 0.377836f, -0.871233f,
-	1.677863f, -0.111093f, -0.804863f,
-	1.552669f, -0.109036f, -0.833008f,
-	1.552669f, -0.179011f, -0.798946f,
-	1.681051f, -0.173143f, -0.753263f,
-	1.677863f, -0.027152f, -0.822021f,
-	1.552669f, 0.008220f, -0.857203f,
-	1.481395f, 0.432761f, -0.806734f,
-	1.502558f, 0.441707f, -0.739300f,
-	1.460072f, 0.314659f, -0.866543f,
-	1.652595f, 0.349023f, -0.740117f,
-	1.563207f, 0.400902f, -0.780441f,
-	1.562309f, 0.371512f, -0.806240f,
-	1.685256f, 0.382538f, -0.595420f,
-	1.641193f, 0.435786f, -0.046576f,
-	1.776618f, -0.059247f, -0.768076f,
-	1.885249f, -0.111093f, -0.641423f,
-	1.776618f, -0.111093f, -0.755856f,
-	1.885249f, -0.083936f, -0.643768f,
-	1.934626f, -0.111093f, -0.547606f,
-	1.771681f, -0.172815f, -0.599205f,
-	1.984004f, -0.093811f, -0.457986f,
-	1.949440f, -0.091343f, -0.537730f,
-	1.786493f, 0.212329f, -0.723513f,
-	1.707487f, 0.182703f, -0.782149f,
-	1.964256f, 0.155545f, -0.504771f,
-	1.922281f, 0.182703f, -0.561555f,
-	1.794557f, 0.324334f, -0.551185f,
-	2.063006f, -0.111093f, -0.046670f,
-	1.865498f, -0.172815f, -0.313062f,
-	2.033379f, -0.111093f, -0.289608f,
-	1.843267f, 0.322184f, -0.436140f,
-	1.869187f, 0.322218f, -0.289566f,
-	1.996345f, 0.185172f, -0.411447f,
-	2.035848f, 0.185172f, -0.289608f,
-	1.949437f, 0.239487f, -0.423174f,
-	1.973628f, 0.271935f, -0.032095f,
-	2.063007f, 0.185172f, -0.046670f,
-	1.841534f, 0.351845f, -0.046643f,
-	0.117481f, -0.138295f, 0.858171f,
-	1.385628f, 0.377800f, 0.862904f,
-	1.460033f, 0.314623f, 0.858213f,
-	1.340849f, 0.463502f, 0.811305f,
-	1.291695f, 0.412974f, 0.862904f,
-	1.354360f, 0.482077f, 0.738639f,
-	1.552630f, -0.179047f, 0.790533f,
-	1.677824f, -0.111129f, 0.796450f,
-	1.681012f, -0.173179f, 0.744850f,
-	1.552630f, -0.109072f, 0.824595f,
-	1.677824f, -0.027188f, 0.813608f,
-	1.552630f, 0.008185f, 0.848790f,
-	1.685217f, 0.382502f, 0.587091f,
-	1.696539f, 0.409827f, 0.126789f,
-	1.707448f, 0.182667f, 0.773736f,
-	1.652556f, 0.348987f, 0.741579f,
-	1.481356f, 0.432725f, 0.798405f,
-	1.563168f, 0.400866f, 0.772112f,
-	1.502519f, 0.441671f, 0.730971f,
-	1.562270f, 0.371476f, 0.797911f,
-	1.865459f, -0.172852f, 0.304649f,
-	1.900023f, -0.172852f, 0.000730f,
-	2.033340f, -0.111129f, 0.281195f,
-	2.062967f, -0.111129f, 0.000730f,
-	2.062969f, 0.185136f, 0.038257f,
-	1.973628f, 0.271935f, 0.027158f,
-	2.020538f, 0.232433f, 0.027158f,
-	1.869148f, 0.322182f, 0.281237f,
-	2.035809f, 0.185136f, 0.281195f,
-	1.983965f, -0.093847f, 0.449572f,
-	1.771642f, -0.172852f, 0.590792f,
-	1.949401f, -0.091379f, 0.529317f,
-	1.969151f, -0.111129f, 0.459448f,
-	1.776579f, -0.059283f, 0.759663f,
-	1.776580f, -0.111129f, 0.747442f,
-	1.885210f, -0.111129f, 0.633010f,
-	1.843229f, 0.322148f, 0.427811f,
-	1.949398f, 0.239451f, 0.414761f,
-	1.996306f, 0.185136f, 0.403034f,
-	1.964217f, 0.155509f, 0.496358f,
-	1.922243f, 0.182667f, 0.553142f,
-	1.786454f, 0.212294f, 0.715100f,
-	1.794518f, 0.324298f, 0.552648f
-};
-
 class SingleBodyVehicleManager: public dVehicleManager
 {
 	public:
+	class VehicleUserData: public DemoEntity::UserData
+	{
+		public:
+		VehicleUserData(dVehicleChassis* const vehicle)
+			:DemoEntity::UserData()
+			,m_vehicleChassis(vehicle)
+		{
+		}
+
+		void OnRender(dFloat timestep) const
+		{
+
+		}
+
+		void OnInterpolateMatrix(DemoEntityManager& world, dFloat param) const
+		{
+
+		}
+
+		void OnTransformCallback(DemoEntityManager& world) const
+		{
+//			dAssert(0);
+
+			
+			// calculate tire Matrices
+			dVehicleInterface* const vehicle = m_vehicleChassis->GetVehicle();
+			dMatrix chassisMatrixInv(vehicle->GetMatrix().Inverse());
+			//DemoEntity* const chassisEntity = (DemoEntity*)NewtonBodyGetUserData(vehicleModel->GetBody());
+
+			for (dList<dVehicleNode*>::dListNode* node = vehicle->m_children.GetFirst(); node; node = node->GetNext()) {
+				dVehicleTireInterface* const tire = node->GetInfo()->GetAsTire();
+				if (tire) {
+					DemoEntity* const tireMesh = (DemoEntity*)tire->GetUserData();
+					dMatrix tireMatrix(tire->GetGlobalMatrix() * chassisMatrixInv);
+					dQuaternion rotation(tireMatrix);
+					tireMesh->SetMatrixUsafe(rotation, tireMatrix.m_posit);
+				}
+			}
+		}
+
+		dVehicleChassis* m_vehicleChassis;
+	};
+
 	SingleBodyVehicleManager(NewtonWorld* const world)
 		:dVehicleManager(world)
 	{
@@ -224,40 +79,148 @@ class SingleBodyVehicleManager: public dVehicleManager
 	{
 	}
 
-	void AttachVisualChassis(dVehicleChassis* const chassis)
+
+	void CalculateTireDimensions(const char* const tireName, dFloat& width, dFloat& radius, NewtonWorld* const world, DemoEntity* const vehEntity) const
 	{
-		NewtonBody* const chassiBody = chassis->GetBody();
-		DemoEntityManager* const scene = (DemoEntityManager*)NewtonWorldGetUserData(GetWorld());
+		// find the the tire visual mesh 
+		DemoEntity* const tirePart = vehEntity->Find(tireName);
+		dAssert(tirePart);
 
-		NewtonCollision* const chassisCollision = NewtonBodyGetCollision(chassiBody);
-		DemoMesh* const chassisMesh = new DemoMesh("chassis", chassisCollision, "metal_30.tga", "metal_30.tga", "metal_30.tga");
+		// make a convex hull collision shape to assist in calculation of the tire shape size
+		DemoMesh* const tireMesh = (DemoMesh*)tirePart->GetMesh();
+		dAssert(tireMesh->IsType(DemoMesh::GetRttiType()));
+		//dAssert (tirePart->GetMeshMatrix().TestIdentity());
+		const dMatrix& meshMatrix = tirePart->GetMeshMatrix();
+		dVector* const temp = new dVector[tireMesh->m_vertexCount];
+		meshMatrix.TransformTriplex(&temp[0].m_x, sizeof (dVector), tireMesh->m_vertex, 3 * sizeof (dFloat), tireMesh->m_vertexCount);
+		NewtonCollision* const collision = NewtonCreateConvexHull(world, tireMesh->m_vertexCount, &temp[0].m_x, sizeof (dVector), 0, 0, NULL);
+		delete[] temp;
 
-		dMatrix chassisMatrix;
-		NewtonBodyGetMatrix(chassiBody, &chassisMatrix[0][0]);
-		DemoEntity* const entity = new DemoEntity(chassisMatrix, NULL);
-		scene->Append(entity);
-		entity->SetMesh(chassisMesh, dGetIdentityMatrix());
-		chassisMesh->Release();
+		// get the location of this tire relative to the car chassis
+		dMatrix tireMatrix(tirePart->CalculateGlobalMatrix(vehEntity));
 
-		// set the user data
-		NewtonBodySetUserData(chassiBody, entity);
+		// find the support points that can be used to define the with and high of the tire collision mesh
+		dVector extremePoint(0.0f);
+		dVector upDir(tireMatrix.UnrotateVector(dVector(0.0f, 1.0f, 0.0f, 0.0f)));
+		NewtonCollisionSupportVertex(collision, &upDir[0], &extremePoint[0]);
+		radius = dAbs(upDir.DotProduct3(extremePoint));
 
-		// set the transform callback
-		NewtonBodySetTransformCallback(chassiBody, DemoEntity::TransformCallback);
+		dVector widthDir(tireMatrix.UnrotateVector(dVector(0.0f, 0.0f, 1.0f, 0.0f)));
+		NewtonCollisionSupportVertex(collision, &widthDir[0], &extremePoint[0]);
+		width = widthDir.DotProduct3(extremePoint);
+
+		widthDir = widthDir.Scale(-1.0f);
+		NewtonCollisionSupportVertex(collision, &widthDir[0], &extremePoint[0]);
+		width += widthDir.DotProduct3(extremePoint);
+
+		// destroy the auxiliary collision
+		NewtonDestroyCollision(collision);
 	}
 
-	void AttachVisualTire(dVehicleChassis* const chassis, dVehicleTireInterface* const tire)
+	NewtonCollision* CreateChassisCollision(const DemoEntity* const carEntity, NewtonWorld* const world) const
 	{
-		NewtonCollision* const shape = tire->GetCollisionShape();
+		DemoEntity* const chassis = carEntity->Find("car_body");
+		dAssert(chassis);
+
+		DemoMesh* const mesh = (DemoMesh*)chassis->GetMesh();
+		dAssert(mesh->IsType(DemoMesh::GetRttiType()));
+		const dMatrix& meshMatrix = chassis->GetMeshMatrix();
+
+		dFloat* const temp = new dFloat[mesh->m_vertexCount * 3];
+		meshMatrix.TransformTriplex(&temp[0], 3 * sizeof (dFloat), mesh->m_vertex, 3 * sizeof (dFloat), mesh->m_vertexCount);
+		NewtonCollision* const shape = NewtonCreateConvexHull(world, mesh->m_vertexCount, &temp[0], 3 * sizeof (dFloat), 0.001f, 0, NULL);
+		delete[] temp;
+		return shape;
 	}
 
-	dVehicleChassis* CreateVehicle(const dMatrix& location)
+	DemoEntity* const LoadModel_obj(const char* const modelName)
+	{
+		dMatrix scale(dGetIdentityMatrix());
+		scale[0][0] = 1.0f / 40.0f;
+		scale[1][1] = 1.0f / 40.0f;
+		scale[2][2] = 1.0f / 40.0f;
+		scale = scale * dPitchMatrix(-dPi * 0.5f) * dYawMatrix(-dPi * 0.5f);
+
+		char name[1024];
+		sprintf(name, "%s_chassis.obj", modelName);
+		DemoEntity* const chassisEntity = DemoEntity::LoadOBJ_mesh(name, GetWorld(), scale);
+		chassisEntity->SetNameID("car_body");
+
+		return chassisEntity;
+	}
+
+	DemoEntity* const LoadModel_ndg(const char* const modelName)
+	{
+		DemoEntity* const entity = DemoEntity::LoadNGD_mesh(modelName, GetWorld());
+		return entity;
+	}
+
+	DemoEntity* const LoadVisualModel (const char* const modelName)
 	{
 		NewtonWorld* const world = GetWorld();
+		DemoEntityManager* const scene = (DemoEntityManager*)NewtonWorldGetUserData(world);
+		DemoEntity* const entity = LoadModel_ndg(modelName);
+		//DemoEntity* const entity = LoadModel_obj(modelName);
+		dAssert (entity);
+		scene->Append(entity);
+		return entity;
+	}
+
+	//dVehicleTireInterface* AddTire(dFloat width, dFloat radius, dFloat pivotOffset, dFloat maxSteerAngle, const CarDefinition& definition)
+	dVehicleTireInterface* AddTire(dVehicleChassis* const vehicle, const char* const tireName, dFloat width, dFloat radius)
+	{
+		DemoEntity* const entity = (DemoEntity*)vehicle->GetVehicle()->GetUserData();
+		DemoEntity* const tirePart = entity->Find(tireName);
+
+		// save the controller with the tire so that we can use it a callback 
+//		TireVehControllerSaved* const savedVehController = new TireVehControllerSaved(m_controller);
+//		tirePart->SetUserData(savedVehController);
+
+		// for simplicity, tires are position in global space
+		dMatrix tireMatrix(tirePart->CalculateGlobalMatrix());
+
+		// add the offset to the tire position to account for suspension span
+		//tireMatrix.m_posit += m_controller->GetUpAxis().Scale (definition.m_tirePivotOffset);
+		//tireMatrix.m_posit -= vehicle->GetUpAxis().Scale(0.0f);
+
+		// add the tire to the vehicle
+		dVehicleTireInterface::dTireInfo tireInfo;
+		tireInfo.m_mass = 40.0f;
+		tireInfo.m_radio = radius;
+		tireInfo.m_width = width;
+
+		//tireInfo.m_pivotOffset = pivotOffset;
+		//tireInfo.m_maxSteeringAngle = maxSteerAngle * dDegreeToRad;
+		//tireInfo.m_dampingRatio = definition.m_tireSuspensionDamperConstant;
+		//tireInfo.m_springStrength = definition.m_tireSuspensionSpringConstant;
+		//tireInfo.m_suspensionLength = definition.m_tireSuspensionLength;
+		//tireInfo.m_corneringStiffness = definition.m_corneringStiffness;
+		//tireInfo.m_aligningMomentTrail = definition.m_tireAligningMomemtTrail;
+		//tireInfo.m_hasFender = definition.m_wheelHasCollisionFenders;
+		//tireInfo.m_suspentionType = definition.m_tireSuspensionType;
+
+		dVehicleTireInterface* const tire = vehicle->AddTire(tireMatrix.m_posit, tireInfo);
+		// add the user data and a tire transform callback that calculate the tire local space matrix
+		//NewtonBodySetUserData(tireBody, tirePart);
+		//NewtonBodySetTransformCallback(tireBody, TireTransformCallback);
+		tire->SetUserData(tirePart);
+
+		return tire;
+	}
+	
+	dVehicleChassis* CreateVehicle(const char* const carModelName, const dMatrix& location)
+	{
+		NewtonWorld* const world = GetWorld();
+		DemoEntityManager* const scene = (DemoEntityManager*)NewtonWorldGetUserData(world);
+
+		// load vehicle visual mesh
+		DemoEntity* const vehicleEntity = LoadVisualModel (carModelName);
+
+		// set entity world location
+		vehicleEntity->ResetMatrix(*scene, location);
 
 		// make chassis collision shape;
-		int chassisVertexCount = sizeof(chassisShape) / (3 * sizeof(chassisShape[0]));
-		NewtonCollision* const chassisCollision = NewtonCreateConvexHull(world, chassisVertexCount, &chassisShape[0], 3 * sizeof(dFloat), 0.001f, 0, NULL);
+		NewtonCollision* const chassisCollision = CreateChassisCollision(vehicleEntity, world);
 
 		// create the vehicle controller
 		dMatrix chassisMatrix;
@@ -274,31 +237,45 @@ class SingleBodyVehicleManager: public dVehicleManager
 		dFloat chassisMass = 1000.0f;
 		dVehicleChassis* const vehicle = CreateSingleBodyVehicle(chassisCollision, chassisMatrix, chassisMass, PhysicsApplyGravityForce, DEMO_GRAVITY);
 
+		// save the vehicle chassis with the vehicle visual for update children matrices 
+		VehicleUserData* const renderCallback = new VehicleUserData(vehicle);
+		vehicleEntity->SetUserData(renderCallback);
+
+		// get the inteface and assig a user data;
+		dVehicleInterface* const vehicleRoot = vehicle->GetVehicle();
+		vehicleRoot->SetUserData(vehicleEntity);
+
 		// get body from player
-		NewtonBody* const body = vehicle->GetBody();
+		NewtonBody* const chassisBody = vehicle->GetBody();
 
 		// set the player matrix 
-		NewtonBodySetMatrix(body, &location[0][0]);
+		NewtonBodySetMatrix(chassisBody, &location[0][0]);
+
+		// set the transform callback
+		NewtonBodySetUserData(chassisBody, vehicleEntity);
+		NewtonBodySetTransformCallback(chassisBody, DemoEntity::TransformCallback);
 
 //		for (int i = 0; i < int((sizeof(m_gearMap) / sizeof(m_gearMap[0]))); i++) {
 //			m_gearMap[i] = i;
 //		}
 
-		// create the visual representation
-		AttachVisualChassis(vehicle);
-
 		// destroy chassis collision shape 
 		NewtonDestroyCollision(chassisCollision);
 
-
 		// add Tires
-		dMatrix tireMatrix;
-		dVehicleTireInterface::dTireInfo tireInfo;
-		dVehicleTireInterface* const frontLeft = vehicle->AddTire(tireMatrix, tireInfo);
+		dFloat width;
+		dFloat radio;
+		CalculateTireDimensions ("fl_tire", width, radio, world, vehicleEntity);
+		dVehicleTireInterface* const frontLeft = AddTire(vehicle, "fl_tire", width, radio);
+		dVehicleTireInterface* const frontRight = AddTire(vehicle, "fr_tire", width, radio);
 
-		// add a visual tire geometry
-		AttachVisualTire(vehicle, frontLeft);
+		CalculateTireDimensions ("rl_tire", width, radio, world, vehicleEntity);
+		dVehicleTireInterface* const rearLeft = AddTire(vehicle, "rl_tire", width, radio);
+		dVehicleTireInterface* const rearRight = AddTire(vehicle, "rr_tire", width, radio);
 
+		// do not forget to call finalize after all components are added or after any change is made to the vehicle
+		vehicle->Finalize();
+		
 		return vehicle;
 	}
 };
@@ -312,7 +289,6 @@ void SingleBodyCar(DemoEntityManager* const scene)
 	CreateLevelMesh (scene, "flatPlane.ngd", 1);
 //	CreateHeightFieldTerrain (scene, 10, 8.0f, 5.0f, 0.2f, 200.0f, -50.0f);
 //	AddPrimitiveArray (scene, 0.0f, dVector (0.0f, 0.0f, 0.0f, 0.0f), dVector (100.0f, 1.0f, 100.0f, 0.0f), 1, 1, 0, _BOX_PRIMITIVE, 0, dGetIdentityMatrix());
-
 
 	dMatrix location (dGetIdentityMatrix());
 	location.m_posit = dVector (0.0f, 10.0f, 0.0f, 1.0f);
@@ -328,8 +304,8 @@ void SingleBodyCar(DemoEntityManager* const scene)
 	SingleBodyVehicleManager* const manager = new SingleBodyVehicleManager(world);
 	
 	// load 
-//	dCustomVehicleController* const player = manager->LoadVehicle("simpleVehicle.txt");
-	dVehicleChassis* const player = manager->CreateVehicle(location);
+	//dVehicleChassis* const player = manager->CreateVehicle("porche918", location);
+	dVehicleChassis* const player = manager->CreateVehicle("viper.ngd", location);
 
 /*
 	// set this vehicle as the player

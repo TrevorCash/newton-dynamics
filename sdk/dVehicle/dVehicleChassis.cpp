@@ -14,6 +14,13 @@
 #include "dVehicleChassis.h"
 #include "dVehicleSingleBody.h"
 
+dVehicleChassis::dVehicleChassis ()
+	:m_localFrame(dGetIdentityMatrix())
+	,m_solver()
+	,m_vehicle(NULL)
+{
+}
+
 void dVehicleChassis::Init(NewtonCollision* const chassisShape, dFloat mass, const dMatrix& localFrame, NewtonApplyForceAndTorque forceAndTorque, dFloat gravityMag)
 {
 	dVehicleManager* const manager = (dVehicleManager*)GetManager();
@@ -35,6 +42,11 @@ void dVehicleChassis::Init(NewtonBody* const body, const dMatrix& localFrame, Ne
 	m_body = body;
 	NewtonBodySetForceAndTorqueCallback(m_body, forceAndTorque);
 	m_vehicle = new dVehicleSingleBody(this);
+
+	m_localFrame = localFrame;
+	m_localFrame.m_posit = dVector(0.0f, 0.0f, 0.0f, 1.0f);
+	dAssert(m_localFrame.TestOrthogonal());
+
 /*
 	m_speed = 0.0f;
 	m_sideSlip = 0.0f;
@@ -47,9 +59,6 @@ void dVehicleChassis::Init(NewtonBody* const body, const dMatrix& localFrame, Ne
 	m_aerodynamicsDownSpeedCutOff = 0.0f;
 	m_aerodynamicsDownForceCoefficient = 0.0f;
 
-	m_localFrame = localFrame;
-	m_localFrame.m_posit = dVector(0.0f, 0.0f, 0.0f, 1.0f);
-	dAssert(m_localFrame.TestOrthogonal());
 
 	m_forceAndTorqueCallback = forceAndTorque;
 
@@ -94,13 +103,27 @@ void dVehicleChassis::Cleanup()
 	}
 }
 
-
 void dVehicleChassis::PreUpdate(dFloat timestep, int threadIndex)
 {
 //	dAssert (0);
 }
 
-dVehicleTireInterface* dVehicleChassis::AddTire (const dMatrix& locationInGlobalSpace, const dVehicleTireInterface::dTireInfo& tireInfo)
+void dVehicleChassis::PostUpdate(dFloat timestep, int threadIndex)
+{
+	//	dAssert (0);
+}
+
+dVehicleTireInterface* dVehicleChassis::AddTire (const dVector& locationInGlobalSpace, const dVehicleTireInterface::dTireInfo& tireInfo)
 {
 	return m_vehicle->AddTire(locationInGlobalSpace, tireInfo);
+}
+
+void dVehicleChassis::Debug(dCustomJoint::dDebugDisplay* const debugContext) const
+{
+	m_vehicle->Debug(debugContext);
+}
+
+void dVehicleChassis::Finalize()
+{
+	m_solver.Finalize(this);
 }

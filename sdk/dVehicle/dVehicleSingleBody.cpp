@@ -9,8 +9,8 @@
 * freely
 */
 
-
 #include "dStdafxVehicle.h"
+#include "dVehicleChassis.h"
 #include "dVehicleSingleBody.h"
 #include "dVehicleVirtualTire.h"
 
@@ -23,11 +23,17 @@ dVehicleSingleBody::~dVehicleSingleBody()
 {
 }
 
-dVehicleTireInterface* dVehicleSingleBody::AddTire (const dMatrix& locationInGlobalSpace, const dVehicleTireInterface::dTireInfo& tireInfo)
+dVehicleTireInterface* dVehicleSingleBody::AddTire (const dVector& locationInGlobalSpace, const dVehicleTireInterface::dTireInfo& tireInfo)
 {
 	return new dVehicleVirtualTire(this, locationInGlobalSpace, tireInfo);
 }
 
-
+dMatrix dVehicleSingleBody::GetMatrix () const
+{
+	dMatrix matrix;
+	NewtonBody* const chassisBody = m_chassis->GetBody();
+	NewtonBodyGetMatrix(chassisBody, &matrix[0][0]);
+	return matrix;
+}
 
 
