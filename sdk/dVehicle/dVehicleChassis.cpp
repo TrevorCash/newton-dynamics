@@ -103,17 +103,9 @@ void dVehicleChassis::Cleanup()
 	}
 }
 
-void dVehicleChassis::PreUpdate(dFloat timestep, int threadIndex)
-{
-//	dAssert (0);
-}
 
-void dVehicleChassis::PostUpdate(dFloat timestep, int threadIndex)
-{
-	//	dAssert (0);
-}
 
-dVehicleTireInterface* dVehicleChassis::AddTire (const dVector& locationInGlobalSpace, const dVehicleTireInterface::dTireInfo& tireInfo)
+dVehicleTireInterface* dVehicleChassis::AddTire (const dMatrix& locationInGlobalSpace, const dVehicleTireInterface::dTireInfo& tireInfo)
 {
 	return m_vehicle->AddTire(locationInGlobalSpace, tireInfo);
 }
@@ -126,4 +118,21 @@ void dVehicleChassis::Debug(dCustomJoint::dDebugDisplay* const debugContext) con
 void dVehicleChassis::Finalize()
 {
 	m_solver.Finalize(this);
+}
+
+void dVehicleChassis::InitRigiBody(dFloat timestep)
+{
+	m_vehicle->InitRigiBody(timestep);
+}
+
+
+void dVehicleChassis::PostUpdate(dFloat timestep, int threadIndex)
+{
+	//	dAssert (0);
+}
+
+void dVehicleChassis::PreUpdate(dFloat timestep, int threadIndex)
+{
+	//	dAssert (0);
+	m_solver.Update(timestep);
 }

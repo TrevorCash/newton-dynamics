@@ -23,7 +23,7 @@ dVehicleSingleBody::~dVehicleSingleBody()
 {
 }
 
-dVehicleTireInterface* dVehicleSingleBody::AddTire (const dVector& locationInGlobalSpace, const dVehicleTireInterface::dTireInfo& tireInfo)
+dVehicleTireInterface* dVehicleSingleBody::AddTire (const dMatrix& locationInGlobalSpace, const dVehicleTireInterface::dTireInfo& tireInfo)
 {
 	return new dVehicleVirtualTire(this, locationInGlobalSpace, tireInfo);
 }
@@ -36,4 +36,10 @@ dMatrix dVehicleSingleBody::GetMatrix () const
 	return matrix;
 }
 
+void dVehicleSingleBody::InitRigiBody(dFloat timestep)
+{
 
+
+
+	dVehicleInterface::InitRigiBody(timestep);
+}
