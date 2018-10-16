@@ -18,28 +18,65 @@
 
 class dVehicleVirtualTire: public dVehicleTireInterface
 {
+	class dTireJoint: public dComplementaritySolver::dBilateralJoint
+	{
+		public:
+		void JacobianDerivative(dComplementaritySolver::dParamInfo* const constraintParams);
+		void UpdateSolverForces(const dComplementaritySolver::dJacobianPair* const jacobians) const{dAssert (0);}
+
+		dVehicleVirtualTire* m_tire;
+	};
+
+	class dContact: public dKinematicLoopJoint
+	{
+		public:
+		dContact();
+		void JacobianDerivative(dComplementaritySolver::dParamInfo* const constraintParams);
+		void UpdateSolverForces(const dComplementaritySolver::dJacobianPair* const jacobians) const { dAssert(0); }
+		void SetContact (const dMatrix& contact, dFloat penetration);
+		int GetMaxDof() const { return 3;}
+
+		dMatrix m_contact;
+		dFloat m_penetration;
+	};
+
 	public:
-	DVEHICLE_API dVehicleVirtualTire(dVehicleNode* const parent, const dMatrix& locationInGlobalSpace, const dTireInfo& info);
+	DVEHICLE_API dVehicleVirtualTire(dVehicleNode* const parent, const dMatrix& locationInGlobalSpace, const dTireInfo& info, const dMatrix& localFrame);
 	DVEHICLE_API virtual ~dVehicleVirtualTire();
 
 	DVEHICLE_API dMatrix GetLocalMatrix () const;
 	DVEHICLE_API virtual dMatrix GetGlobalMatrix () const;
 	DVEHICLE_API virtual NewtonCollision* GetCollisionShape() const;
-
+	DVEHICLE_API virtual void SetSteeringAngle(dFloat steeringAngle);
 	DVEHICLE_API void Debug(dCustomJoint::dDebugDisplay* const debugContext) const;
 
-	static void RenderDebugTire(void* userData, int vertexCount, const dFloat* const faceVertec, int id);
-
 	protected:
-	void InitRigiBody(dFloat timestep);
+	void ApplyExternalForce();
+	void Integrate(dFloat timestep);
+	dComplementaritySolver::dBilateralJoint* GetJoint();
+	dMatrix GetHardpointMatrix (dFloat param) const;
+	int GetKinematicLoops(dKinematicLoopJoint** const jointArray);
+	void CalculateNodeAABB(const dMatrix& matrix, dVector& minP, dVector& maxP) const;
+	void CalculateContacts(const dVehicleChassis::dCollectCollidingBodies& bodyArray, dFloat timestep);
+
+	static void RenderDebugTire(void* userData, int vertexCount, const dFloat* const faceVertec, int id);
 
 	dTireInfo m_info;
 	dMatrix m_matrix;
 	dMatrix m_bindingRotation;
+	dTireJoint m_joint;
+	dVehicleNode m_dynamicContactBodyNode;
+	dContact m_contactsJoints[3];
 	NewtonCollision* m_tireShape;
-	dFloat m_tireOmega;
+	dFloat m_omega;
+	dFloat m_speed;
+	dFloat m_position;
+	dFloat m_tireLoad;
 	dFloat m_tireAngle;
 	dFloat m_steeringAngle;
+	dFloat m_invSuspensionLength;
+
+	friend class dVehicleChassis;
 };
 
 
