@@ -14,9 +14,6 @@
 #include "dVehicleSingleBody.h"
 #include "dVehicleVirtualTire.h"
 
-#define D_TIRE_MAX_ELASTIC_DEFORMATION		(0.05f)
-#define D_TIRE_MAX_ELASTIC_NORMAL_STIFFNESS (10.0f / D_TIRE_MAX_ELASTIC_DEFORMATION)
-
 dVehicleVirtualTire::dVehicleVirtualTire(dVehicleNode* const parent, const dMatrix& locationInGlobalSpace, const dTireInfo& info, const dMatrix& localFrame)
 	:dVehicleTireInterface(parent)
 	,m_info(info)
@@ -161,9 +158,6 @@ void dVehicleVirtualTire::ApplyExternalForce()
 	tireBody->SetForce(chassisNode->m_gravity.Scale (tireBody->GetMass()));
 
 	dVehicleTireInterface::ApplyExternalForce();
-
-m_tireAngle = dMod(m_tireAngle + m_omega * 0.001f, 2.0f * dPi);
-
 }
 
 int dVehicleVirtualTire::GetKinematicLoops(dKinematicLoopJoint** const jointArray)
@@ -186,7 +180,6 @@ int dVehicleVirtualTire::GetKinematicLoops(dKinematicLoopJoint** const jointArra
 
 void dVehicleVirtualTire::Integrate(dFloat timestep)
 {
-	// get the 
 	dVehicleTireInterface::Integrate(timestep);
 
 	dVehicleSingleBody* const chassis = (dVehicleSingleBody*)m_parent;
@@ -194,64 +187,26 @@ void dVehicleVirtualTire::Integrate(dFloat timestep)
 	
 	const dMatrix chassisMatrix (chassis->GetBody()->GetMatrix());
 	const dMatrix tireMatrix(GetHardpointMatrix(0.0f) * chassisBody->GetMatrix());
-//	const dMatrix& tireMatrix = m_body.GetMatrix();
-//	m_position = dClamp (matrix0.m_up.DotProduct3(tireMatrix.m_posit - matrix0.m_posit), dFloat (0.0f), m_info.m_suspensionLength);
 
-	dVector chassisOmega(chassisBody->GetOmega());
-	dVector chassisVeloc(chassisBody->GetVelocity());
 	dVector tireOmega(m_body.GetOmega());
+	dVector chassisOmega(chassisBody->GetOmega());
+	dVector localOmega(tireOmega - chassisOmega);
+	m_omega = tireMatrix.m_right.DotProduct3(localOmega);
+	m_tireAngle = dClamp(m_tireAngle + m_omega * timestep, dFloat(0.0f), dFloat(2.0f * dPi));
+
 	dVector tireVeloc(m_body.GetVelocity());
+	dVector chassisVeloc(chassisBody->GetVelocity());
 	dVector chassinPointVeloc (chassisVeloc + chassisOmega.CrossProduct(tireMatrix.m_posit - chassisMatrix.m_posit));
-	dVector veloc (tireVeloc - chassinPointVeloc);
+	dVector localVeloc (tireVeloc - chassinPointVeloc);
 
-	m_speed = tireMatrix.m_up.DotProduct3(veloc);
+	m_speed = tireMatrix.m_up.DotProduct3(localVeloc);
 	m_position = dClamp (m_position + m_speed * timestep, dFloat (0.0f), m_info.m_suspensionLength);
-//dTrace (("%f %f\n", m_speed, m_position));
 }
-
-
-void dVehicleVirtualTire::dTireJoint::JacobianDerivative(dComplementaritySolver::dParamInfo* const constraintParams)
-{
-	dComplementaritySolver::dBodyState* const tire = m_state0;
-	dComplementaritySolver::dBodyState* const chassis = m_state1;
-
-	const dVector& omega = chassis->GetOmega();
-	const dMatrix& tireMatrix = tire->GetMatrix();
-
-	// lateral force
-	AddLinearRowJacobian(constraintParams, tireMatrix.m_posit, tireMatrix.m_front, omega);
-
-	// longitudinal force
-	AddLinearRowJacobian(constraintParams, tireMatrix.m_posit, tireMatrix.m_right, omega);
-
-	// angular constraints	
-	AddAngularRowJacobian(constraintParams, tireMatrix.m_up, omega, 0.0f);
-	AddAngularRowJacobian(constraintParams, tireMatrix.m_right, omega, 0.0f);
-
-/*
-	// dry rolling friction (for now contact, bu it should be a function of the tire angular velocity)
-	int index = constraintParams->m_count;
-	AddAngularRowJacobian(constraintParams, tire->m_matrix[0], 0.0f);
-	constraintParams->m_jointLowFriction[index] = -chassis->m_dryRollingFrictionTorque;
-	constraintParams->m_jointHighFriction[index] = chassis->m_dryRollingFrictionTorque;
-
-	// check if the brakes are applied
-	if (tire->m_brakeTorque > 1.0e-3f) {
-		// brake is on override rolling friction value
-		constraintParams->m_jointLowFriction[index] = -tire->m_brakeTorque;
-		constraintParams->m_jointHighFriction[index] = tire->m_brakeTorque;
-	}
-
-	// clear the input variable after there are res
-	tire->m_brakeTorque = 0.0f;
-*/
-}
-
 
 void dVehicleVirtualTire::CalculateContacts(const dVehicleChassis::dCollectCollidingBodies& bodyArray, dFloat timestep)
 {
 	for (int i = 0; i < sizeof(m_contactsJoints) / sizeof(m_contactsJoints[0]); i++) {
-		dContact* const contact = &m_contactsJoints[i];
+		dTireContact* const contact = &m_contactsJoints[i];
 		if (contact->m_isActive == false) {
 			contact->m_jointFeebackForce[0] = 0.0f;
 			contact->m_jointFeebackForce[1] = 0.0f;
@@ -314,52 +269,3 @@ void dVehicleVirtualTire::CalculateContacts(const dVehicleChassis::dCollectColli
 		}
 	}
 }
-
-dVehicleVirtualTire::dContact::dContact()
-	:dKinematicLoopJoint()
-	,m_contact(dGetIdentityMatrix())
-	,m_penetration(0.0f)
-{
-	m_jointFeebackForce[0] = 0.0f;
-	m_jointFeebackForce[1] = 0.0f;
-	m_jointFeebackForce[2] = 0.0f;
-}
-
-void dVehicleVirtualTire::dContact::SetContact(const dMatrix& contact, dFloat penetration)
-{
-	m_isActive = true;
-	m_contact = contact;
-	m_penetration = dClamp (penetration, dFloat(-D_TIRE_MAX_ELASTIC_DEFORMATION), dFloat(D_TIRE_MAX_ELASTIC_DEFORMATION));
-}
-
-void dVehicleVirtualTire::dContact::JacobianDerivative(dComplementaritySolver::dParamInfo* const constraintParams)
-{
-//	dComplementaritySolver::dBodyState* const tire = m_state0;
-//	dComplementaritySolver::dBodyState* const other = m_state1;
-
-//	const dVector& omega = chassis->GetOmega();
-//	const dMatrix& tireMatrix = tire->GetMatrix();
-	dVector omega(0.0f);
-
-	// normal constraint
-	AddLinearRowJacobian(constraintParams, m_contact.m_posit, m_contact[0], omega);
-
-	dComplementaritySolver::dJacobian &jacobian0 = constraintParams->m_jacobians[0].m_jacobian_J01;
-	dComplementaritySolver::dJacobian &jacobian1 = constraintParams->m_jacobians[0].m_jacobian_J10;
-
-	const dVector& veloc0 = m_state0->GetVelocity();
-	const dVector& omega0 = m_state0->GetOmega();
-	const dVector& veloc1 = m_state1->GetVelocity();
-	const dVector& omega1 = m_state1->GetOmega();
-	const dVector relVeloc(veloc0 * jacobian0.m_linear + omega0 * jacobian0.m_angular + veloc1 * jacobian1.m_linear + omega1 * jacobian1.m_angular);
-	dFloat relSpeed = -(relVeloc.m_x + relVeloc.m_y + relVeloc.m_z);
-
-	relSpeed += D_TIRE_MAX_ELASTIC_NORMAL_STIFFNESS * m_penetration;
-	constraintParams->m_jointLowFriction[0] = 0.0f;
-	constraintParams->m_jointAccel[0] = relSpeed * constraintParams->m_timestepInv;
-	
-	m_dof = 1;
-	m_count = 1;
-	constraintParams->m_count = 1;
-}
-
