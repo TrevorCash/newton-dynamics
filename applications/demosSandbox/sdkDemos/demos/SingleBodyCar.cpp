@@ -182,6 +182,8 @@ class SingleBodyVehicleManager: public dVehicleManager
 
 		// for simplicity, tires are position in global space
 		dMatrix tireMatrix(tirePart->CalculateGlobalMatrix());
+//tireMatrix.m_posit.m_x = 0.0f;
+//tireMatrix.m_posit.m_z = 0.0f;
 
 		// add the offset to the tire position to account for suspension span
 		//tireMatrix.m_posit += m_controller->GetUpAxis().Scale (definition.m_tirePivotOffset);
@@ -192,26 +194,22 @@ class SingleBodyVehicleManager: public dVehicleManager
 		tireInfo.m_mass = 40.0f;
 		tireInfo.m_radio = radius;
 		tireInfo.m_width = width;
+		tireInfo.m_pivotOffset = 0.01f;
 
 		tireInfo.m_suspensionLength = 0.22f;
 		tireInfo.m_dampingRatio = 15.0f * vehicleMass;
 		tireInfo.m_springStiffness = dAbs(vehicleMass * DEMO_GRAVITY * 8.0f / tireInfo.m_suspensionLength);
-		tireInfo.m_pivotOffset = 0.01f;
-		//tireInfo.m_maxSteeringAngle = maxSteerAngle * dDegreeToRad;
-		//tireInfo.m_dampingRatio = definition.m_tireSuspensionDamperConstant;
-		//tireInfo.m_springStiffness = definition.m_tireSuspensionSpringConstant;
-		//tireInfo.m_suspensionLength = definition.m_tireSuspensionLength;
-		//tireInfo.m_corneringStiffness = definition.m_corneringStiffness;
+
+		tireInfo.m_corneringStiffness = dAbs(vehicleMass * DEMO_GRAVITY * 1.0f);
+		tireInfo.m_longitudinalStiffness = dAbs(vehicleMass * DEMO_GRAVITY * 1.0f);
 		//tireInfo.m_aligningMomentTrail = definition.m_tireAligningMomemtTrail;
+		
+		//tireInfo.m_maxSteeringAngle = maxSteerAngle * dDegreeToRad;
 		//tireInfo.m_hasFender = definition.m_wheelHasCollisionFenders;
 		//tireInfo.m_suspentionType = definition.m_tireSuspensionType;
 
 		dVehicleTireInterface* const tire = vehicle->AddTire(tireMatrix, tireInfo);
-		// add the user data and a tire transform callback that calculate the tire local space matrix
-		//NewtonBodySetUserData(tireBody, tirePart);
-		//NewtonBodySetTransformCallback(tireBody, TireTransformCallback);
 		tire->SetUserData(tirePart);
-
 		return tire;
 	}
 	
