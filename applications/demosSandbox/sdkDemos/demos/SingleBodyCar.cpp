@@ -77,11 +77,58 @@ class SingleBodyVehicleManager: public dVehicleManager
 
 	SingleBodyVehicleManager(NewtonWorld* const world)
 		:dVehicleManager(world)
+		,m_player(NULL)
+		,m_externalView(true)
 	{
+		DemoEntityManager* const scene = (DemoEntityManager*)NewtonWorldGetUserData(world);
+		scene->SetUpdateCameraFunction(UpdateCameraCallback, this);
 	}
 
 	~SingleBodyVehicleManager()
 	{
+	}
+
+	static void UpdateCameraCallback(DemoEntityManager* const manager, void* const context, dFloat timestep)
+	{
+		SingleBodyVehicleManager* const me = (SingleBodyVehicleManager*)context;
+		me->UpdateCamera(timestep);
+	}
+
+	void UpdateCamera(dFloat timestep)
+	{
+//		SuperCarEntity* player = m_player;
+//		if (!player) {
+//			dCustomVehicleController* const controller = &GetLast()->GetInfo();
+//			player = (SuperCarEntity*)NewtonBodyGetUserData(controller->GetBody());
+//		}
+
+		DemoEntity* const player = (DemoEntity*)NewtonBodyGetUserData(m_player->GetBody());
+		DemoEntityManager* const scene = (DemoEntityManager*)NewtonWorldGetUserData(GetWorld());
+		DemoCamera* const camera = scene->GetCamera();
+		dMatrix camMatrix(camera->GetNextMatrix());
+		dMatrix playerMatrix(player->GetNextMatrix());
+
+		dVector frontDir(camMatrix[0]);
+		dVector camOrigin(0.0f);
+		if (m_externalView) {
+			camOrigin = playerMatrix.m_posit + dVector(0.0f, VEHICLE_THIRD_PERSON_VIEW_HIGHT, 0.0f, 0.0f);
+			camOrigin -= frontDir.Scale(VEHICLE_THIRD_PERSON_VIEW_DIST);
+			//camOrigin = dVector (-7.0f, 3.0f, 0.0f, 0.0f);
+		} else {
+			dAssert(0);
+			//           camMatrix = camMatrix * playerMatrix;
+			//           camOrigin = playerMatrix.TransformVector(dVector(-0.8f, ARTICULATED_VEHICLE_CAMERA_EYEPOINT, 0.0f, 0.0f));
+		}
+		camera->SetNextMatrix(*scene, camMatrix, camOrigin);
+	}
+
+	void SetAsPlayer(dVehicleChassis* const player)
+	{
+		//dEngineController* const engine = player->m_controller->GetEngine();
+		//if (engine) {
+		//	engine->SetIgnition(false);
+		//}
+		m_player = player;
 	}
 
 	void CalculateTireDimensions(const char* const tireName, dFloat& width, dFloat& radius, NewtonWorld* const world, DemoEntity* const vehEntity) const
@@ -170,20 +217,13 @@ class SingleBodyVehicleManager: public dVehicleManager
 		return entity;
 	}
 
-	//dVehicleTireInterface* AddTire(dFloat width, dFloat radius, dFloat pivotOffset, dFloat maxSteerAngle, const CarDefinition& definition)
 	dVehicleTireInterface* AddTire(dVehicleChassis* const vehicle, const char* const tireName, dFloat width, dFloat radius, dFloat vehicleMass)
 	{
 		DemoEntity* const entity = (DemoEntity*)vehicle->GetVehicle()->GetUserData();
 		DemoEntity* const tirePart = entity->Find(tireName);
 
-		// save the controller with the tire so that we can use it a callback 
-//		TireVehControllerSaved* const savedVehController = new TireVehControllerSaved(m_controller);
-//		tirePart->SetUserData(savedVehController);
-
 		// for simplicity, tires are position in global space
 		dMatrix tireMatrix(tirePart->CalculateGlobalMatrix());
-//tireMatrix.m_posit.m_x = 0.0f;
-//tireMatrix.m_posit.m_z = 0.0f;
 
 		// add the offset to the tire position to account for suspension span
 		//tireMatrix.m_posit += m_controller->GetUpAxis().Scale (definition.m_tirePivotOffset);
@@ -195,6 +235,8 @@ class SingleBodyVehicleManager: public dVehicleManager
 		tireInfo.m_radio = radius;
 		tireInfo.m_width = width;
 		tireInfo.m_pivotOffset = 0.01f;
+		tireInfo.m_steerRate = 0.5f * dPi;
+		tireInfo.m_maxSteeringAngle = 20.0f * dDegreeToRad;
 
 		tireInfo.m_suspensionLength = 0.22f;
 		tireInfo.m_dampingRatio = 15.0f * vehicleMass;
@@ -202,9 +244,8 @@ class SingleBodyVehicleManager: public dVehicleManager
 
 		tireInfo.m_corneringStiffness = dAbs(vehicleMass * DEMO_GRAVITY * 1.0f);
 		tireInfo.m_longitudinalStiffness = dAbs(vehicleMass * DEMO_GRAVITY * 1.0f);
+
 		//tireInfo.m_aligningMomentTrail = definition.m_tireAligningMomemtTrail;
-		
-		//tireInfo.m_maxSteeringAngle = maxSteerAngle * dDegreeToRad;
 		//tireInfo.m_hasFender = definition.m_wheelHasCollisionFenders;
 		//tireInfo.m_suspentionType = definition.m_tireSuspensionType;
 
@@ -273,18 +314,118 @@ class SingleBodyVehicleManager: public dVehicleManager
 		CalculateTireDimensions ("fl_tire", width, radio, world, vehicleEntity);
 		dVehicleTireInterface* const frontLeft = AddTire(vehicle, "fl_tire", width, radio, chassisMass);
 		dVehicleTireInterface* const frontRight = AddTire(vehicle, "fr_tire", width, radio, chassisMass);
-//frontLeft->SetSteeringAngle(25.5f * dDegreeToRad);
-//frontRight->SetSteeringAngle(25.5f * dDegreeToRad);
 
 		CalculateTireDimensions ("rl_tire", width, radio, world, vehicleEntity);
 		dVehicleTireInterface* const rearLeft = AddTire(vehicle, "rl_tire", width, radio, chassisMass);
 		dVehicleTireInterface* const rearRight = AddTire(vehicle, "rr_tire", width, radio, chassisMass);
+
+		// add vehicle steering control 
+		dVehicleSteeringControl* const steeringControl = vehicle->GetSteeringControl();
+		steeringControl->AddTire(frontLeft);
+		steeringControl->AddTire(frontRight);
+
+		// add vehicle brake control 
+		dVehicleBrakeControl* const breakControl = vehicle->GetBrakeControl();
+		breakControl->AddTire(frontLeft);
+		breakControl->AddTire(frontRight);
+		breakControl->AddTire(rearLeft);
+		breakControl->AddTire(rearLeft);
 
 		// do not forget to call finalize after all components are added or after any change is made to the vehicle
 		vehicle->Finalize();
 		
 		return vehicle;
 	}
+
+	void UpdateDriverInput(dVehicleChassis* const vehicle, dFloat timestep) 
+	{
+//		dVehicleSteeringControl* const steeringControl = vehicle->GetSteeringControl();
+
+		NewtonBody* const body = vehicle->GetBody();
+		NewtonWorld* const world = NewtonBodyGetWorld(body);
+		DemoEntityManager* const scene = (DemoEntityManager*)NewtonWorldGetUserData(world);
+
+		//dEngineController* const engine = vehicle->GetEngine();
+		//int gear = engine ? engine->GetGear() : 0;
+
+		dVehicleChassis::dDriverInput driverInput;
+
+		dFloat axis[32];
+		int axisCount = scene->GetJoystickAxis(axis);
+axisCount = 0;
+		if (axisCount) {
+			//dAssert (0);
+/*
+			dFloat joyPosX;
+			dFloat joyPosY;
+			dFloat joyPosZ;
+
+			char buttons[32];
+			scene->GetJoystickButtons(buttons);
+
+			joyPosX = axis[m_steeringAxis];
+			joyPosY = -axis[m_throttleAxis];
+			joyPosZ = dMax(axis[m_clutchAxis], dFloat(0.0f));
+			bool ignitionButton = buttons[m_ignitionButton] ? true : false;
+			bool handBreakButton = buttons[m_handBrakeButton] ? true : false;
+			bool gearUpButton = buttons[m_gearUpButton] ? true : false;
+			bool gearDownButton = buttons[m_gearDonwButton] ? true : false;
+
+			gear += (int(m_gearUpKey.UpdateTrigger(gearUpButton)) - int(m_gearDownKey.UpdateTrigger(gearDownButton)));
+
+			driverInput.m_clutchPedal = joyPosZ * joyPosZ * joyPosZ;
+			driverInput.m_steeringValue = joyPosX * joyPosX * joyPosX;
+			driverInput.m_throttle = joyPosY > 0.0f ? dAbs(joyPosY * joyPosY * joyPosY) : 0.0f;
+			driverInput.m_brakePedal = joyPosY < 0.0f ? dAbs(joyPosY * joyPosY * joyPosY) : 0.0f;
+
+			driverInput.m_ignitionKey = m_engineKeySwitch.UpdatePushButton(ignitionButton);
+			driverInput.m_handBrakeValue = handBreakButton ? 1.0f : 0.0f;
+			driverInput.m_gear = gear;
+
+			//for (int i = 0; i < joyButtons; i ++) {
+			//	dTrace(("%d ", buttons[i]));
+			//}
+			//dTrace(("\n"));
+			//dTrace (("%f %f %f %f\n", driverInput.m_steeringValue, driverInput.m_throttle, driverInput.m_brakePedal, driverInput.m_clutchPedal));
+			//dTrace (("%d %d %d\n", gear, ignitionButton, m_engineKeySwitch.GetPushButtonState()));
+*/
+		} else {
+			//driverInput.m_throttle = scene->GetKeyState('W') ? 1.0f : 0.0f;
+			//driverInput.m_clutchPedal = 1.0f - scene->GetKeyState('K') ? 1.0f : 0.0f;
+			driverInput.m_steeringValue = (dFloat(scene->GetKeyState('A')) - dFloat(scene->GetKeyState('D')));
+			//driverInput.m_brakePedal = scene->GetKeyState('S') ? 1.0f : 0.0f;
+			//driverInput.m_ignitionKey = m_engineKeySwitch.UpdatePushButton(scene->GetKeyState('I'));
+			//driverInput.m_handBrakeValue = scene->GetKeyState(' ') ? 1.0f : 0.0f;
+			////driverInput.m_manualTransmission = !m_automaticTransmission.UpdatePushButton (scene, 0x0d);
+			//gear += m_gearUpKey.UpdateTrigger(scene->GetKeyState('M')) - m_gearUpKey.UpdateTrigger(scene->GetKeyState('N'));
+			//driverInput.m_gear = gear;
+			//driverInput.m_lockDifferential = m_engineDifferentialLock.UpdatePushButton(scene, 'L');
+		}
+
+		//xxxxxx
+#if 0
+#if 0
+		static FILE* file = fopen("log.bin", "wb");
+		if (file) {
+			fwrite(&driverInput, sizeof(dVehicleDriverInput), 1, file);
+			fflush(file);
+		}
+#else 
+		static FILE* file = fopen("log.bin", "rb");
+		if (file) {
+			fread(&driverInput, sizeof(dVehicleDriverInput), 1, file);
+		}
+#endif
+#endif
+
+		vehicle->ApplyDriverInputs(driverInput, timestep);
+
+//		m_steeringControl->Update(timestep);
+
+	}
+
+	dVehicleChassis* m_player;
+	bool m_externalView;
 };
 
 
@@ -306,18 +447,15 @@ void SingleBodyCar(DemoEntityManager* const scene)
 	NewtonWorld* const world = scene->GetNewton();
 
 	// create a vehicle controller manager
-//	int defaulMaterial = NewtonMaterialGetDefaultGroupID(scene->GetNewton());
-//	int materialList[] = {defaulMaterial };
 	SingleBodyVehicleManager* const manager = new SingleBodyVehicleManager(world);
 	
 	// load 
 	//dVehicleChassis* const player = manager->CreateVehicle("porche918", location);
 	dVehicleChassis* const player = manager->CreateVehicle("viper.ngd", location);
 
-/*
 	// set this vehicle as the player
 	manager->SetAsPlayer(player);
-
+/*
 	DemoEntity* const vehicleEntity = (DemoEntity*)NewtonBodyGetUserData(player->GetBody());
 	dMatrix camMatrix (vehicleEntity->GetNextMatrix());
 	//	scene->SetCameraMouseLock (true);

@@ -23,6 +23,7 @@ dVehicleVirtualTire::dVehicleVirtualTire(dVehicleNode* const parent, const dMatr
 	,m_position(0.0f)
 	,m_tireLoad(0.0f)
 	,m_tireAngle(0.0f)
+	,m_brakeTorque(0.0f)
 	,m_steeringAngle(0.0f)
 	,m_invSuspensionLength(m_info.m_suspensionLength > 0.0f ? 1.0f/m_info.m_suspensionLength : 0.0f)
 {
@@ -71,7 +72,7 @@ dVehicleVirtualTire::dVehicleVirtualTire(dVehicleNode* const parent, const dMatr
 	}
 	m_contactsJoints[sizeof (m_contactsJoints) / sizeof (m_contactsJoints[0]) - 1].SetOwners(this, &m_dynamicContactBodyNode);
 
-//m_omega = -10.0f;
+m_brakeTorque = 100.0f;
 }
 
 dVehicleVirtualTire::~dVehicleVirtualTire()
@@ -139,6 +140,21 @@ void dVehicleVirtualTire::Debug(dCustomJoint::dDebugDisplay* const debugContext)
 void dVehicleVirtualTire::SetSteeringAngle(dFloat steeringAngle)
 {
 	m_steeringAngle = steeringAngle;
+}
+
+dFloat dVehicleVirtualTire::GetSteeringAngle() const
+{
+	return m_steeringAngle;
+}
+
+dFloat dVehicleVirtualTire::GetBrakeTorque() const
+{
+	return m_brakeTorque;
+}
+
+void dVehicleVirtualTire::SetBrakeTorque(dFloat brakeTorque)
+{
+	m_brakeTorque = dAbs (brakeTorque);
 }
 
 void dVehicleVirtualTire::ApplyExternalForce()
@@ -226,13 +242,7 @@ m_omega = -20.0f;
 void dVehicleVirtualTire::CalculateContacts(const dVehicleChassis::dCollectCollidingBodies& bodyArray, dFloat timestep)
 {
 	for (int i = 0; i < sizeof(m_contactsJoints) / sizeof(m_contactsJoints[0]); i++) {
-		dTireContact* const contact = &m_contactsJoints[i];
-		if (contact->m_isActive == false) {
-			contact->m_jointFeebackForce[0] = 0.0f;
-			contact->m_jointFeebackForce[1] = 0.0f;
-			contact->m_jointFeebackForce[2] = 0.0f;
-		}
-		contact->m_isActive = false;
+		m_contactsJoints[i].ResetContact();
 	}
 
 	if (bodyArray.m_count) {
@@ -283,7 +293,7 @@ void dVehicleVirtualTire::CalculateContacts(const dVehicleChassis::dCollectColli
 
 					contact -= tireMatrix.m_up.Scale (dist);
 					contact.m_w = 1.0f;
-					m_contactsJoints[contactCount].SetContact(contact, normal, lateralDir, penetration, 0.7f);
+					m_contactsJoints[contactCount].SetContact(contact, normal, lateralDir, penetration, 1.0f, 0.8f);
 					contactCount ++;
 				}
 			}
