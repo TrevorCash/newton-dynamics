@@ -26,7 +26,7 @@ if(NEWTON_BUILD_SHARED_LIBS)
 
     target_link_libraries (${projectName} newton)
 
-    if (BUILD_PROFILER)
+    if (NEWTON_BUILD_PROFILER)
         target_link_libraries (${projectName} dTimeTracker)
     endif()
 else(NEWTON_BUILD_SHARED_LIBS)

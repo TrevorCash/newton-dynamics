@@ -25,7 +25,7 @@ set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /arch:AVX")
 add_definitions(-DNEWTONCPU_EXPORTS)
 add_library(${projectName} SHARED ${source})
 
-if (BUILD_PROFILER)
+if (NEWTON_BUILD_PROFILER)
 	target_link_libraries (${projectName} dTimeTracker)
 endif ()
 

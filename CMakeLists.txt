@@ -32,6 +32,7 @@ option("NEWTON_WITH_AVX2_PLUGIN" "adding avx2 parallel solver" ON)
 option("NEWTON_WITH_SSE_PLUGIN" "adding sse parallel solver" ON)
 option("NEWTON_WITH_SSE4_PLUGIN" "adding sse4 parallel solver" ON)
 option("NEWTON_WITH_DX12_PLUGIN" "adding direct compute 12 parallel solver" OFF)
+option("NEWTON_BUILD_PROFILER" "build profiler" OFF)
 
 
 set(CMAKE_CONFIGURATION_TYPES Debug Release RelWithDebInfo)

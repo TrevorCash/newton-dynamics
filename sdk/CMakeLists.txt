@@ -22,7 +22,7 @@ include_directories(dgMeshUtil/)
 include_directories(dContainers/)
 include_directories(dCustomJoints/)
 include_directories(thirdParty/tinyxml/)
-if (BUILD_PROFILER)
+if (NEWTON_BUILD_PROFILER)
 	include_directories(dProfiler/dTimeTracker/)
 endif ()
 
