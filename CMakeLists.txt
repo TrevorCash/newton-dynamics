@@ -47,6 +47,63 @@ if (NEWTON_DOUBLE_PRECISION)
 	add_definitions(-D_NEWTON_USE_DOUBLE)
 endif ()
 
+#If no build type set, Release as default
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING
+          "Choose the type of build, options are: Debug Release"
+          FORCE)
+endif(NOT CMAKE_BUILD_TYPE)
+
+# determine if we are compiling for a 32bit or 64bit system
+include(CheckTypeSize)
+CHECK_TYPE_SIZE("void*" PTR_SIZE BUILTIN_TYPES_ONLY)
+if (PTR_SIZE EQUAL 8)
+  set(BUILD_64 TRUE)
+else ()
+  set(BUILD_64 FALSE)
+endif ()
+
+#check for MAC or UNIX
+if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+  add_definitions(-D_MACOSX_VER)
+else(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+  if (${UNIX})
+    if (BUILD_64)
+      add_definitions(-D_POSIX_VER_64)
+    else (BUILD_64)
+      add_definitions(-D_POSIX_VER)
+    endif (BUILD_64)
+  endif(${UNIX})
+endif(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+
+set(CMAKE_INSTALL_LIBDIR "${PROJECT_BINARY_DIR}/build/lib")
+set(CMAKE_INSTALL_BINDIR "${PROJECT_BINARY_DIR}/build/bin")
+set(CMAKE_INSTALL_INCLUDEDIR "${PROJECT_BINARY_DIR}/build/include")
+
+if (UNIX)
+
+    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/lib")
+    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/lib")
+    #set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/bin")
+
+    add_definitions(-march=native -fPIC)
+
+    set(GENERATE_DLL OFF CACHE BOOL "" FORCE)
+    set(STATIC_RUNTIME_LIBRARIES OFF CACHE BOOL "" FORCE)
+    set(WITH_AVX_PLUGIN OFF CACHE BOOL "" FORCE)
+    set(BUILD_PROFILER OFF CACHE BOOL "" FORCE)
+
+    find_package(glfw3 REQUIRED)
+
+    if(NOT_glfw3_FOUND)
+        set(BUILD_SANDBOX_DEMOS OFF CACHE BOOL "" FORCE)
+        message(WARNING "GLFW headers were not found. Sandbox_Demos disabled")
+    else(NOT_glfw3_FOUND)
+        message("Found GLFW library")
+    endif(NOT_glfw3_FOUND)
+
+endif (UNIX)
+
 if (MSVC)
 	#message ("build newton visual studio projects")
 
@@ -90,15 +147,36 @@ if (MSVC)
 	message("CMAKE_CXX_FLAGS_RELEASE is ${CMAKE_CXX_FLAGS_RELEASE}")
 endif()
 
-set (dllPath "${PROJECT_BINARY_DIR}/build/bin")
-set (libraryPath "${PROJECT_BINARY_DIR}/build/lib")
-set (includePath "${PROJECT_BINARY_DIR}/build/include")
-
-
 add_subdirectory(sdk)
 
 
 add_dependencies (dgPhysics dgCore)
+add_dependencies (dContainers dMath)
+add_dependencies (newton dgCore dgPhysics)
+add_dependencies (dAnimation dMath dContainers)
+add_dependencies (dCustomJoints dMath dContainers)
+add_dependencies (dNewton newton dMath dContainers dCustomJoints)
+add_dependencies (dVehicle newton dMath dContainers dCustomJoints)
+
+if (BUILD_PROFILER)
+	add_definitions(-D_DG_USE_PROFILER)
+        add_dependencies (newton dTimeTracker)
+        add_dependencies (dNewton dTimeTracker)
+        add_dependencies (dVehicle dTimeTracker)
+        add_dependencies (dAnimation dTimeTracker)
+        add_dependencies (dContainers dTimeTracker)
+        add_dependencies (dCustomJoints dTimeTracker)
+endif ()
+
+if (BUILD_SANDBOX_DEMOS)
+	add_dependencies (demosSandbox newton dMath dScene dNewton dContainers dVehicle dCustomJoints tinyxml imgui)
+    if (MSVC)
+		add_dependencies (demosSandbox glfw)
+		if (BUILD_PROFILER)
+			add_dependencies (demosSandbox dTimeTracker)
+		endif (BUILD_PROFILER)
+    endif (MSVC)
+endif()
 add_dependencies (dContainers dMath dTimeTracker)
 add_dependencies (newton dgCore dgPhysics dTimeTracker)
 add_dependencies (dAnimation dMath dContainers dTimeTracker)
