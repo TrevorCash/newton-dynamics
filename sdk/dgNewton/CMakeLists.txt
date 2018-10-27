@@ -11,7 +11,7 @@
 cmake_minimum_required(VERSION 3.12.0)
 
 set (projectName "newton")
-#message (${projectName})
+message (${projectName})
 
 # low level core
 file(GLOB CPP_SOURCE *.cpp)
@@ -27,11 +27,17 @@ else(NEWTON_BUILD_SHARED_LIBS)
         add_definitions(-D_NEWTON_STATIC_LIB)
     endif(MSVC)
 
-if (GENERATE_DLL)
-	add_definitions(-D_NEWTON_BUILD_DLL)
-	add_library(${projectName} SHARED ${source})
-	target_link_libraries (${projectName} dgCore dgPhysics dTimeTracker)
-	install(TARGETS ${projectName} RUNTIME DESTINATION ${dllPath})
+    add_library(${projectName} STATIC ${CPP_SOURCE})
+endif(NEWTON_BUILD_SHARED_LIBS)
+
+target_link_libraries (${projectName} dgCore dgPhysics)
+if (BUILD_PROFILER)
+    target_link_libraries (${projectName} dTimeTracker)
+endif()
+
+if (MSVC)
+	set_target_properties(${projectName} PROPERTIES COMPILE_FLAGS "/YuNewtonStdAfx.h")
+	set_source_files_properties(NewtonClass.cpp PROPERTIES COMPILE_FLAGS "/YcNewtonStdAfx.h")
 	if (BUILD_SANDBOX_DEMOS)
 		add_custom_command(
 			TARGET ${projectName} POST_BUILD
@@ -40,6 +46,11 @@ if (GENERATE_DLL)
 	endif ()
 endif(MSVC)
 
-file(GLOB includes *.h)
-install(FILES ${includes} DESTINATION "${includePath}/${projectName}")
-install(TARGETS ${projectName} ARCHIVE DESTINATION ${libraryPath})
+install(TARGETS ${projectName}
+       LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+       ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+       RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+install(FILES ${HEADERS} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${projectName})
+
+
