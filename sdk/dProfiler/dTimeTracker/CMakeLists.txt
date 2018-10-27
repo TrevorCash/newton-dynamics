@@ -40,9 +40,4 @@ install (TARGETS ${projectName} EXPORT Urho3D
     ARCHIVE DESTINATION ${DEST_ARCHIVE_DIR}
 )
 
-if (NEWTON_BUILD_SANDBOX_DEMOS)
-	add_custom_command(
-		TARGET ${projectName} POST_BUILD
-		COMMAND ${CMAKE_COMMAND}
-		ARGS -E copy $(TargetPath) ${PROJECT_BINARY_DIR}/applications/demosSandbox/${CMAKE_CFG_INTDIR}/$(TargetFileName))
-endif ()
+

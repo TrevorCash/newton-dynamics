@@ -47,7 +47,7 @@ endif()
 if (MSVC)
 	set_target_properties(${projectName} PROPERTIES COMPILE_FLAGS "/YudStdAfxNewton.h")
 	set_source_files_properties(dStdAfxNewton.cpp PROPERTIES COMPILE_FLAGS "/YcdStdAfxNewton.h")
-	if (BUILD_SANDBOX_DEMOS)
+	if (NEWTON_BUILD_SANDBOX_DEMOS)
 		add_custom_command(
 			TARGET ${projectName} POST_BUILD
 			COMMAND ${CMAKE_COMMAND}

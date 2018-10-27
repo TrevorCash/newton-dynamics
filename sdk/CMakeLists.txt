@@ -38,6 +38,9 @@ add_subdirectory(dContainers)
 add_subdirectory(dCustomJoints)
 add_subdirectory(thirdParty)
 
+if (NEWTON_BUILD_PROFILER)
+	add_subdirectory(dProfiler)
+endif (NEWTON_BUILD_PROFILER)
 
 if (NEWTON_WITH_SSE_PLUGIN)
 	add_subdirectory(dgNewtonSse)

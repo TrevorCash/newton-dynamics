@@ -42,7 +42,7 @@ endif()
 if (MSVC)
 	set_target_properties(${projectName} PROPERTIES COMPILE_FLAGS "/YudSceneStdafx.h")
 	set_source_files_properties(dSceneStdafx.cpp PROPERTIES COMPILE_FLAGS "/YcdSceneStdafx.h")
-	if (BUILD_SANDBOX_DEMOS)
+	if (NEWTON_BUILD_SANDBOX_DEMOS)
 		add_custom_command(
 			TARGET ${projectName} POST_BUILD
 			COMMAND ${CMAKE_COMMAND}

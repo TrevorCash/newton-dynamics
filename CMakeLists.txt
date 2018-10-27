@@ -21,18 +21,20 @@ else ()
 endif ()
 
 
-
-
-option("NEWTON_GENERATE_DLL" "build dll libraries" ON)
-option("NEWTON_BUILD_SANDBOX_DEMOS" "generates demos projects" OFF)
-option("NEWTON_DOUBLE_PRECISION" "Generate double precision" OFF)
-option("NEWTON_STATIC_RUNTIME_LIBRARIES" "use windows system static libraries" OFF)
-option("NEWTON_WITH_AVX_PLUGIN" "adding avx parallel solver" ON)
-option("NEWTON_WITH_AVX2_PLUGIN" "adding avx2 parallel solver" ON)
-option("NEWTON_WITH_SSE_PLUGIN" "adding sse parallel solver" ON)
-option("NEWTON_WITH_SSE4_PLUGIN" "adding sse4 parallel solver" ON)
-option("NEWTON_WITH_DX12_PLUGIN" "adding direct compute 12 parallel solver" OFF)
+#option("NEWTON_GENERATE_DLL" "build dll libraries" ON)
+option("NEWTON_BUILD_SANDBOX_DEMOS" "generates demos projects" ON)
 option("NEWTON_BUILD_PROFILER" "build profiler" OFF)
+option("NEWTON_DOUBLE_PRECISION" "Generate double precision" OFF)
+option("NEWTON_STATIC_RUNTIME_LIBRARIES" "use windows static libraries" ON)
+option("NEWTON_WITH_SSE_PLUGIN" "adding asse parallel solver" OFF)
+option("NEWTON_WITH_SSE4_PLUGIN" "adding avx parallel solver" OFF)
+option("NEWTON_WITH_AVX_PLUGIN" "adding avx parallel solver" ON)
+option("NEWTON_WITH_AVX2_PLUGIN" "adding avx parallel solver" OFF)
+option("NEWTON_WITH_DX12_PLUGIN" "adding direct compute 12 parallel solver" OFF)
+option("NEWTON_BUILD_SHARED_LIBS" "Build shared library" OFF)
+
+
+
 
 
 set(CMAKE_CONFIGURATION_TYPES Debug Release RelWithDebInfo)
@@ -89,15 +91,15 @@ if (UNIX)
 
     add_definitions(-march=native -fPIC)
 
-    set(GENERATE_DLL OFF CACHE BOOL "" FORCE)
-    set(STATIC_RUNTIME_LIBRARIES OFF CACHE BOOL "" FORCE)
-    set(WITH_AVX_PLUGIN OFF CACHE BOOL "" FORCE)
-    set(BUILD_PROFILER OFF CACHE BOOL "" FORCE)
+    set(NEWTON_GENERATE_DLL OFF CACHE BOOL "" FORCE)
+    set(NEWTON_STATIC_RUNTIME_LIBRARIES OFF CACHE BOOL "" FORCE)
+    set(NEWTON_WITH_AVX_PLUGIN OFF CACHE BOOL "" FORCE)
+    set(NEWTON_BUILD_PROFILER OFF CACHE BOOL "" FORCE)
 
     find_package(glfw3 REQUIRED)
 
     if(NOT_glfw3_FOUND)
-        set(BUILD_SANDBOX_DEMOS OFF CACHE BOOL "" FORCE)
+        set(NEWTON_BUILD_SANDBOX_DEMOS OFF CACHE BOOL "" FORCE)
         message(WARNING "GLFW headers were not found. Sandbox_Demos disabled")
     else(NOT_glfw3_FOUND)
         message("Found GLFW library")
@@ -108,18 +110,8 @@ endif (UNIX)
 if (MSVC)
 	#message ("build newton visual studio projects")
 
-	if(CMAKE_CL_64)
-		message ("build 64 bit")
-		add_definitions(-D_WIN_64_VER)
-	else()
-		message ("build 32 bit")
-		add_definitions(-D_WIN_32_VER)
-	endif()
-
 	if(NEWTON_STATIC_RUNTIME_LIBRARIES)
-		#message ("newton link to static runtime libraries")
-		set(CMAKE_CXX_FLAGS_DEBUG "/MTd")
-		set(CMAKE_CXX_FLAGS_RELEASE "/MT")
+		message ("link to static runtime libraries")
 		set(CMAKE_C_FLAGS_DEBUG "/MTd")
 		set(CMAKE_C_FLAGS_RELEASE "/MT")
 		set(CMAKE_CXX_FLAGS_DEBUG "/MTd")
@@ -159,7 +151,7 @@ add_dependencies (dCustomJoints dMath dContainers)
 add_dependencies (dNewton newton dMath dContainers dCustomJoints)
 add_dependencies (dVehicle newton dMath dContainers dCustomJoints)
 
-if (BUILD_PROFILER)
+if (NEWTON_BUILD_PROFILER)
 	add_definitions(-D_DG_USE_PROFILER)
         add_dependencies (newton dTimeTracker)
         add_dependencies (dNewton dTimeTracker)
