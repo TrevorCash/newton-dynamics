@@ -413,18 +413,18 @@ axisCount = 0;
 
 		//xxxxxx
 #if 0
-#if 0
+	#if 0
 		static FILE* file = fopen("log.bin", "wb");
 		if (file) {
 			fwrite(&driverInput, sizeof(dVehicleDriverInput), 1, file);
 			fflush(file);
 		}
-#else 
+	#else 
 		static FILE* file = fopen("log.bin", "rb");
 		if (file) {
 			fread(&driverInput, sizeof(dVehicleDriverInput), 1, file);
 		}
-#endif
+	#endif
 #endif
 
 		vehicle->ApplyDriverInputs(driverInput, timestep);
@@ -464,6 +464,18 @@ void SingleBodyCar(DemoEntityManager* const scene)
 
 	// set this vehicle as the player
 	manager->SetAsPlayer(player);
+
+
+	int count = 5;
+	for (int i = 0; i < count; i++) {
+		for (int j = 0; j < count; j++) {
+			//dVector offset(j * 4.0f, 0.0f, i * 4.0f + 4.0f, 0.0f);
+			dMatrix offset(location);
+			offset.m_posit += dVector (j * 4.0f + 4.0f, 0.0f, i * 4.0f, 0.0f);
+			manager->CreateVehicle("viper.ngd", offset);
+		}
+	}
+
 /*
 	DemoEntity* const vehicleEntity = (DemoEntity*)NewtonBodyGetUserData(player->GetBody());
 	dMatrix camMatrix (vehicleEntity->GetNextMatrix());
