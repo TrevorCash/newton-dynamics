@@ -236,8 +236,9 @@ class SingleBodyVehicleManager: public dVehicleManager
 		tireInfo.m_width = width;
 		tireInfo.m_pivotOffset = 0.01f;
 		tireInfo.m_steerRate = 0.5f * dPi;
+		tireInfo.m_frictionCoefficient = 0.8f;
 		tireInfo.m_maxSteeringAngle = 20.0f * dDegreeToRad;
-
+		
 		tireInfo.m_suspensionLength = 0.22f;
 		tireInfo.m_dampingRatio = 15.0f * vehicleMass;
 		tireInfo.m_springStiffness = dAbs(vehicleMass * DEMO_GRAVITY * 8.0f / tireInfo.m_suspensionLength);
@@ -443,8 +444,8 @@ void SingleBodyCar(DemoEntityManager* const scene)
 	// load the sky box
 	scene->CreateSkyBox();
 
-	CreateLevelMesh (scene, "flatPlane.ngd", 1);
-//	CreateHeightFieldTerrain (scene, 10, 8.0f, 5.0f, 0.2f, 200.0f, -50.0f);
+//	CreateLevelMesh (scene, "flatPlane.ngd", 1);
+	CreateHeightFieldTerrain (scene, 10, 8.0f, 5.0f, 0.2f, 200.0f, -50.0f);
 //	AddPrimitiveArray (scene, 0.0f, dVector (0.0f, 0.0f, 0.0f, 0.0f), dVector (100.0f, 1.0f, 100.0f, 0.0f), 1, 1, 0, _BOX_PRIMITIVE, 0, dGetIdentityMatrix());
 
 	dMatrix location (dGetIdentityMatrix());
@@ -465,8 +466,8 @@ void SingleBodyCar(DemoEntityManager* const scene)
 	// set this vehicle as the player
 	manager->SetAsPlayer(player);
 
-
 	int count = 5;
+	count = 0;
 	for (int i = 0; i < count; i++) {
 		for (int j = 0; j < count; j++) {
 			//dVector offset(j * 4.0f, 0.0f, i * 4.0f + 4.0f, 0.0f);
