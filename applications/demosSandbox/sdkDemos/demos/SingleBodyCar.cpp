@@ -34,6 +34,7 @@ class SingleBodyVehicleManager: public dVehicleManager
 			:DemoEntity::UserData()
 			,m_vehicleChassis(vehicle)
 		{
+			memset(m_gearMap, 0, sizeof (m_gearMap));
 		}
 
 		void OnRender(dFloat timestep) const
@@ -73,6 +74,7 @@ class SingleBodyVehicleManager: public dVehicleManager
 		}
 
 		dVehicleChassis* m_vehicleChassis;
+		int m_gearMap[10];
 	};
 
 	SingleBodyVehicleManager(NewtonWorld* const world)
@@ -82,16 +84,146 @@ class SingleBodyVehicleManager: public dVehicleManager
 	{
 		DemoEntityManager* const scene = (DemoEntityManager*)NewtonWorldGetUserData(world);
 		scene->SetUpdateCameraFunction(UpdateCameraCallback, this);
+
+		scene->Set2DDisplayRenderFunction(RenderHelpMenu, RenderUI, this);
+
+		// load 2d display assets
+		m_gears = LoadTexture("gears_font.tga");
+		m_odometer = LoadTexture("kmh_dial.tga");
+		m_tachometer = LoadTexture("rpm_dial.tga");
+		m_redNeedle = LoadTexture("needle_red.tga");
+		m_greenNeedle = LoadTexture("needle_green.tga");
 	}
 
 	~SingleBodyVehicleManager()
 	{
+		ReleaseTexture (m_gears);
+		ReleaseTexture (m_odometer);
+		ReleaseTexture (m_redNeedle);
+		ReleaseTexture (m_tachometer);
+		ReleaseTexture (m_greenNeedle);
 	}
 
 	static void UpdateCameraCallback(DemoEntityManager* const manager, void* const context, dFloat timestep)
 	{
 		SingleBodyVehicleManager* const me = (SingleBodyVehicleManager*)context;
 		me->UpdateCamera(timestep);
+	}
+
+	static void RenderHelpMenu(DemoEntityManager* const scene, void* const context)
+	{
+		//SingleBodyVehicleManager* const me = (SingleBodyVehicleManager*)context;
+		//me->DrawHelp(scene);
+	}
+
+	static void RenderUI(DemoEntityManager* const scene, void* const context)
+	{
+		SingleBodyVehicleManager* const me = (SingleBodyVehicleManager*)context;
+		me->RenderUI(scene);
+	}
+
+	void DrawGage(GLuint gage, GLuint needle, dFloat param, dFloat origin_x, dFloat origin_y, dFloat size) const
+	{
+		size *= 0.5f;
+		dMatrix origin(dGetIdentityMatrix());
+		origin[1][1] = -1.0f;
+		origin.m_posit = dVector(origin_x, origin_y, 0.0f, 1.0f);
+
+		// render dial
+		glPushMatrix();
+		glMultMatrix(&origin[0][0]);
+		glBindTexture(GL_TEXTURE_2D, gage);
+		glBegin(GL_QUADS);
+		glTexCoord2f(0.0f, 1.0f); glVertex3f(GLfloat(-size), GLfloat(size), 0.0f);
+		glTexCoord2f(0.0f, 0.0f); glVertex3f(GLfloat(-size), GLfloat(-size), 0.0f);
+		glTexCoord2f(1.0f, 0.0f); glVertex3f(GLfloat(size), GLfloat(-size), 0.0f);
+		glTexCoord2f(1.0f, 1.0f); glVertex3f(GLfloat(size), GLfloat(size), 0.0f);
+		glEnd();
+
+		// render needle
+		const dFloat minAngle = 180.0f * dDegreeToRad;
+		const dFloat maxAngle = -90.0f * dDegreeToRad;
+		dFloat angle = minAngle + (maxAngle - minAngle) * param;
+		dMatrix needleMatrix(dRollMatrix(angle));
+
+		dFloat x = size * 0.7f;
+		dFloat y = size * 0.7f;
+
+		glPushMatrix();
+		glMultMatrix(&needleMatrix[0][0]);
+		glBindTexture(GL_TEXTURE_2D, needle);
+		glBegin(GL_QUADS);
+		glTexCoord2f(0.0f, 1.0f); glVertex3f(GLfloat(-x), GLfloat(y), 0.0f);
+		glTexCoord2f(0.0f, 0.0f); glVertex3f(GLfloat(-x), GLfloat(-y), 0.0f);
+		glTexCoord2f(1.0f, 0.0f); glVertex3f(GLfloat(x), GLfloat(-y), 0.0f);
+		glTexCoord2f(1.0f, 1.0f); glVertex3f(GLfloat(x), GLfloat(y), 0.0f);
+		glEnd();
+
+		glPopMatrix();
+		glPopMatrix();
+	}
+
+	void DrawGear(dFloat param, dFloat origin_x, dFloat origin_y, int gear, dFloat size) const
+	{
+		dMatrix origin(dGetIdentityMatrix());
+		origin[1][1] = -1.0f;
+		origin.m_posit = dVector(origin_x + size * 0.3f, origin_y - size * 0.25f, 0.0f, 1.0f);
+
+		glPushMatrix();
+		glMultMatrix(&origin[0][0]);
+
+		dFloat uwith = 0.1f;
+		dFloat u0 = uwith * gear;
+		dFloat u1 = u0 + uwith;
+
+		dFloat x1 = 10.0f;
+		dFloat y1 = 10.0f;
+		glColor4f(1, 1, 0, 1);
+		glBindTexture(GL_TEXTURE_2D, m_gears);
+		glBegin(GL_QUADS);
+		glTexCoord2f(GLfloat(u0), 1.0f); glVertex3f(GLfloat(-x1), GLfloat(y1), 0.0f);
+		glTexCoord2f(GLfloat(u0), 0.0f); glVertex3f(GLfloat(-x1), GLfloat(-y1), 0.0f);
+		glTexCoord2f(GLfloat(u1), 0.0f); glVertex3f(GLfloat(x1), GLfloat(-y1), 0.0f);
+		glTexCoord2f(GLfloat(u1), 1.0f); glVertex3f(GLfloat(x1), GLfloat(y1), 0.0f);
+		glEnd();
+
+		glPopMatrix();
+	}
+
+
+	void RenderUI(DemoEntityManager* const scene)
+	{
+		// set to transparent color
+		if (m_player) {
+
+			DemoEntity* const playerEnt = (DemoEntity*)NewtonBodyGetUserData(m_player->GetBody());
+			
+			dVehicleEngineInterface* const engine = m_player->GetEngineControl()->GetEngine();
+//			if (engine) {
+			if (1) {
+				glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+				dFloat gageSize = 200.0f;
+				dFloat y = scene->GetHeight() - (gageSize / 2.0f + 20.0f);
+
+				// draw the tachometer
+				dFloat x = gageSize / 2 + 20.0f;
+				dFloat rpm = engine->GetRpm() / engine->GetRedLineRpm();
+				DrawGage(m_tachometer, m_redNeedle, rpm, x, y, gageSize);
+
+				// draw the odometer
+				x += gageSize;
+				//dFloat speed = dAbs(engine->GetSpeed()) * 3.6f / 340.0f;
+				//dFloat speed = dAbs(engine->GetSpeed()) / engine->GetTopSpeed();
+				dFloat speed = 0.0f;
+				DrawGage(m_odometer, m_greenNeedle, speed, x, y, gageSize);
+
+				// draw the current gear
+				//int gear = engine->GetGear();
+				int gear = 1;
+				VehicleUserData* const playerData = (VehicleUserData*)playerEnt->GetUserData();
+				DrawGear(speed, x, y + 98, playerData->m_gearMap[gear], gageSize);
+			}
+		}
 	}
 
 	void UpdateCamera(dFloat timestep)
@@ -237,7 +369,7 @@ class SingleBodyVehicleManager: public dVehicleManager
 		tireInfo.m_pivotOffset = 0.01f;
 		tireInfo.m_steerRate = 0.5f * dPi;
 		tireInfo.m_frictionCoefficient = 0.8f;
-		tireInfo.m_maxSteeringAngle = 20.0f * dDegreeToRad;
+		tireInfo.m_maxSteeringAngle = 25.0f * dDegreeToRad;
 		
 		tireInfo.m_suspensionLength = 0.22f;
 		tireInfo.m_dampingRatio = 15.0f * vehicleMass;
@@ -325,9 +457,20 @@ class SingleBodyVehicleManager: public dVehicleManager
 
 		// add and internal combustion engine
 		dVehicleEngineInterface::dEngineInfo engineInfo;
-		dVehicleEngineInterface* const engine = vehicle->AddEngine(engineInfo, differential);
-		engine;
+		engineInfo.m_mass = 50.0f;
+		engineInfo.m_armatureRadius = 0.2f;
+		engineInfo.m_idleTorque = 100.0f;			// IDLE_TORQUE
+		engineInfo.m_rpmAtIdleTorque = 450.0f;		// IDLE_TORQUE_RPM
+		engineInfo.m_peakTorque = 500.0f;			// PEAK_TORQUE
+		engineInfo.m_rpmAtPeakTorque = 3000.0f;		// PEAK_TORQUE_RPM
+		engineInfo.m_peakHorsePower = 400.0f;		// PEAK_HP
+		engineInfo.m_rpmAtPeakHorsePower = 5200.0f;	// PEAK_HP_RPM
+		engineInfo.m_rpmAtRedLine = 6000.0f;		// REDLINE_TORQUE_RPM
 
+		dVehicleEngineInterface* const engine = vehicle->AddEngine(engineInfo, differential);
+		// Set Engine Control
+		dVehicleEngineControl* const engineControl = vehicle->GetEngineControl();
+		engineControl->SetEngine(engine);
 
 		// add vehicle steering control 
 		dVehicleSteeringControl* const steeringControl = vehicle->GetSteeringControl();
@@ -407,7 +550,7 @@ axisCount = 0;
 			//dTrace (("%d %d %d\n", gear, ignitionButton, m_engineKeySwitch.GetPushButtonState()));
 */
 		} else {
-			//driverInput.m_throttle = scene->GetKeyState('W') ? 1.0f : 0.0f;
+			driverInput.m_throttle = scene->GetKeyState('W') ? 1.0f : 0.0f;
 			//driverInput.m_clutchPedal = 1.0f - scene->GetKeyState('K') ? 1.0f : 0.0f;
 			driverInput.m_steeringValue = (dFloat(scene->GetKeyState('A')) - dFloat(scene->GetKeyState('D')));
 			driverInput.m_brakePedal = scene->GetKeyState('S') ? 1.0f : 0.0f;
@@ -443,6 +586,12 @@ axisCount = 0;
 	}
 
 	dVehicleChassis* m_player;
+	GLuint m_gears;
+	GLuint m_odometer;
+	GLuint m_redNeedle;
+	GLuint m_tachometer;
+	GLuint m_greenNeedle;
+
 	bool m_externalView;
 };
 
