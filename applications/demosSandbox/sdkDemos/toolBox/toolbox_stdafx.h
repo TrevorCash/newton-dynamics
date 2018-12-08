@@ -185,9 +185,20 @@ typedef long long unsigned64;
 #include <dCollisionConvexHullNodeInfo.h>
 #include <dGeometryNodeSkinModifierInfo.h>
 
-
 #include <dStdAfxNewton.h>
 #include <dNewtonMesh.h>
+
+#include <dAnimationStdAfx.h>
+#include <dAnimationRigLimb.h>
+#include <dAnimationRigJoint.h>
+#include <dAnimationRigHinge.h>
+#include <dAnimationRigEffector.h>
+#include <dAnimationEffectorBlendNode.h>
+#include <dAnimationEffectorBlendPose.h>
+#include <dAnimationEffectorBlendRoot.h>
+#include <dAnimationEffectorBlendTwoWay.h>
+#include <dAnimationCharacterRigManager.h>
+#include <dAnimationRigForwardDynamicLimb.h>
 
 /*
 #ifdef _NEWTON_USE_DOUBLE

@@ -26,6 +26,23 @@
 //#define USE_PICK_BODY_BY_FORCE
 
 
+class DemoCameraPickBodyJoint: public dCustomKinematicController
+{
+	public:
+	DemoCameraPickBodyJoint(NewtonBody* const body, const dVector& attachmentPointInGlobalSpace, DemoCameraManager* const camera)
+		:dCustomKinematicController(body, attachmentPointInGlobalSpace)
+		,m_manager (camera)
+	{
+	}
+	
+	~DemoCameraPickBodyJoint()
+	{
+		m_manager->ResetPickBody();
+	}
+		
+	DemoCameraManager* m_manager;
+};
+
 DemoCameraManager::DemoCameraManager(DemoEntityManager* const scene)
 	:m_camera (new DemoCamera())
 	,m_mousePosX(0)
@@ -98,7 +115,7 @@ void DemoCameraManager::FixUpdate (const NewtonWorld* const world, dFloat timest
 		targetMatrix.m_posit += targetMatrix.m_up.Scale(m_sidewaysSpeed * timestep * slowDownFactor);
 	}
 
-	bool mouseState = scene->GetMouseKeyState(0);
+	bool mouseState = scene->GetMouseKeyState(0) && !scene->GetMouseKeyState(1);
 
 	// do camera rotation, only if we do not have anything picked
 	bool buttonState = m_mouseLockState || mouseState;
@@ -254,7 +271,8 @@ void DemoCameraManager::UpdatePickBody(DemoEntityManager* const scene, bool mous
 					const dFloat linearFrictionAccel = 100.0f * dAbs (dMax (DEMO_GRAVITY, 10.0f));
 					const dFloat inertia = dMax (Izz, dMax (Ixx, Iyy));
 
-					m_pickJoint = new dCustomKinematicController (body, posit);
+					//m_pickJoint = new dCustomKinematicController (body, posit);
+					m_pickJoint = new DemoCameraPickBodyJoint (body, posit, this);
 					m_pickJoint->SetPickMode (0);
 					m_pickJoint->SetMaxLinearFriction(mass * linearFrictionAccel);
 					m_pickJoint->SetMaxAngularFriction(inertia * angularFritionAccel);
@@ -281,19 +299,22 @@ void DemoCameraManager::UpdatePickBody(DemoEntityManager* const scene, bool mous
 				}
 			#endif
 		} else {
-			if (m_targetPicked) {
-				NewtonBodySetSleepState (m_targetPicked, 0);
-			}
 			if (m_pickJoint) {
 				delete m_pickJoint;
 			}
-			m_pickJoint = NULL;
-			m_targetPicked = NULL; 
-			m_bodyDestructor = NULL;
+			ResetPickBody();
 		}
 	}
 
 	m_prevMouseState = mousePickState;
 }
 
-
+void DemoCameraManager::ResetPickBody()
+{
+	if (m_targetPicked) {
+		NewtonBodySetSleepState(m_targetPicked, 0);
+	}
+	m_pickJoint = NULL;
+	m_targetPicked = NULL;
+	m_bodyDestructor = NULL;
+}

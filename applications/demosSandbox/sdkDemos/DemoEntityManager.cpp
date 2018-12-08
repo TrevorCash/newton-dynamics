@@ -32,12 +32,12 @@
 #define PROJECTILE_INITIAL_SPEED	20.0f
 
 //#define DEFAULT_SCENE	0			// using NetwonMesh Tool
-//#define DEFAULT_SCENE	1			// Coefficients of friction
-//#define DEFAULT_SCENE	2			// Coefficients of restitution
+//#define DEFAULT_SCENE	1			// coefficients of friction
+//#define DEFAULT_SCENE	2			// coefficients of restitution
 //#define DEFAULT_SCENE	3			// gyroscope precession
 //#define DEFAULT_SCENE	4			// closest distance
 //#define DEFAULT_SCENE	5			// primitive collision
-//#define DEFAULT_SCENE	6 			// Kinematic bodies
+//#define DEFAULT_SCENE	6 			// kinematic bodies
 //#define DEFAULT_SCENE	7			// primitive convex cast 
 //#define DEFAULT_SCENE	8			// box stacks
 //#define DEFAULT_SCENE	9			// simple level mesh collision
@@ -56,11 +56,11 @@
 //#define DEFAULT_SCENE	22			// simple convex decomposition
 //#define DEFAULT_SCENE	23			// scene Collision
 //#define DEFAULT_SCENE	24          // simple boolean operators 
-//#define DEFAULT_SCENE	25			// simple convex fracturing 
+#define DEFAULT_SCENE	25			// simple convex fracturing 
 //#define DEFAULT_SCENE	26			// structured convex fracturing 
 //#define DEFAULT_SCENE	27			// multi ray casting using the threading Job scheduler
 //#define DEFAULT_SCENE	28          // standard joints
-#define DEFAULT_SCENE	29			// servo joints
+//#define DEFAULT_SCENE	29			// servo joints
 //#define DEFAULT_SCENE	30			// articulated joints
 //#define DEFAULT_SCENE	31			// six axis manipulator
 //#define DEFAULT_SCENE	32			// hexapod Robot
@@ -338,7 +338,7 @@ DemoEntityManager::DemoEntityManager ()
 //	m_broadPhaseType = 1;
 	m_solverPasses = 4;
 //	m_workerThreads = 4;
-//	m_showNormalForces = false;
+	m_showNormalForces = true;
 //	m_showCenterOfMass = false;
 	m_showJointDebugInfo = true;
 //	m_collisionDisplayMode = 2;
@@ -741,11 +741,11 @@ void DemoEntityManager::ShowMainMenuBar()
 			}
 			ImGui::Separator();
 
-			ImGui::Text("iterative solver passes %d", m_solverPasses);
-			ImGui::SliderInt("", &m_solverPasses, 4, 20);
+			//ImGui::Text("iterative solver passes %d", m_solverPasses);
+			ImGui::SliderInt_DoubleSpace("iterative solver passes", &m_solverPasses, 4, 20);
 
-			ImGui::Text("worker threads %d", m_workerThreads);
-			ImGui::SliderInt(" ", &m_workerThreads, 1, 20);
+			//ImGui::Text("worker threads %d", m_workerThreads);
+			ImGui::SliderInt_DoubleSpace("worker threads", &m_workerThreads, 1, 20);
 			ImGui::Separator();
 
 			ImGui::RadioButton("default broad phase", &m_broadPhaseType, 0);
@@ -1366,7 +1366,7 @@ void DemoEntityManager::RenderScene()
 	glMaterialf(GL_FRONT, GL_SHININESS, 50.0);
 	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 
-	// one light form the Camera eye point
+	// one light from the Camera eye point
 	GLfloat lightDiffuse0[] = { 0.5f, 0.5f, 0.5f, 0.0 };
 	GLfloat lightAmbient0[] = { 0.0f, 0.0f, 0.0f, 0.0 };
 	dVector camPosition (m_cameraManager->GetCamera()->m_matrix.m_posit);
@@ -1381,12 +1381,13 @@ void DemoEntityManager::RenderScene()
 	// set just one directional light
 	GLfloat lightDiffuse1[] = { 0.7f, 0.7f, 0.7f, 0.0 };
 	GLfloat lightAmbient1[] = { 0.2f, 0.2f, 0.2f, 0.0 };
+	GLfloat lightSpecular1[] = { 0.1f, 0.1f, 0.1f, 0.0 };
 	GLfloat lightPosition1[] = { -500.0f, 200.0f, 500.0f, 0.0 };
 
 	glLightfv(GL_LIGHT1, GL_POSITION, lightPosition1);
 	glLightfv(GL_LIGHT1, GL_AMBIENT, lightAmbient1);
 	glLightfv(GL_LIGHT1, GL_DIFFUSE, lightDiffuse1);
-	glLightfv(GL_LIGHT1, GL_SPECULAR, lightDiffuse1);
+	glLightfv(GL_LIGHT1, GL_SPECULAR, lightSpecular1);
 	glEnable(GL_LIGHT1);
 
 	//glEnable(GL_BLEND);
@@ -1446,7 +1447,8 @@ void DemoEntityManager::RenderScene()
 
 	if (m_showJointDebugInfo) {
 		dJointDebugDisplay jointDebugRender (m_cameraManager->GetCamera()->GetCurrentMatrix());
-		jointDebugRender.SetScale(0.5f);
+		//jointDebugRender.SetScale(0.25f);
+		jointDebugRender.SetScale(0.01f);
 
 		RenderJointsDebugInfo(m_world, &jointDebugRender);
 	}
@@ -1472,8 +1474,6 @@ void DemoEntityManager::RenderScene()
 	glMatrixMode(GL_PROJECTION);
 	glPopMatrix();
 }
-
-
 
 void DemoEntityManager::Run()
 {

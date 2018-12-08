@@ -19,693 +19,830 @@
 #include "DebugDisplay.h"
 #include "HeightFieldPrimitive.h"
 
-#if 0
-enum JointType
+#define DEMO_MUSCLE_STRENGTH	10.0f
+
+struct dRagDollConfig
 {
-	one_dof,
-	two_dof,
-	three_dof,
-};
-
-struct dBalancingDummyDefinition
-{
-	char m_boneName[32];
-	char m_shapeType[32];
-
-	JointType m_type;
-
-	dFloat m_shapePitch;
-	dFloat m_shapeYaw;
-	dFloat m_shapeRoll;
-
-	dFloat m_shape_x;
-	dFloat m_shape_y;
-	dFloat m_shape_z;
-
-	dFloat m_radio;
-	dFloat m_height;
+	char m_partName[32];
 	dFloat m_mass;
-
-	dFloat m_minTwistAngle;
-	dFloat m_maxTwistAngle;
-	dFloat m_coneAngle;
-
-	dFloat m_framePitch;
-	dFloat m_frameYaw;
-	dFloat m_frameRoll;
-
-	dFloat m_frictionTorque;
+	dFloat m_minLimit;
+	dFloat m_maxLimit;
+	dFloat m_frictionScale;
 };
 
 
-static dBalancingDummyDefinition skeletonRagDoll[] =
+static dRagDollConfig ragDollConfig[] =
 {
-	{ "Bip01_Pelvis", "capsule", three_dof, 0.0f, 0.0f, -90.0f, 0.0f, 0.0f, 0.01f, 0.07f, 0.16f, 30.0f, 0.0f, -0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f },
+	{ "bone_spine0", 200.0f, -1000.0f, 1000.0f, 50.0f },
 
-	{ "Bip01_L_Thigh", "capsule", three_dof, 0.0f, 90.0f, 0.0f, 0.0f, 0.0f, 0.19f, 0.05f, 0.34f, 14.0f, -45.0f, 45.0f, 120.0f, 0.0f, -90.0f, -0.0f, 10000.0f },
-	{ "Bip01_L_Calf", "capsule", one_dof, 0.0f, 90.0f, 0.0f, 0.0f, 0.0f, 0.19f, 0.05f, 0.34f, 10.0f, -140.0f, 10.0f, 0.0f, 90.0f, 0.0f, 90.0f, 5000.0f },
-	{ "Bip01_L_Foot", "convexhull", two_dof, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 3.0f, 0.0f, 0.0f, 60.0f, 0.0f, -90.0f, -0.0f, 5000.0f },
-
-//	{ "Bip01_R_Thigh", "capsule", three_dof, 0.0f, 90.0f, 0.0f, 0.0f, 0.0f, 0.19f, 0.05f, 0.34f, 14.0f, -45.0f, 45.0f, 120.0f, 0.0f, -90.0f, -0.0f, 10000.0f },
-//	{ "Bip01_R_Calf", "capsule", one_dof, 0.0f, 90.0f, 0.0f, 0.0f, 0.0f, 0.19f, 0.05f, 0.34f, 10.0f, -140.0f, 10.0f, 0.0f, 90.0f, 0.0f, 90.0f, 5000.0f },
-//	{ "Bip01_R_Foot", "convexhull", two_dof, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 3.0f, 0.0f, 0.0f, 60.0f, 0.0f, -90.0f, -0.0f, 5000.0f },
-
-//	{ "Bip01_Spine", "capsule", three_dof, 0.0f, 0.0f, -90.0f, 0.0f, 0.0f, 0.06f, 0.07f, 0.14f, 20.0f, 30.0f, -30.0f, 30.0f, 0.0f, -90.0f, 0.0f, 100.0f },
-//	{ "Bip01_Spine1", "capsule", three_dof, 0.0f, 0.0f, -90.0f, 0.0f, 0.0f, 0.06f, 0.07f, 0.12f, 20.0f, 30.0f, -30.0f, 30.0f, 0.0f, -90.0f, 0.0f, 100.0f },
-//	{ "Bip01_Spine2", "capsule", three_dof, 0.0f, 0.0f, -90.0f, 0.0f, 0.0f, 0.06f, 0.07f, 0.08f, 20.0f, 30.0f, -30.0f, 30.0f, 0.0f, -90.0f, 0.0f, 100.0f },
-
-//	{ "Bip01_Neck", "capsule", two_dof, 0.0f, 90.0f, 0.0f, 0.0f, 0.0f, 0.05f, 0.03f, 0.04f, 5.0f, 30.0f, -30.0f, 30.0f, 0.0f, -90.0f, 0.0f, 100.0f },
-//	{ "Bip01_Head", "sphere", three_dof, 0.0f, 90.0f, 0.0f, 0.0f, 0.0f, 0.09f, 0.09f, 0.0f, 5.0f, 30.0f, -60.0f, 60.0f, 0.0f, -90.0f, 0.0f, 100.0f },
-
-//	{ "Bip01_L_UpperArm", "capsule", three_dof, 0.0f, 90.0f, 0.0f, 0.0f, 0.0f, 0.12f, 0.03f, 0.23f, 10.0f, 80.0f, 30.0f, 120.0f, 0.0f, -90.0f, 0.0f, 100.0f },
-//	{ "Bip01_L_Forearm", "capsule", one_dof, 0.0f, 90.0f, 0.0f, 0.0f, 0.0f, 0.12f, 0.03f, 0.23f, 7.0f, -150.0f, 0.0f, 0.0f, 0.0f, 0.0f, 90.0f, 50.0f },
-//	{ "Bip01_L_Hand", "convexhull", two_dof, 0.0f, 00.0f, 0.0f, 0.0f, 0.0f, 0.00f, 0.00f, 0.00f, 2.0f, 0.0f, -45.0f, 45.0f, 0.0f, 0.0f, 90.0f, 10.0f },
-
-//	{ "Bip01_R_UpperArm", "capsule", three_dof, 0.0f, 90.0f, 0.0f, 0.0f, 0.0f, 0.12f, 0.03f, 0.23f, 10.0f, 80.0f, 30.0f, 120.0f, 0.0f, -90.0f, 0.0f, 100.0f },
-//	{ "Bip01_R_Forearm", "capsule", one_dof, 0.0f, 90.0f, 0.0f, 0.0f, 0.0f, 0.12f, 0.03f, 0.23f, 7.0f, 0.0f, 150.0f, 0.0f, 0.0f, 0.0f, -90.0f, 50.0f },
-//	{ "Bip01_R_Hand", "convexhull", two_dof, 0.0f, 00.0f, 0.0f, 0.0f, 0.0f, 0.00f, 0.00f, 0.00f, 2.0f, 0.0f, -45.0f, 45.0f, 0.0f, 0.0f, -90.0f, 10.0f },
+	{ "bone_rightLeg", 25.0f, -70.0f, 50.0f, 100.0f },
+	{ "bone_rightKnee", 20.0f, -70.0f, 20.0f, 100.0f },
+	{ "boneFD_rightAnkle", 5.0f, -75.0f, 60.0f, 10.0f },
+	{ "boneFD_rightToe",  5.0f, -30.0f, 30.0f, 10.0f },
+	{ "effector_rightLeg", 100.0f, 0.0f, 0.0f, 50.0f },
+	
+	{ "bone_leftLeg", 25.0f, -70.0f, 50.0f, 100.0f },
+	{ "bone_leftknee", 20.0f, -70.0f, 20.0f, 100.0f },
+	{ "boneFD_leftAnkle", 5.0f, -75.0f, 60.0f, 10.0f },
+	{ "boneFD_leftToe", 5.0f, -30.0f, 30.0f, 10.0f },
+	{ "effector_leftLeg", 100.0f, 0.0f, 0.0f, 50.0f },
 };
 
-class BalancingDummyManager: public dCustomArticulaledTransformManager
+
+class dWalkGenerator: public dAnimationEffectorBlendPose
 {
 	public:
-	class dBiped1d: public dCustomRagdollMotor_1dof
+	dWalkGenerator(dAnimationCharacterRig* const character, dAnimationRigEffector* const leftFeet, dAnimationRigEffector* const rightFeet)
+		:dAnimationEffectorBlendPose(character)
+		,m_acc(0.0f)
+		,m_amplitud_x(2.0f)
+		,m_amplitud_y(1.3f)
+		,m_period(1.0f)
+		,m_cycle()
+		,m_leftFeet(leftFeet)
+		,m_rightFeet(rightFeet)
 	{
-		public:
-		dBiped1d(const dMatrix& pinAndPivotFrame, NewtonBody* const child, NewtonBody* const parent)
-			:dCustomRagdollMotor_1dof(pinAndPivotFrame, child, parent)
-		{
+		m_sequence[0] = 0;
+		m_sequence[3] = 0;
+		m_sequence[4] = 0;
+		m_sequence[1] = 1;
+		m_sequence[2] = 1;
+		m_sequence[5] = 1;
+
+		// make left walk cycle
+		const int size = 11;
+		const int splite = (size - 1) / 2 - 1;
+		dFloat64 knots[size];
+		dBigVector leftControlPoints[size + 2];
+		for (int i = 0; i < size; i++) {
+			knots[i] = dFloat(i) / (size - 1);
+		}
+		memset(leftControlPoints, 0, sizeof(leftControlPoints));
+
+		dFloat x = -m_amplitud_x / 2.0f;
+		dFloat step_x = m_amplitud_x / splite;
+		for (int i = 0; i <= splite; i++) {
+			leftControlPoints[i + 1].m_y = m_amplitud_y * dSin(dPi * dFloat(i) / splite);
+			leftControlPoints[i + 1].m_x = x;
+			x += step_x;
 		}
 
-		void Debug(dDebugDisplay* const debugDisplay) const
-		{
-			//dCustomRagdollMotor_1dof::Debug(debugDisplay);
+		x = m_amplitud_x / 2.0f;
+		step_x = -m_amplitud_x / (size - splite - 1);
+		for (int i = splite; i < size; i++) {
+			leftControlPoints[i + 1].m_x = x;
+			x += step_x;
 		}
-	};
+		leftControlPoints[0].m_x = leftControlPoints[1].m_x;
+		leftControlPoints[size + 1].m_x = leftControlPoints[size].m_x;
 
-	class dBiped2d: public dCustomRagdollMotor_2dof
+		//cycle.CreateFromKnotVectorAndControlPoints(3, size, knots, leftControlPoints);
+		m_cycle.CreateFromKnotVectorAndControlPoints(1, size, knots, &leftControlPoints[1]);
+	}
+
+	void Evaluate(dAnimationPose& output, dFloat timestep)
 	{
-		public:
-		dBiped2d (const dMatrix& pinAndPivotFrame, NewtonBody* const child, NewtonBody* const parent)
-			:dCustomRagdollMotor_2dof(pinAndPivotFrame, child, parent)
-		{
-		}
+		dAnimationEffectorBlendPose::Evaluate(output, timestep);
 
-		void Debug(dDebugDisplay* const debugDisplay) const
-		{
-			dCustomRagdollMotor_2dof::Debug(debugDisplay);
-		}
-	};
+		dFloat param = m_acc / m_period;
+		dBigVector left(m_cycle.CurvePoint(param));
+		dBigVector right(m_cycle.CurvePoint(dMod(param + 0.5f, 1.0f)));
 
-	class dBipedEffector: public dCustomRagdollMotor_EndEffector
-	{
-		public:
-		dBipedEffector(NewtonInverseDynamics* const invDynSolver, void* const invDynNode, NewtonBody* const referenceBody, const dMatrix& attachmentMatrixInGlobalSpace)
-			:dCustomRagdollMotor_EndEffector(invDynSolver, invDynNode, referenceBody, attachmentMatrixInGlobalSpace)
-		{
-			SetLinearSpeed(1.0f);
-		}
-	};
+		dFloat high[2];
+		dFloat stride[2];
+		high[0] = dFloat(left.m_y);
+		high[1] = dFloat(right.m_y);
+		stride[0] = dFloat(left.m_x);
+		stride[1] = dFloat(right.m_x);
 
-	class dBiped: public dCustomAlloc
-	{
-		public:
-		dBiped(dCustomArticulatedTransformController* const controller)
-			:m_animTreeNode(NULL)
-			,m_kinematicSolver(NULL)
-			,m_controller(controller)
-			,m_leftLegEffector(NULL)
-			,m_rightLegEffector(NULL)
-		{
-			NewtonWorld* const workd = controller->GetManager()->GetWorld();
-
-			// make the kinematic solver
-			m_kinematicSolver = NewtonCreateInverseDynamics(workd);
-
-			// build the articulated body hierarchy 
-			BuildInverseDynamics();
-
-			// finalize inverse dynamics solver
-			NewtonInverseDynamicsEndBuild(m_kinematicSolver);
-
-			// make sure innerta are too skewed
-			NormalizeInertia();
-
-			// create an animation tree
-			NewtonBody* const rootBody = NewtonInverseDynamicsGetBody(m_kinematicSolver, NewtonInverseDynamicsGetRoot(m_kinematicSolver));
-			dEffectorTreeFixPose* const idlePose = new dEffectorTreeFixPose(rootBody);
-
-			//m_animTreeNode = new dEffectorTreeRoot(rootBody, m_postureModifier);
-			m_animTreeNode = new dEffectorTreeRoot(rootBody, idlePose);
-
-			dMatrix invRootMatrix;
-			NewtonBodyGetMatrix(rootBody, &invRootMatrix[0][0]);
-			invRootMatrix = invRootMatrix.Inverse();
-
-			{
-				dMatrix poseMatrix;
-				dMatrix effectorMatrix;
-				dEffectorTreeInterface::dEffectorTransform frame;
-				dCustomRagdollMotor_EndEffector* effector;
-
-				effector = m_leftLegEffector;
-				if (effector) {
-					// set left foot effector local position
-					effectorMatrix = effector->GetBodyMatrix();
-				effectorMatrix.m_posit.m_z -= 0.4f;
-				effectorMatrix.m_posit.m_y -= 0.1f;
-
-					poseMatrix = effectorMatrix * invRootMatrix;
-					frame.m_effector = effector;
-					frame.m_posit = poseMatrix.m_posit;
-					frame.m_rotation = dQuaternion(poseMatrix);
-					idlePose->GetPose().Append(frame);
-					//walkPoseGenerator->GetPose().Append(frame);
-					m_animTreeNode->GetPose().Append(frame);
-				}
-
-				effector = m_rightLegEffector;
-				if (effector) {
-					// set right foot effector local position
-					effectorMatrix = effector->GetBodyMatrix();
-				effectorMatrix.m_posit.m_z += 0.4f;
-				effectorMatrix.m_posit.m_y -= 0.1f;
-
-					poseMatrix = effectorMatrix * invRootMatrix;
-					frame.m_effector = effector;
-					frame.m_posit = poseMatrix.m_posit;
-					frame.m_rotation = dQuaternion(poseMatrix);
-					idlePose->GetPose().Append(frame);
-					//walkPoseGenerator->GetPose().Append(frame);
-					m_animTreeNode->GetPose().Append(frame);
-				}
+		int index = 0;
+		for (dAnimationPose::dListNode* node = output.GetFirst(); node; node = node->GetNext()) {
+			dAnimationTransform& transform = node->GetInfo();
+			if ((transform.m_effector == m_leftFeet) || (transform.m_effector == m_rightFeet)) {
+				transform.m_posit.m_y += high[m_sequence[index]];
+				transform.m_posit.m_x += stride[m_sequence[index]];
 			}
+			index++;
+		}
+timestep *= 0.01f;
+		m_acc = dMod(m_acc + timestep, m_period);
+	}
 
-// xxx
-NewtonBodySetMassMatrix(rootBody, 0.0f, 0.0f, 0.0f, 0.0f);
+	dFloat m_acc;
+	dFloat m_period;
+	dFloat m_amplitud_x;
+	dFloat m_amplitud_y;
+	dBezierSpline m_cycle;
+	int m_sequence[6];
+	dAnimationRigEffector* m_leftFeet;
+	dAnimationRigEffector* m_rightFeet;
+};
 
+class dAnimationBipeHipController: public dAnimationEffectorBlendNode
+{
+	public:
+	dAnimationBipeHipController(dAnimationCharacterRig* const character, dAnimationEffectorBlendNode* const child)
+		:dAnimationEffectorBlendNode(character, child)
+		, m_euler(0.0f)
+		, m_position(0.0f)
+	{
+	}
+
+	~dAnimationBipeHipController()
+	{
+	}
+
+	virtual void Debug(dCustomJoint::dDebugDisplay* const debugContext) const
+	{
+	}
+
+	virtual void Evaluate(dAnimationPose& output, dFloat timestep)
+	{
+		m_child->Evaluate(output, timestep);
+
+		dQuaternion rotation(dPitchMatrix(m_euler.m_x) * dYawMatrix(m_euler.m_y) * dRollMatrix(m_euler.m_z));
+		for (dAnimationPose::dListNode* node = output.GetFirst(); node; node = node->GetNext()) {
+			dAnimationTransform& transform = node->GetInfo();
+			transform.m_rotation = transform.m_rotation * rotation;
+			transform.m_posit = m_position + rotation.RotateVector(transform.m_posit);
+		}
+	}
+
+	dVector m_euler;
+	dVector m_position;
+};
+
+class dAnimationBalanceController: public dAnimationEffectorBlendNode
+{
+	public:
+	class dConvexHullPoint 
+	{
+		public:
+		dConvexHullPoint ()
+		{
 		}
 
-		~dBiped()
-		{
-			NewtonInverseDynamicsDestroy(m_kinematicSolver);
+		dVector m_point;
+		dConvexHullPoint *m_next;
+	};
+
+	dAnimationBalanceController(dAnimationCharacterRig* const character, dAnimationEffectorBlendNode* const child)
+		:dAnimationEffectorBlendNode(character, child)
+	{
+	}
+
+	int SupportPoint (int count, const dVector* const array, const dVector& dir) const
+	{
+		int index = 0;
+		dFloat dist = array[0].DotProduct3(dir);
+		for (int i = 1; i < count; i ++) {
+			dFloat dist1 = array[i].DotProduct3(dir);
+			if (dist1 > dist) {
+				index = i;
+				dist = dist1;
+			}
 		}
+		return index;
+	}
 
+	int BuildSupportPolygon (dVector* const polygon, int maxCount) const
+	{
+		dAnimationRigJoint* stackPool[32];
+		int stack = 1;
 
-		void BuildInverseDynamics()
-		{
-			dMatrix rootMatrix;
-			void* rootNode[128];
-			dCustomArticulatedTransformController::dSkeletonBone* stackPool[128];
+		stackPool[0] = m_character;
 
-			int stack = 1;
-			rootNode[0] = NULL;
-			stackPool[0] = m_controller->GetRoot();
-			NewtonBody* const rootbody = stackPool[0]->m_body;
-			NewtonBodyGetMatrix(rootbody, &rootMatrix[0][0]);
+		int pointCount = 0;
+		dVector contactPoints[128];
 
-			while (stack) {
-				stack--;
-				void* parentNode = rootNode[stack];
-				dCustomArticulatedTransformController::dSkeletonBone* const bone = stackPool[stack];
+		dVector point(0.0f);
+		dVector normal(0.0f);
 
-				void* ikNode = NULL;
-				if (parentNode) {
-					NewtonBody* const parentBody = bone->m_parent->m_body;
-					for (NewtonJoint* joint = NewtonBodyGetFirstJoint(bone->m_body); joint; joint = NewtonBodyGetNextJoint (bone->m_body, joint)) {
-						dCustomJoint* const customJoint = (dCustomJoint*) NewtonJointGetUserData(joint);
-						if ((customJoint->GetBody0() == parentBody) || (customJoint->GetBody1() == parentBody)) {
-							ikNode = NewtonInverseDynamicsAddChildNode(m_kinematicSolver, parentNode, joint);
-							break;
+		while (stack) {
+			stack--;
+
+			const dAnimationRigJoint* const node = stackPool[stack];
+			NewtonBody* const newtonBody = node->GetNewtonBody();
+
+			if (newtonBody) {
+				for (NewtonJoint* joint = NewtonBodyGetFirstContactJoint(newtonBody); joint; joint = NewtonBodyGetNextContactJoint(newtonBody, joint)) {
+					for (void* contact = NewtonContactJointGetFirstContact(joint); contact; contact = NewtonContactJointGetNextContact(joint, contact)) {
+						NewtonMaterial* const material = NewtonContactGetMaterial(contact);
+
+						NewtonMaterialGetContactPositionAndNormal(material, newtonBody, &point.m_x, &normal.m_x);
+						contactPoints[pointCount] = point;
+						pointCount++;
+						if (pointCount >= sizeof (contactPoints) / sizeof (contactPoints[0])) {
+							pointCount--;
 						}
 					}
-					dAssert (ikNode);
-				} else {
-					ikNode = NewtonInverseDynamicsAddRoot(m_kinematicSolver, bone->m_body);
 				}
 
-				DemoEntity* const entity = (DemoEntity*)NewtonBodyGetUserData(bone->m_body);
-				const dString& name = entity->GetName();
-				if (name == "Bip01_L_Foot") {
-					dMatrix matrix0;
-					dMatrix matrix1;
-					dCustomJoint* const customJoint = (dCustomJoint*)NewtonJointGetUserData(NewtonInverseDynamicsGetJoint(m_kinematicSolver, ikNode));
-					dAssert(customJoint->GetBody0() == bone->m_body);
-					customJoint->CalculateGlobalMatrix(matrix0, matrix1);
-					m_leftLegEffector = new dBipedEffector(m_kinematicSolver, ikNode, rootbody, matrix0);
-
-				} else if (name == "Bip01_R_Foot") {
-					dMatrix matrix0;
-					dMatrix matrix1;
-					dCustomJoint* const customJoint = (dCustomJoint*) NewtonJointGetUserData(NewtonInverseDynamicsGetJoint(m_kinematicSolver, ikNode));
-					dAssert (customJoint->GetBody0() == bone->m_body);
-					customJoint->CalculateGlobalMatrix (matrix0, matrix1);
-					m_rightLegEffector = new dBipedEffector(m_kinematicSolver, ikNode, rootbody, matrix0);
-				}
-
-				for (dList<dCustomArticulatedTransformController::dSkeletonBone>::dListNode* node = bone->GetFirst(); node; node = node->GetNext()) {
-					rootNode[stack] = ikNode; 
-					stackPool[stack] = &node->GetInfo();
+				const dList<dAnimationAcyclicJoint*>& children = node->GetChildren();
+				for (dList<dAnimationAcyclicJoint*>::dListNode* child = children.GetFirst(); child; child = child->GetNext()) {
+					stackPool[stack] = (dAnimationRigJoint*)child->GetInfo();
 					stack++;
 				}
 			}
 		}
 
+		int hullPoints = 0;
+		if (pointCount > 3) {
+			dVector median(0.0f);
+			dVector variance(0.0f);
+			dVector coVariance(0.0f);
+			dVector origin(m_character->GetProxyBody()->GetMatrix().m_posit);
 
-		void NormalizeInertia()
-		{
-			dFloat Ixx;
-			dFloat Iyy;
-			dFloat Izz;
-			dFloat mass;
-			dCustomArticulatedTransformController::dSkeletonBone* stackPool[128];
+			for (int i = 0; i < pointCount; i ++) {
+				dVector x (contactPoints[i] - origin);
+				median += x;
+				variance += x * x;
+				coVariance += x * dVector (x.m_y, x.m_z, x.m_x, 0.0f);
+				contactPoints[i] = x;
+			}
+			dFloat den = 1.0f / pointCount;
 
-			int stack = 1;
-			stackPool[0] = m_controller->GetRoot();
-			NewtonBody* const rootbody = stackPool[0]->m_body;
-			NewtonBodyGetMass(rootbody, &mass, &Ixx, &Iyy, &Izz);
-			dFloat inertialScale = dMax(dMax(Ixx, Iyy), Izz) / mass;
+			median = median.Scale (den);
+			variance = variance.Scale (den) - median * median;
+			dFloat maxVariance = dMax(dMax(variance.m_x, variance.m_y), variance.m_z);
+			if (maxVariance < 1.0e-3f) {
+				return 0;
+			}
+			coVariance = coVariance.Scale (den) - median * dVector (median.m_y, median.m_z, median.m_x, 0.0f);
 
-			while (stack) {
-				stack--;
-				dCustomArticulatedTransformController::dSkeletonBone* const bone = stackPool[stack];
-				NewtonBodyGetMass(bone->m_body, &mass, &Ixx, &Iyy, &Izz);
-				NewtonBodySetMassMatrix(bone->m_body, mass, mass * inertialScale, mass * inertialScale, mass * inertialScale);
+			dMatrix basisMatrix (dGetIdentityMatrix());
+			basisMatrix[0][0] = variance.m_x;
+			basisMatrix[1][1] = variance.m_y;
+			basisMatrix[2][2] = variance.m_z;
 
-				for (dList<dCustomArticulatedTransformController::dSkeletonBone>::dListNode* node = bone->GetFirst(); node; node = node->GetNext()) {
-					stackPool[stack] = &node->GetInfo();
-					stack++;
+			basisMatrix[0][1] = coVariance.m_x;
+			basisMatrix[1][0] = coVariance.m_x;
+			
+			basisMatrix[0][2] = coVariance.m_z;
+			basisMatrix[2][0] = coVariance.m_z;
+
+			basisMatrix[1][2] = coVariance.m_y;
+			basisMatrix[2][1] = coVariance.m_y;
+
+			dVector eigenValues; 
+			dMatrix axis (basisMatrix.JacobiDiagonalization (eigenValues));
+
+			for (int i = 0; i < pointCount; i ++) {
+				contactPoints[i] = contactPoints[i] - axis[1].Scale(axis[1].DotProduct3(contactPoints[i] - median));
+			}
+	
+
+			dConvexHullPoint convexHull[32];
+			dConvexHullPoint* hullStackBuffer[64];
+
+			int index0 = SupportPoint (pointCount, contactPoints, axis[0]);
+			convexHull[0].m_point = contactPoints[index0];
+			pointCount --;
+			dSwap (contactPoints[index0], contactPoints[pointCount]);
+
+			index0 = SupportPoint(pointCount, contactPoints, axis[0].Scale (-1.0f));
+			convexHull[1].m_point = contactPoints[index0];
+			pointCount--;
+			dSwap(contactPoints[index0], contactPoints[pointCount]);
+
+			index0 = SupportPoint(pointCount, contactPoints, axis[2]);
+			convexHull[2].m_point = contactPoints[index0];
+			pointCount--;
+			dSwap(contactPoints[index0], contactPoints[pointCount]);
+
+			convexHull[0].m_next = &convexHull[1];
+			convexHull[1].m_next = &convexHull[2];
+			convexHull[2].m_next = &convexHull[0];
+			dVector hullNormal ((convexHull[2].m_point - convexHull[0].m_point).CrossProduct (convexHull[1].m_point - convexHull[0].m_point));
+			if (hullNormal.DotProduct3(hullNormal) < 1.0e-9f) {
+				return 0;
+			}
+
+			int edgeAlloc = 3;
+			int hullStack = 3;
+
+			hullStackBuffer[0] = &convexHull[0];
+			hullStackBuffer[1] = &convexHull[1];
+			hullStackBuffer[2] = &convexHull[2];
+
+			while (hullStack && pointCount) {
+				hullStack--;
+				dConvexHullPoint* const edge = hullStackBuffer[hullStack];
+				
+				dVector dir (hullNormal.CrossProduct(edge->m_next->m_point - edge->m_point));
+				index0 = SupportPoint(pointCount, contactPoints, axis[0].Scale (-1.0f));
+
+				dVector newPoint (contactPoints[index0]);
+				dFloat dist (dir.DotProduct3 (newPoint - edge->m_point));
+				if (dist > 1.0e-3f) {
+					dConvexHullPoint* newEdge = &convexHull[edgeAlloc];
+					edgeAlloc++;
+					dAssert(edgeAlloc < sizeof(convexHull) / sizeof(convexHull[0]));
+					newEdge->m_point = newPoint;
+					newEdge->m_next = edge->m_next;
+					edge->m_next = newEdge;
+
+					hullStackBuffer[hullStack] = newEdge;
+					hullStack++;
+					hullStackBuffer[hullStack] = edge;
+					hullStack++;
+
+					pointCount--;
+					dSwap(contactPoints[index0], contactPoints[pointCount]);
 				}
 			}
+
+			dConvexHullPoint* edge = convexHull;
+			do {
+				polygon[hullPoints] = edge->m_point + origin;
+				hullPoints++;
+				edge = edge->m_next;
+			} while (edge != convexHull);
 		}
+		return hullPoints;
+	}
 
-
-		void Debug(dCustomJoint::dDebugDisplay* const debugContext) const
-		{
-			//const dEffectorTreeInterface::dEffectorPose& pose = m_animTreeNode->GetPose();
-			if (m_leftLegEffector) {
-				m_leftLegEffector->Debug(debugContext);
+	virtual void Debug(dCustomJoint::dDebugDisplay* const debugContext) const
+	{
+		dVector polygon[32];
+		int count = BuildSupportPolygon (polygon, sizeof (polygon) / sizeof (polygon[0]));
+		if (count) {
+			int i0 = count - 1;
+			for (int i = 0; i < count; i++) {
+				polygon[i].m_y += 0.2f;
 			}
-			if (m_rightLegEffector) {
-				m_rightLegEffector->Debug(debugContext);
+
+			debugContext->SetColor(dVector(1.0f, 1.0f, 0.0f, 1.0f));
+			for (int i = 0; i < count; i++) {
+				debugContext->DrawLine(polygon[i0], polygon[i]);
+				i0 = i;
 			}
 		}
+	}
 
-		void Update(dFloat timestep, int threadIndex)
-		{
-			//m_animTreeNode->Update(timestep);
-			//NewtonInverseDynamicsUpdate(m_kinematicSolver, timestep, threadIndex);
+	void Evaluate(dAnimationPose& output, dFloat timestep)
+	{
+		m_child->Evaluate(output, timestep);
+
+/*
+		dQuaternion rotation(dPitchMatrix(m_euler.m_x) * dYawMatrix(m_euler.m_y) * dRollMatrix(m_euler.m_z));
+		for (dAnimationPose::dListNode* node = output.GetFirst(); node; node = node->GetNext()) {
+			dAnimationTransform& transform = node->GetInfo();
+			transform.m_rotation = transform.m_rotation * rotation;
+			transform.m_posit = m_position + rotation.RotateVector(transform.m_posit);
+		}
+*/
+	}
+};
+
+
+
+class dAnimationAnkleJoint: public dAnimationRigForwardDynamicLimb
+{
+	public:
+	dAnimationAnkleJoint(const dMatrix& basicMatrix, dAnimationRigJoint* const parent, NewtonBody* const body, const dRagDollConfig& config)
+		:dAnimationRigForwardDynamicLimb(basicMatrix, parent, body)
+	{
+		SetFriction(config.m_frictionScale * config.m_mass * DEMO_MUSCLE_STRENGTH);
+		SetLimits(config.m_minLimit * dDegreeToRad, config.m_maxLimit * dDegreeToRad);
+
+		dMatrix matrix0;
+		dMatrix matrix1;
+		dMatrix rootMatrix(GetRoot()->GetBasePoseMatrix());
+		CalculateGlobalMatrix(matrix0, matrix1);
+		m_offsetAngle = dPi + CalculateAngle(rootMatrix.m_up, matrix0.m_up, rootMatrix.m_right);
+	}
+
+	void SubmitConstraints(dFloat timestep, int threadIndex)
+	{
+		dAnimationRigForwardDynamicLimb::SubmitConstraints(timestep, threadIndex);
+
+		dMatrix matrix0;
+		dMatrix matrix1;
+		dVector normal;
+		
+		CalculateGlobalMatrix(matrix0, matrix1);
+	
+//		NewtonWorld* const world = NewtonBodyGetWorld(GetBody0());
+//		dVector floor (FindFloor(world, matrix1.m_posit, 10.0f, &normal));
+//		dMatrix floorMatrix(dGetIdentityMatrix());
+//		floorMatrix.m_front = matrix0.m_front;
+//		floorMatrix.m_right = normal.CrossProduct(floorMatrix.m_front);
+//		floorMatrix.m_right = floorMatrix.m_right.Normalize();
+//		floorMatrix.m_up = floorMatrix.m_right.CrossProduct(floorMatrix.m_front);
+		dAnimationCharacterRig* const root = GetRoot();
+		dMatrix floorMatrix (dRollMatrix(dPi) * root->GetBasePoseMatrix());
+
+		dFloat deltaAngle = CalculateAngle(floorMatrix.m_up, matrix0.m_up, matrix0.m_front) - m_offsetAngle;
+
+		float speed = 3.0f;
+		dFloat currentSpeed = 0.0f;
+		dFloat step = speed * timestep;
+		if (deltaAngle > step) {
+			currentSpeed = -speed;
+		} else if (deltaAngle < -step) {
+			currentSpeed = speed;
+		} else {
+			currentSpeed = -0.3f * deltaAngle / timestep;
 		}
 
-		dEffectorTreeRoot* m_animTreeNode;
-		NewtonInverseDynamics* m_kinematicSolver;
-		
-		// these objects are no to be deleted
-		dCustomArticulatedTransformController* m_controller;
-		dCustomRagdollMotor_EndEffector* m_leftLegEffector;
-		dCustomRagdollMotor_EndEffector* m_rightLegEffector;
-		
+		NewtonJoint* const joint = dCustomHinge::GetJoint();
+		dFloat accel = NewtonUserJointCalculateRowZeroAccelaration(joint) + currentSpeed / timestep;
+		NewtonUserJointSetRowAcceleration(joint, accel);
+	}
+
+	dFloat m_offsetAngle;
+};
+
+
+class dAnimationToeJoint : public dAnimationRigForwardDynamicLimb
+{
+	public:
+	dAnimationToeJoint(const dMatrix& basicMatrix, dAnimationRigJoint* const parent, NewtonBody* const body, const dRagDollConfig& config)
+		:dAnimationRigForwardDynamicLimb(basicMatrix, parent, body)
+	{
+		SetFriction(config.m_frictionScale * config.m_mass * DEMO_MUSCLE_STRENGTH);
+		SetLimits(config.m_minLimit * dDegreeToRad, config.m_maxLimit * dDegreeToRad);
+
+		dMatrix matrix0;
+		dMatrix matrix1;
+		CalculateGlobalMatrix(matrix0, matrix1);
+		dMatrix rootMatrix(dYawMatrix(dPi) * dPitchMatrix(dPi * 0.5f) * GetRoot()->GetBasePoseMatrix());
+		m_offsetAngle = CalculateAngle(matrix0.m_right, rootMatrix.m_right, rootMatrix.m_front);
+	}
+
+	void SubmitConstraints(dFloat timestep, int threadIndex)
+	{
+		dAnimationRigForwardDynamicLimb::SubmitConstraints(timestep, threadIndex);
+
+		dMatrix matrix0;
+		dMatrix matrix1;
+		dVector normal;
+
+		CalculateGlobalMatrix(matrix0, matrix1);
+
+		//NewtonWorld* const world = NewtonBodyGetWorld(GetBody0());
+		//dVector floor (FindFloor(world, matrix1.m_posit, 10.0f, &normal));
+		//dMatrix floorMatrix(dGetIdentityMatrix());
+		//floorMatrix.m_front = matrix0.m_front;
+		//floorMatrix.m_right = normal.CrossProduct(floorMatrix.m_front);
+		//floorMatrix.m_right = floorMatrix.m_right.Normalize();
+		//floorMatrix.m_up = floorMatrix.m_right.CrossProduct(floorMatrix.m_front);
+
+		dMatrix rootMatrix(dYawMatrix(dPi) * dPitchMatrix(dPi * 0.5f) * GetRoot()->GetBasePoseMatrix());
+		dFloat deltaAngle = -CalculateAngle(matrix0.m_right, rootMatrix.m_right, rootMatrix.m_front) + m_offsetAngle;;
+
+		float speed = 3.0f;
+		dFloat currentSpeed = 0.0f;
+		dFloat step = speed * timestep;
+		if (deltaAngle > step) {
+			currentSpeed = -speed;
+		} else if (deltaAngle < -step) {
+			currentSpeed = speed;
+		} else {
+			currentSpeed = -0.3f * deltaAngle / timestep;
+		}
+
+		NewtonJoint* const joint = dCustomHinge::GetJoint();
+		dFloat accel = NewtonUserJointCalculateRowZeroAccelaration(joint) + currentSpeed / timestep;
+		NewtonUserJointSetRowAcceleration(joint, accel);
+	}
+
+	dFloat m_offsetAngle;
+};
+
+
+
+class BalancingDummyManager : public dAnimationCharacterRigManager
+{
+	public:
+
+	class dAnimationCharacterUserData: public DemoEntity::UserData
+	{
+		public:
+		dAnimationCharacterUserData(dAnimationCharacterRig* const rig, dAnimationEffectorBlendTwoWay* const walk, dAnimationBipeHipController* const posture)
+			:DemoEntity::UserData()
+			,m_rig(rig)
+			,m_walk(walk)
+			,m_posture(posture)
+			,m_hipHigh(0.0f)
+			,m_walkSpeed(0.0f)
+		{
+		}
+
+		void OnRender(dFloat timestep) const
+		{
+		}
+
+		void OnInterpolateMatrix(DemoEntityManager& world, dFloat param) const
+		{
+		}
+
+		void OnTransformCallback(DemoEntityManager& world) const
+		{
+		}
+
+		dAnimationCharacterRig* m_rig;
+		dAnimationEffectorBlendTwoWay* m_walk;
+		dAnimationBipeHipController* m_posture;
+
+		dFloat m_hipHigh;
+		dFloat m_walkSpeed;
 	};
 
+
 	BalancingDummyManager(DemoEntityManager* const scene)
-		:dCustomArticulaledTransformManager(scene->GetNewton())
+		:dAnimationCharacterRigManager(scene->GetNewton())
+		,m_currentRig(NULL)
 	{
-		// create a material for early collision culling
-		m_material = NewtonMaterialCreateGroupID(scene->GetNewton());
-		NewtonMaterialSetCallbackUserData(scene->GetNewton(), m_material, m_material, this);
-		NewtonMaterialSetCollisionCallback(scene->GetNewton(), m_material, m_material, OnBoneAABBOverlap, NULL);
+		scene->Set2DDisplayRenderFunction(RenderHelpMenu, NULL, this);
 	}
 
-	static int OnBoneAABBOverlap(const NewtonMaterial* const material, const NewtonBody* const body0, const NewtonBody* const body1, int threadIndex)
+	~BalancingDummyManager()
 	{
-		NewtonCollision* const collision0 = NewtonBodyGetCollision(body0);
-		NewtonCollision* const collision1 = NewtonBodyGetCollision(body1);
-		dCustomArticulatedTransformController::dSkeletonBone* const bone0 = (dCustomArticulatedTransformController::dSkeletonBone*)NewtonCollisionGetUserData(collision0);
-		dCustomArticulatedTransformController::dSkeletonBone* const bone1 = (dCustomArticulatedTransformController::dSkeletonBone*)NewtonCollisionGetUserData(collision1);
+	}
 
-		dAssert(bone0);
-		dAssert(bone1);
-		if (bone0->m_controller && bone1->m_controller) {
-			return bone0->m_controller->SelfCollisionTest(bone0, bone1) ? 1 : 0;
+	static void RenderHelpMenu(DemoEntityManager* const scene, void* const context)
+	{
+		BalancingDummyManager* const me = (BalancingDummyManager*)context;
+		if (me->m_currentRig) {
+			DemoEntity* const entiry = (DemoEntity*) NewtonBodyGetUserData(me->m_currentRig->GetNewtonBody());
+			dAnimationCharacterUserData* const controlData = (dAnimationCharacterUserData*) entiry->GetUserData();
+
+			dVector color(1.0f, 1.0f, 0.0f, 0.0f);
+			scene->Print(color, "Sliders control");
+			
+			dFloat32 val0 = dFloat32(controlData->m_walkSpeed);
+			ImGui::SliderFloat_DoubleSpace("walkSpeed", &val0, 0.0f, 1.0f);
+			controlData->m_walkSpeed = val0;
+
+			dFloat32 val1 = dFloat32(controlData->m_hipHigh);
+			ImGui::SliderFloat_DoubleSpace("hip high", &val1, -0.5f, 1.5f);
+			controlData->m_hipHigh = val1;
 		}
-
-		return 1;
 	}
 
-	void GetDimentions(DemoEntity* const bodyPart, dVector& origin, dVector& size) const
+	void OnDebug(dCustomJoint::dDebugDisplay* const debugContext)
 	{
-		DemoMesh* const mesh = (DemoMesh*)bodyPart->GetMesh();
-		dAssert(mesh->IsType(DemoMesh::GetRttiType()));
+		dAnimationCharacterRigManager::OnDebug(debugContext);
+//		for (dListNode* node = GetFirst(); node; node = node->GetNext()) {
+//			dSixAxisController* const controller = &node->GetInfo();
+//			controller->Debug(debugContext);
+//		}
+	}
 
-		dFloat* const array = mesh->m_vertex;
-		dVector pmin(1.0e20f, 1.0e20f, 1.0e20f, 0.0f);
-		dVector pmax(-1.0e20f, -1.0e20f, -1.0e20f, 0.0f);
-
-		for (int i = 0; i < mesh->m_vertexCount; i++) {
-			dFloat x = array[i * 3 + 0];
-			dFloat y = array[i * 3 + 1];
-			dFloat z = array[i * 3 + 2];
-
-			pmin.m_x = x < pmin.m_x ? x : pmin.m_x;
-			pmin.m_y = y < pmin.m_y ? y : pmin.m_y;
-			pmin.m_z = z < pmin.m_z ? z : pmin.m_z;
-
-			pmax.m_x = x > pmax.m_x ? x : pmax.m_x;
-			pmax.m_y = y > pmax.m_y ? y : pmax.m_y;
-			pmax.m_z = z > pmax.m_z ? z : pmax.m_z;
+	DemoEntity* FindMesh(const DemoEntity* const bodyPart) const
+	{
+		for (DemoEntity* child = bodyPart->GetChild(); child; child = child->GetSibling()) {
+			if (child->GetMesh()) {
+				return child;
+			}
 		}
-
-		size = (pmax - pmin).Scale(0.5f);
-		origin = (pmax + pmin).Scale(0.5f);
-		origin.m_w = 1.0f;
-	}
-
-	NewtonCollision* MakeSphere(DemoEntity* const bodyPart, const dBalancingDummyDefinition& definition) const
-	{
-		dVector size(0.0f);
-		dVector origin(0.0f);
-		dMatrix matrix(dGetIdentityMatrix());
-
-		matrix.m_posit.m_x = definition.m_shape_x;
-		matrix.m_posit.m_y = definition.m_shape_y;
-		matrix.m_posit.m_z = definition.m_shape_z;
-		return NewtonCreateSphere(GetWorld(), definition.m_radio, 0, &matrix[0][0]);
-	}
-
-	NewtonCollision* MakeCapsule(DemoEntity* const bodyPart, const dBalancingDummyDefinition& definition) const
-	{
-		dVector size(0.0f);
-		dVector origin(0.0f);
-		dMatrix matrix(dPitchMatrix(definition.m_shapePitch * dDegreeToRad) * dYawMatrix(definition.m_shapeYaw * dDegreeToRad) * dRollMatrix(definition.m_shapeRoll * dDegreeToRad));
-
-		matrix.m_posit.m_x = definition.m_shape_x;
-		matrix.m_posit.m_y = definition.m_shape_y;
-		matrix.m_posit.m_z = definition.m_shape_z;
-		return NewtonCreateCapsule(GetWorld(), definition.m_radio, definition.m_radio, definition.m_height, 0, &matrix[0][0]);
-	}
-
-	NewtonCollision* MakeBox(DemoEntity* const bodyPart) const
-	{
 		dAssert(0);
 		return NULL;
 	}
 
-	NewtonCollision* MakeConvexHull(DemoEntity* const bodyPart) const
+	NewtonCollision* MakeConvexHull(const DemoEntity* const bodyPart) const
 	{
-		dFloat points[1024 * 16][3];
+		dVector points[1024 * 16];
 
-		DemoMesh* const mesh = (DemoMesh*)bodyPart->GetMesh();
+		const DemoEntity* const meshEntity = FindMesh(bodyPart);
+
+		DemoMesh* const mesh = (DemoMesh*)meshEntity->GetMesh();
 		dAssert(mesh->IsType(DemoMesh::GetRttiType()));
 		dAssert(mesh->m_vertexCount && (mesh->m_vertexCount < int(sizeof(points) / sizeof(points[0]))));
 
 		// go over the vertex array and find and collect all vertices's weighted by this bone.
-		dFloat* const array = mesh->m_vertex;
+		const dFloat* const array = mesh->m_vertex;
 		for (int i = 0; i < mesh->m_vertexCount; i++) {
 			points[i][0] = array[i * 3 + 0];
 			points[i][1] = array[i * 3 + 1];
 			points[i][2] = array[i * 3 + 2];
+			points[i][3] = 0.0f;
 		}
-
-		return NewtonCreateConvexHull(GetWorld(), mesh->m_vertexCount, &points[0][0], 3 * sizeof(dFloat), 1.0e-3f, 0, NULL);
+		dMatrix matrix(meshEntity->GetMeshMatrix());
+		matrix = matrix * meshEntity->GetCurrentMatrix();
+		//matrix = matrix * bodyPart->GetParent()->GetCurrentMatrix();
+		matrix.TransformTriplex(&points[0][0], sizeof(dVector), &points[0][0], sizeof(dVector), mesh->m_vertexCount);
+		//return NewtonCreateConvexHull(GetWorld(), mesh->m_vertexCount, &points[0][0], sizeof(dVector), 1.0e-3f, SERVO_VEHICLE_DEFINITION::m_bodyPart, NULL);
+		return NewtonCreateConvexHull(GetWorld(), mesh->m_vertexCount, &points[0][0], sizeof(dVector), 1.0e-3f, 0, NULL);
 	}
 
-	NewtonBody* CreateRagDollBodyPart(DemoEntity* const bodyPart, const dBalancingDummyDefinition& definition)
+	NewtonBody* CreateBodyPart(DemoEntity* const bodyPart, const dRagDollConfig& definition)
 	{
-		NewtonCollision* shape = NULL;
-		if (!strcmp(definition.m_shapeType, "sphere")) {
-			shape = MakeSphere(bodyPart, definition);
-		} else if (!strcmp(definition.m_shapeType, "capsule")) {
-			shape = MakeCapsule(bodyPart, definition);
-		} else if (!strcmp(definition.m_shapeType, "box")) {
-			shape = MakeBox(bodyPart);
-		} else {
-			shape = MakeConvexHull(bodyPart);
-		}
+		NewtonCollision* const shape = MakeConvexHull(bodyPart);
 
 		// calculate the bone matrix
 		dMatrix matrix(bodyPart->CalculateGlobalMatrix());
+
 		NewtonWorld* const world = GetWorld();
 
 		// create the rigid body that will make this bone
-		NewtonBody* const bone = NewtonCreateDynamicBody(world, shape, &matrix[0][0]);
-
-		// calculate the moment of inertia and the relative center of mass of the solid
-		NewtonBodySetMassProperties(bone, definition.m_mass, shape);
-
-		// save the user data with the bone body (usually the visual geometry)
-		NewtonBodySetUserData(bone, bodyPart);
-
-		// assign the material for early collision culling
-		NewtonBodySetMaterialGroupID(bone, m_material);
-
-		// set the bod part force and torque call back to the gravity force, skip the transform callback
-		NewtonBodySetForceAndTorqueCallback(bone, PhysicsApplyGravityForce);
+		NewtonBody* const body = NewtonCreateDynamicBody(world, shape, &matrix[0][0]);
 
 		// destroy the collision helper shape 
 		NewtonDestroyCollision(shape);
-		return bone;
+
+		// get the collision from body
+		NewtonCollision* const collision = NewtonBodyGetCollision(body);
+
+		// calculate the moment of inertia and the relative center of mass of the solid
+		NewtonBodySetMassProperties(body, definition.m_mass, collision);
+
+		// save the user lifterData with the bone body (usually the visual geometry)
+		NewtonBodySetUserData(body, bodyPart);
+
+		// assign a body part id
+		//NewtonCollisionSetUserID(collision, definition.m_bodyPartID);
+
+		// set the bod part force and torque call back to the gravity force, skip the transform callback
+		NewtonBodySetForceAndTorqueCallback(body, PhysicsApplyGravityForce);
+		return body;
 	}
 
-	void ConnectBodyParts(NewtonBody* const bone, NewtonBody* const parent, const dBalancingDummyDefinition& definition) const
+	dAnimationCharacterRig* CreateRagDoll(DemoEntityManager* const scene, const dMatrix& origin)
 	{
-		dMatrix matrix;
-		NewtonBodyGetMatrix(bone, &matrix[0][0]);
+/*
+DemoEntity* const xxxx0 = DemoEntity::LoadNGD_mesh("tred_1.ngd", scene->GetNewton());
+DemoEntity* const xxxx1 = DemoEntity::LoadNGD_mesh("tred_2.ngd", scene->GetNewton());
+scene->Append(xxxx0);
+scene->Append(xxxx1);
 
-		dMatrix pinAndPivotInGlobalSpace(dPitchMatrix(definition.m_framePitch * dDegreeToRad) * dYawMatrix(definition.m_frameYaw * dDegreeToRad) * dRollMatrix(definition.m_frameRoll * dDegreeToRad));
-		pinAndPivotInGlobalSpace = pinAndPivotInGlobalSpace * matrix;
+dMatrix matrix0(xxxx0->GetCurrentMatrix());
+matrix0.m_posit.m_x += 5.0f;
+matrix0.m_posit.m_z += 2.0f;
+xxxx0->ResetMatrix(*scene, matrix0);
 
-		switch (definition.m_type) 
-		{
-			case one_dof:
-			{
-				//dBiped1d* const joint = new dBiped1d(pinAndPivotInGlobalSpace, bone, parent);
-				//joint->SetJointTorque(definition.m_frictionTorque);
-				//joint->SetTwistAngle(definition.m_minTwistAngle * dDegreeToRad, definition.m_maxTwistAngle * dDegreeToRad);
+dMatrix matrix1(xxxx1->GetCurrentMatrix());
+matrix1.m_posit.m_x += 5.0f;
+matrix1.m_posit.m_z -= 2.0f;
+xxxx1->ResetMatrix(*scene, matrix1);
+*/
 
-				dCustomHinge* const joint = new dCustomHinge(pinAndPivotInGlobalSpace, bone, parent);
-				joint->EnableLimits(true);
-				joint->SetLimits(0.0f, 0.0f);
-				break;
-			}
+		DemoEntity* const model = DemoEntity::LoadNGD_mesh("tred_2.ngd", scene->GetNewton());
+		scene->Append(model);
 
-			case two_dof:
-			{
-				//dBiped2d* const joint = new dBiped2d(pinAndPivotInGlobalSpace, bone, parent);
-				//joint->DisableMotor();
-				//joint->SetJointTorque(definition.m_frictionTorque);
-				//joint->SetConeAngle(definition.m_coneAngle * dDegreeToRad);
-				dCustomHinge* const joint = new dCustomHinge (pinAndPivotInGlobalSpace, bone, parent);
-				joint->EnableLimits(true);
-				joint->SetLimits(0.0f, 0.0f);
-				break;
-			}
+		dMatrix modelMatrix(model->GetCurrentMatrix());
+		modelMatrix.m_posit = dVector(0.0f);
+		modelMatrix.m_posit.m_w = 1.0f;
 
-			case three_dof:
-			{
-				//dBiped3d* const joint = new dBiped2d(pinAndPivotInGlobalSpace, bone, parent);
-				dBiped2d* const joint = new dBiped2d(pinAndPivotInGlobalSpace, bone, parent);
-				//joint->DisableMotor();
-				joint->SetJointTorque(definition.m_frictionTorque);
-				joint->SetConeAngle(definition.m_coneAngle * dDegreeToRad);
-				joint->SetConeAngle(60.0f * dDegreeToRad);
-				//joint->SetTwistAngle(definition.m_minTwistAngle * dDegreeToRad, definition.m_maxTwistAngle * dDegreeToRad);
-				break;
-			}
-		}
-	}
+		dMatrix rootMatrix(modelMatrix * origin);
+		model->ResetMatrix(*scene, rootMatrix);
 
-	dCustomJoint* FindJoint(NewtonBody* const child, NewtonBody* const parent)
-	{
-		for (NewtonJoint* joint = NewtonBodyGetFirstJoint(child); joint; joint = NewtonBodyGetNextJoint(child, joint)) {
-			dCustomJoint* const cJoint = (dCustomJoint*)NewtonJointGetUserData(joint);
-			if (((child == cJoint->GetBody0()) && (parent == cJoint->GetBody1())) ||
-				((child == cJoint->GetBody1()) && (parent == cJoint->GetBody0()))) {
-				return cJoint;
-			}
-		}
-		dAssert(0);
-		return NULL;
-	}
+		NewtonBody* const rootBody = CreateBodyPart(model, ragDollConfig[0]);
 
+//NewtonBodySetMassMatrix(rootBody, 0.0f, 0.0f, 0.0f, 0.0f);
 
-	virtual void OnUpdateTransform(const dCustomArticulatedTransformController::dSkeletonBone* const bone, const dMatrix& localMatrix) const
-	{
-		DemoEntity* const ent = (DemoEntity*)NewtonBodyGetUserData(bone->m_body);
-		DemoEntityManager* const scene = (DemoEntityManager*)NewtonWorldGetUserData(NewtonBodyGetWorld(bone->m_body));
-
-		dQuaternion rot(localMatrix);
-		ent->SetMatrix(*scene, rot, localMatrix.m_posit);
-	}
-
-	void DestroyController (dCustomArticulatedTransformController* const controller)
-	{
-		dBiped* const balancingModule = (dBiped*)controller->GetUserData();
-		delete balancingModule;
-		dCustomArticulaledTransformManager::DestroyController (controller);
-	}
-
-	void CreateRagDoll(const dMatrix& location, const DemoEntity* const model, dBalancingDummyDefinition* const definition, int defintionCount)
-	{
-		NewtonWorld* const world = GetWorld();
-		DemoEntityManager* const scene = (DemoEntityManager*)NewtonWorldGetUserData(world);
-
-		// make a clone of the mesh 
-		DemoEntity* const ragDollEntity = (DemoEntity*)model->CreateClone();
-		scene->Append(ragDollEntity);
-
-		// build the rag doll with rigid bodies connected by joints
-		dCustomArticulatedTransformController* const controller = CreateTransformController();
-		controller->SetCalculateLocalTransforms(true);
-
-		// add the root boneBody
-		DemoEntity* const rootEntity = (DemoEntity*)ragDollEntity->Find(definition[0].m_boneName);
-		NewtonBody* const rootBone = CreateRagDollBodyPart(rootEntity, definition[0]);
-		// for debugging
-
-		dCustomArticulatedTransformController::dSkeletonBone* const bone0 = controller->AddRoot(rootBone, dGetIdentityMatrix());
-		// save the controller as the collision user data, for collision culling
-		NewtonCollisionSetUserData(NewtonBodyGetCollision(rootBone), bone0);
+		DemoEntity* const localFrame = model->Find("rootLocalFrame");
+		dAssert(localFrame);
+		dMatrix localFrameMatrix(localFrame->CalculateGlobalMatrix());
+		dAnimationCharacterRig* const rig = CreateCharacterRig(rootBody, localFrameMatrix);
 
 		int stackIndex = 0;
 		DemoEntity* childEntities[32];
-		dCustomArticulatedTransformController::dSkeletonBone* parentBones[32];
-		for (DemoEntity* child = rootEntity->GetChild(); child; child = child->GetSibling()) {
-			parentBones[stackIndex] = bone0;
+		dAnimationRigJoint* parentBones[32];
+		for (DemoEntity* child = model->GetChild(); child; child = child->GetSibling()) {
+			parentBones[stackIndex] = rig;
 			childEntities[stackIndex] = child;
 			stackIndex++;
 		}
 
-		// walk model hierarchic adding all children designed as rigid body bones. 
+		dAnimationRigEffector* leftFeet = NULL;
+		dAnimationRigEffector* rightFeet = NULL;
+
+		const int partCount = sizeof(ragDollConfig) / sizeof(ragDollConfig[0]);
 		while (stackIndex) {
 			stackIndex--;
 			DemoEntity* const entity = childEntities[stackIndex];
-			dCustomArticulatedTransformController::dSkeletonBone* parentBone = parentBones[stackIndex];
+			dAnimationRigJoint* const parentJoint = parentBones[stackIndex];
 
 			const char* const name = entity->GetName().GetStr();
-			for (int i = 0; i < defintionCount; i++) {
-				if (!strcmp(definition[i].m_boneName, name)) {
-					NewtonBody* const boneBody = CreateRagDollBodyPart(entity, definition[i]);
+			for (int i = 0; i < partCount; i++) {
+				if (!strcmp(ragDollConfig[i].m_partName, name)) {
 
-					// connect this body part to its parent with a ragdoll joint
-					ConnectBodyParts(boneBody, parentBone->m_body, definition[i]);
+					if (strstr(name, "bone")) {
+						// add a bone and all it children
+						NewtonBody* const limbBody = CreateBodyPart(entity, ragDollConfig[i]);
 
-					dMatrix bindMatrix(entity->GetParent()->CalculateGlobalMatrix((DemoEntity*)NewtonBodyGetUserData(parentBone->m_body)).Inverse());
-					parentBone = controller->AddBone(boneBody, bindMatrix, parentBone);
-					// save the controller as the collision user data, for collision culling
-					NewtonCollisionSetUserData(NewtonBodyGetCollision(boneBody), parentBone);
+						dMatrix matrix;
+						NewtonBodyGetMatrix(limbBody, &matrix[0][0]);
+
+						dAnimationRigLimb* limbJoint = NULL;
+						if (strstr(name, "boneFD")) {
+							dAnimationRigForwardDynamicLimb* footJoint = NULL;
+							if (strstr(name, "Ankle")) {
+								footJoint = new dAnimationAnkleJoint(matrix, parentJoint, limbBody, ragDollConfig[i]);
+							} else {
+								footJoint = new dAnimationToeJoint(matrix, parentJoint, limbBody, ragDollConfig[i]);
+							}
+							limbJoint = footJoint;
+						} else {
+							dAnimationRigHinge* const hinge = new dAnimationRigHinge(matrix, parentJoint, limbBody);
+							hinge->SetFriction(ragDollConfig[i].m_frictionScale * ragDollConfig[i].m_mass * DEMO_MUSCLE_STRENGTH);
+							hinge->SetLimits(ragDollConfig[i].m_minLimit * dDegreeToRad, ragDollConfig[i].m_maxLimit * dDegreeToRad);
+							limbJoint = hinge;
+						}
+
+						for (DemoEntity* child = entity->GetChild(); child; child = child->GetSibling()) {
+							parentBones[stackIndex] = limbJoint;
+							childEntities[stackIndex] = child;
+							stackIndex++;
+						}
+					} else if (strstr(name, "effector")) {
+						// add an end effector (end effector can't have children)
+						dMatrix pivot(entity->CalculateGlobalMatrix());
+						dAnimationRigEffector* const effector = new dAnimationRigEffector(pivot, parentJoint->GetAsRigLimb(), rig);
+						effector->SetLinearSpeed(2.0f);
+						effector->SetMaxLinearFriction(ragDollConfig[i].m_frictionScale * ragDollConfig[i].m_mass * DEMO_MUSCLE_STRENGTH * 50.0f);
+
+						if (!strcmp (name, "effector_leftLeg")) {
+							leftFeet = effector;
+						}
+						if (!strcmp(name, "effector_rightLeg")) {
+							rightFeet = effector;
+						}
+					}
 					break;
 				}
 			}
-
-			for (DemoEntity* child = entity->GetChild(); child; child = child->GetSibling()) {
-				parentBones[stackIndex] = parentBone;
-				childEntities[stackIndex] = child;
-				stackIndex++;
-			}
 		}
 
-		// set the collision mask
-		// note this container work best with a material call back for setting bit field 
-		controller->SetDefaultSelfCollisionMask();
+		rig->Finalize();
 
-		// transform the entire contraction to its location
-		dMatrix worldMatrix(rootEntity->GetCurrentMatrix() * location);
-		NewtonBodySetMatrixRecursive(rootBone, &worldMatrix[0][0]);
+		dAnimationEffectorBlendPose* const fixPose = new dAnimationEffectorBlendPose(rig);
+		dAnimationEffectorBlendPose* const walkPose = new dWalkGenerator(rig, leftFeet, rightFeet);
+		dAnimationEffectorBlendTwoWay* const walkBlend = new dAnimationEffectorBlendTwoWay(rig, fixPose, walkPose);
+		dAnimationBipeHipController* const posture = new dAnimationBipeHipController (rig, walkBlend);
+		dAnimationBalanceController* const balance = new dAnimationBalanceController (rig, posture);
+		dAnimationEffectorBlendRoot* const animTree = new dAnimationEffectorBlendRoot(rig, balance);
 
-		// add up the active balancing support
-		dBiped* const balancingModule = new dBiped(controller);
-		controller->SetUserData(balancingModule);
+		dAnimationCharacterUserData* const renderCallback = new dAnimationCharacterUserData(rig, walkBlend, posture);
+		model->SetUserData(renderCallback);
+		
+		rig->SetAnimationTree (animTree);
+
+		m_currentRig = rig;
+		return rig;
 	}
 
-	void OnPreUpdate(dCustomArticulatedTransformController* const controller, dFloat timestep, int threadIndex) const
+	void OnUpdateTransform(const dAnimationRigJoint* const bone, const dMatrix& localMatrix) const
 	{
-		dBiped* const biped = (dBiped*)controller->GetUserData();
-		biped->Update(timestep, threadIndex);
+		DemoEntityManager* const scene = (DemoEntityManager*)NewtonWorldGetUserData(GetWorld());
+		NewtonBody* const newtonBody = bone->GetNewtonBody();
+		DemoEntity* const meshEntity = (DemoEntity*)NewtonBodyGetUserData(newtonBody);
+
+		dQuaternion rot(localMatrix);
+		meshEntity->SetMatrix(*scene, rot, localMatrix.m_posit);
 	}
 
-	void OnDebug (dCustomJoint::dDebugDisplay* const debugContext)
+	void PreUpdate(dFloat timestep)
 	{
-		for (dListNode* node = GetFirst(); node; node = node->GetNext()) {
-			dCustomArticulatedTransformController* const controller = &node->GetInfo();
-			dBiped* const biped = (dBiped*)controller->GetUserData();
-			biped->Debug(debugContext);
+		if (m_currentRig) {
+			DemoEntity* const entiry = (DemoEntity*)NewtonBodyGetUserData(m_currentRig->GetNewtonBody());
+			dAnimationCharacterUserData* const controlData = (dAnimationCharacterUserData*)entiry->GetUserData();
+
+			dAnimationEffectorBlendTwoWay* const walkBlend = controlData->m_walk;
+			walkBlend->SetParam (controlData->m_walkSpeed);
+
+			dAnimationBipeHipController* const posture = controlData->m_posture;
+			posture->m_position.m_y = 0.25f * controlData->m_hipHigh;
 		}
+
+		dAnimationCharacterRigManager::PreUpdate(timestep);
 	}
 
-	int m_material;
+	dAnimationCharacterRig* m_currentRig;
 };
 
-#endif
-
-void DynamicRagDoll (DemoEntityManager* const scene)
+void DynamicRagDoll(DemoEntityManager* const scene)
 {
 	// load the sky box
 	scene->CreateSkyBox();
-
-	dAssert (0);
-/*
-	CreateLevelMesh (scene, "flatPlane.ngd", true);
-	//CreateHeightFieldTerrain(scene, HEIGHTFIELD_DEFAULT_SIZE, HEIGHTFIELD_DEFAULT_CELLSIZE, 1.5f, 0.2f, 200.0f, -50.0f);
-
-	// load a skeleton mesh 
-	DemoEntity ragDollModel(dGetIdentityMatrix(), NULL);
-	ragDollModel.LoadNGD_mesh("skeleton.ngd", scene->GetNewton());
-
-	{
-		// prepare model for rag doll
-		DemoEntity* limb;
-		dMatrix limbMatrix;
-
-		limb = ragDollModel.Find("Bip01_L_UpperArm");
-		limbMatrix = dPitchMatrix(-40.0f * dDegreeToRad) * limb->GetCurrentMatrix();
-		limb->ResetMatrix(*scene, limbMatrix);
-
-		limb = ragDollModel.Find("Bip01_R_UpperArm");
-		limbMatrix = dPitchMatrix(40.0f * dDegreeToRad) * limb->GetCurrentMatrix();
-		limb->ResetMatrix(*scene, limbMatrix);
-
-		limb = ragDollModel.Find("Bip01_L_Thigh");
-		//limbMatrix = dPitchMatrix(40.0f * dDegreeToRad) * limb->GetCurrentMatrix();
-		//limb->ResetMatrix(*scene, limbMatrix);
-
-		limb = ragDollModel.Find("Bip01_R_Thigh");
-		limbMatrix = dPitchMatrix(-40.0f * dDegreeToRad) * limb->GetCurrentMatrix();
-		limb->ResetMatrix(*scene, limbMatrix);
-	}
-
-	//  create a skeletal transform controller for controlling rag doll
-	BalancingDummyManager* const manager = new BalancingDummyManager(scene);
+	CreateLevelMesh(scene, "flatPlane.ngd", true);
+	BalancingDummyManager* const robotManager = new BalancingDummyManager(scene);
 
 	NewtonWorld* const world = scene->GetNewton();
-	dMatrix matrix(dGetIdentityMatrix());
+	int defaultMaterialID = NewtonMaterialGetDefaultGroupID(world);
+	NewtonMaterialSetDefaultFriction(world, defaultMaterialID, defaultMaterialID, 1.0f, 1.0f);
+	NewtonMaterialSetDefaultElasticity(world, defaultMaterialID, defaultMaterialID, 0.0f);
 
-	//	dVector origin (-10.0f, 1.0f, 0.0f, 1.0f);
-	dVector origin(FindFloor(world, dVector(-10.0f, 50.0f, 0.0f, 1.0f), 2.0f * 50.0f));
 
-	int count = 1;
-	for (int x = 0; x < count; x++) {
-		for (int z = 0; z < count; z++) {
-			dVector p(origin + dVector((x - count / 2) * 3.0f - count / 2, 0.0f, (z - count / 2) * 3.0f, 0.0f));
-			matrix.m_posit = FindFloor(world, p, 100.0f);
-			matrix.m_posit.m_y += 0.2f;
-			//matrix.m_posit.m_y += 3.0f;
-			manager->CreateRagDoll(matrix, &ragDollModel, skeletonRagDoll, sizeof(skeletonRagDoll) / sizeof(skeletonRagDoll[0]));
-		}
+	int count = 10;
+	count = 1;
+
+	dMatrix origin (dYawMatrix(-90.0f * dDegreeToRad));
+//origin = dGetIdentityMatrix();
+	origin.m_posit.m_x = 2.0f;
+//	origin.m_posit.m_y = 2.1f;
+	origin.m_posit.m_y = 3.0f;
+	for (int i = 0; i < count; i++) {
+		robotManager->CreateRagDoll(scene, origin);
+		//robotManager->CreateRagDoll (scene, origin1);
+		origin.m_posit.m_x += 1.0f;
 	}
 
-	//	const int defaultMaterialID = NewtonMaterialGetDefaultGroupID(scene->GetNewton());
-	const dVector location(origin);
-	const dVector size(0.25f, 0.25f, 0.375f, 0.0f);
-	//	const int count1 = 5;
-	const dMatrix shapeOffsetMatrix(dGetIdentityMatrix());
-	//AddPrimitiveArray(scene, 10.0f, location, size, count1, count1, 5.0f, _BOX_PRIMITIVE, defaultMaterialID, shapeOffsetMatrix);
-
-	origin.m_x -= 1.0f;
-	origin.m_x -= 2.0f;
-	origin.m_y += 1.0f;
-	dQuaternion rot;
-	scene->SetCameraMatrix(rot, origin);
-*/
+	origin.m_posit = dVector(-4.0f, 3.0f, 0.0f, 1.0f);
+	scene->SetCameraMatrix(dGetIdentityMatrix(), origin.m_posit);
 }
 
 

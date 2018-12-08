@@ -29,7 +29,7 @@ class dEffectorWalkPoseGenerator: public dEffectorTreeFixPose
 		,m_amplitud_x(0.35f)
 		,m_amplitud_y(0.1f)
 		,m_period (1.0f)
-		,cycle()
+		,m_cycle()
 	{
 		m_sequence[0] = 0;
 		m_sequence[3] = 0;
@@ -66,7 +66,7 @@ class dEffectorWalkPoseGenerator: public dEffectorTreeFixPose
 		leftControlPoints[size + 1].m_x = leftControlPoints[size].m_x;
 
 //		cycle.CreateFromKnotVectorAndControlPoints(3, size, knots, leftControlPoints);
-		cycle.CreateFromKnotVectorAndControlPoints(1, size, knots, &leftControlPoints[1]);
+		m_cycle.CreateFromKnotVectorAndControlPoints(1, size, knots, &leftControlPoints[1]);
 	}
 
 	virtual void Evaluate(dEffectorPose& output, dFloat timestep)
@@ -74,8 +74,8 @@ class dEffectorWalkPoseGenerator: public dEffectorTreeFixPose
 		dEffectorTreeFixPose::Evaluate(output, timestep);
 
 		dFloat param = m_acc / m_period;
-		dBigVector left (cycle.CurvePoint(param));
-		dBigVector right (cycle.CurvePoint(dMod (param + 0.5f, 1.0f)));
+		dBigVector left (m_cycle.CurvePoint(param));
+		dBigVector right (m_cycle.CurvePoint(dMod (param + 0.5f, 1.0f)));
 
 		dFloat high[2];
 		dFloat stride[2];
@@ -98,14 +98,14 @@ class dEffectorWalkPoseGenerator: public dEffectorTreeFixPose
 	dFloat m_period;
 	dFloat m_amplitud_x;
 	dFloat m_amplitud_y;
-	dBezierSpline cycle;
+	dBezierSpline m_cycle;
 	int m_sequence[6]; 
 };
 
-class dEffectorTreePostureGenerator: public dEffectorTreeInterface
+class dAnimationHipController: public dEffectorTreeInterface
 {
 	public:
-	dEffectorTreePostureGenerator(dEffectorTreeInterface* const poseGenerator)
+	dAnimationHipController(dEffectorTreeInterface* const poseGenerator)
 		:dEffectorTreeInterface(poseGenerator->GetRootBody())
 		,m_euler(0.0f)
 		,m_position(0.0f)
@@ -114,7 +114,7 @@ class dEffectorTreePostureGenerator: public dEffectorTreeInterface
 		m_position.m_w = 1.0f;
 	}
 
-	~dEffectorTreePostureGenerator()
+	~dAnimationHipController()
 	{
 		delete m_poseGenerator;
 	}
@@ -340,7 +340,7 @@ class dHexapodController: public dCustomControllerBase
 		dEffectorTreeFixPose* const walkPoseGenerator = new dEffectorWalkPoseGenerator(hexaBody);
 		m_walkIdleBlender = new dEffectorBlendIdleWalk (hexaBody, idlePose, walkPoseGenerator);
 
-		m_postureModifier = new dEffectorTreePostureGenerator(m_walkIdleBlender);
+		m_postureModifier = new dAnimationHipController(m_walkIdleBlender);
 		m_animTreeNode = new dEffectorTreeRoot(hexaBody, m_postureModifier);
 
 		dMatrix rootMatrix;
@@ -385,7 +385,7 @@ class dHexapodController: public dCustomControllerBase
 	dEffectorTreeRoot* m_animTreeNode;
 	NewtonInverseDynamics* m_kinematicSolver;
 	dEffectorBlendIdleWalk* m_walkIdleBlender; // do not delete 
-	dEffectorTreePostureGenerator* m_postureModifier; // do not delete 
+	dAnimationHipController* m_postureModifier; // do not delete 
 };
 
 class dHexapodManager: public dCustomControllerManager<dHexapodController>
@@ -466,7 +466,6 @@ class dHexapodManager: public dCustomControllerManager<dHexapodController>
 	dFloat32 m_speed;
 };
 
-
 void Hexapod(DemoEntityManager* const scene)
 {
 	// load the sky box
@@ -474,10 +473,10 @@ void Hexapod(DemoEntityManager* const scene)
 
 	CreateLevelMesh (scene, "flatPlane.ngd", true);
 	//CreateHeightFieldTerrain(scene, HEIGHTFIELD_DEFAULT_SIZE, HEIGHTFIELD_DEFAULT_CELLSIZE, 1.5f, 0.3f, 200.0f, -50.0f);
-	dHexapodManager* const robotManager = new dHexapodManager(scene);
 
 	NewtonWorld* const world = scene->GetNewton();
 	int defaultMaterialID = NewtonMaterialGetDefaultGroupID(world);
+	dHexapodManager* const robotManager = new dHexapodManager(scene);
 	NewtonMaterialSetDefaultFriction(world, defaultMaterialID, defaultMaterialID, 1.0f, 1.0f);
 	NewtonMaterialSetDefaultElasticity(world, defaultMaterialID, defaultMaterialID, 0.1f);
 
@@ -485,14 +484,19 @@ void Hexapod(DemoEntityManager* const scene)
 	location.m_posit = dVector(FindFloor(world, dVector(-0.0f, 50.0f, 0.0f, 1.0f), 2.0f * 50.0f));
 	location.m_posit.m_y += 1.0f;
 
-	const int count = 5;
+	int count = 5;
+//count = 1;
 	dMatrix location1(location);
-	location1.m_posit.m_z += 2.0f;
-	for (int i = 0; i < count; i++) {
-		location.m_posit.m_x += 2.0f;
-		location1.m_posit.m_x += 2.0f;
-		robotManager->MakeHexapod (scene, location);
-		//robotManager->MakeHexapod (scene, location1);
+	dFloat x0 = location.m_posit.m_x;
+	for (int j = 0; j < 1; j++) {
+		location.m_posit.m_z += 2.0f;
+		location.m_posit.m_x = x0;
+		for (int i = 0; i < count; i++) {
+			location.m_posit.m_x += 2.0f;
+			//location1.m_posit.m_x += 2.0f;
+			robotManager->MakeHexapod(scene, location);
+			//robotManager->MakeHexapod (scene, location1);
+		}
 	}
 
 	location.m_posit = dVector(FindFloor(scene->GetNewton(), dVector(-0.0f, 50.0f, 0.0f, 1.0f), 2.0f * 50.0f));

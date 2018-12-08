@@ -13,7 +13,7 @@
 #define __PHYSICS_UTIL__
 
 
-#define DEMO_GRAVITY  -10.0f
+#define DEMO_GRAVITY  -10.0f 
 //#define DEMO_GRAVITY  -0.0f
 
 enum PrimitiveType
@@ -29,8 +29,6 @@ enum PrimitiveType
 	_REGULAR_CONVEX_HULL_PRIMITIVE,
 	_COMPOUND_CONVEX_CRUZ_PRIMITIVE,
 };
-
-
 
 
 void ExportScene (NewtonWorld* const world, const char* const fileName);
@@ -61,9 +59,7 @@ void GetContactOnBody (NewtonBody* const body);
 void HandlecollisionPoints (NewtonJoint* const contactjoint);
 NewtonJoint* CheckIfBodiesCollide (NewtonBody* const body0, NewtonBody* const body1);
 
-//dFloat FindFloor (const NewtonWorld* world, dFloat x, dFloat z);
-dVector FindFloor (const NewtonWorld* world, const dVector& origin, dFloat dist);
-
+dVector FindFloor (const NewtonWorld* world, const dVector& origin, dFloat dist, dVector* const normal = NULL);
 
 void PhysicsBodyDestructor (const NewtonBody* body);
 void PhysicsApplyGravityForce (const NewtonBody* body, dFloat timestep, int threadIndex);

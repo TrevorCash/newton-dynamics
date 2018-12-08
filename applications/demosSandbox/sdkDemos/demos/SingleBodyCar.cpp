@@ -45,9 +45,9 @@ class SingleBodyVehicleManager: public dVehicleManager
 		{
 			dVehicleInterface* const vehicle = m_vehicleChassis->GetVehicle();
 
-			const dList<dVehicleNode*>& children = vehicle->GetChildren();
-			for (dList<dVehicleNode*>::dListNode* node = children.GetFirst(); node; node = node->GetNext()) {
-				dVehicleTireInterface* const tire = node->GetInfo()->GetAsTire();
+			const dList<dAnimationAcyclicJoint*>& children = vehicle->GetChildren();
+			for (dList<dAnimationAcyclicJoint*>::dListNode* node = children.GetFirst(); node; node = node->GetNext()) {
+				dVehicleTireInterface* const tire = ((dVehicleNode*)node->GetInfo())->GetAsTire();
 				if (tire) {
 					DemoEntity* const tireMesh = (DemoEntity*)tire->GetUserData();
 					tireMesh->InterpolateMatrixUsafe(param);
@@ -61,9 +61,9 @@ class SingleBodyVehicleManager: public dVehicleManager
 			dVehicleInterface* const vehicle = m_vehicleChassis->GetVehicle();
 			dMatrix chassisMatrixInv(vehicle->GetMatrix().Inverse());
 
-			const dList<dVehicleNode*>& children = vehicle->GetChildren();
-			for (dList<dVehicleNode*>::dListNode* node = children.GetFirst(); node; node = node->GetNext()) {
-				dVehicleTireInterface* const tire = node->GetInfo()->GetAsTire();
+			const dList<dAnimationAcyclicJoint*>& children = vehicle->GetChildren();
+			for (dList<dAnimationAcyclicJoint*>::dListNode* node = children.GetFirst(); node; node = node->GetNext()) {
+				dVehicleTireInterface* const tire = ((dVehicleNode*)node->GetInfo())->GetAsTire();
 				if (tire) {
 					DemoEntity* const tireMesh = (DemoEntity*)tire->GetUserData();
 					dMatrix tireMatrix(tire->GetGlobalMatrix() * chassisMatrixInv);
@@ -122,7 +122,7 @@ class SingleBodyVehicleManager: public dVehicleManager
 		me->RenderUI(scene);
 	}
 
-	void DrawGage(GLuint gage, GLuint needle, dFloat param, dFloat origin_x, dFloat origin_y, dFloat size) const
+	void DrawGage(GLuint gage, GLuint needle, dFloat param, dFloat origin_x, dFloat origin_y, dFloat size, dFloat minAngle, dFloat maxAngle) const
 	{
 		size *= 0.5f;
 		dMatrix origin(dGetIdentityMatrix());
@@ -141,8 +141,9 @@ class SingleBodyVehicleManager: public dVehicleManager
 		glEnd();
 
 		// render needle
-		const dFloat minAngle = 180.0f * dDegreeToRad;
-		const dFloat maxAngle = -90.0f * dDegreeToRad;
+		minAngle *= -dDegreeToRad;
+		maxAngle *= -dDegreeToRad;
+		//param = 1.0f;
 		dFloat angle = minAngle + (maxAngle - minAngle) * param;
 		dMatrix needleMatrix(dRollMatrix(angle));
 
@@ -190,7 +191,6 @@ class SingleBodyVehicleManager: public dVehicleManager
 		glPopMatrix();
 	}
 
-
 	void RenderUI(DemoEntityManager* const scene)
 	{
 		// set to transparent color
@@ -199,8 +199,7 @@ class SingleBodyVehicleManager: public dVehicleManager
 			DemoEntity* const playerEnt = (DemoEntity*)NewtonBodyGetUserData(m_player->GetBody());
 			
 			dVehicleEngineInterface* const engine = m_player->GetEngineControl()->GetEngine();
-//			if (engine) {
-			if (1) {
+			if (engine) {
 				glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 				dFloat gageSize = 200.0f;
 				dFloat y = scene->GetHeight() - (gageSize / 2.0f + 20.0f);
@@ -208,14 +207,14 @@ class SingleBodyVehicleManager: public dVehicleManager
 				// draw the tachometer
 				dFloat x = gageSize / 2 + 20.0f;
 				dFloat rpm = engine->GetRpm() / engine->GetRedLineRpm();
-				DrawGage(m_tachometer, m_redNeedle, rpm, x, y, gageSize);
+				DrawGage(m_tachometer, m_redNeedle, rpm, x, y, gageSize, -180.0f, 0.0f);
 
 				// draw the odometer
 				x += gageSize;
 				//dFloat speed = dAbs(engine->GetSpeed()) * 3.6f / 340.0f;
 				//dFloat speed = dAbs(engine->GetSpeed()) / engine->GetTopSpeed();
 				dFloat speed = 0.0f;
-				DrawGage(m_odometer, m_greenNeedle, speed, x, y, gageSize);
+				DrawGage(m_odometer, m_greenNeedle, speed, x, y, gageSize, -180.0f, 90.0f);
 
 				// draw the current gear
 				//int gear = engine->GetGear();
@@ -343,7 +342,6 @@ class SingleBodyVehicleManager: public dVehicleManager
 		NewtonWorld* const world = GetWorld();
 		DemoEntityManager* const scene = (DemoEntityManager*)NewtonWorldGetUserData(world);
 		DemoEntity* const entity = LoadModel_ndg(modelName);
-		//DemoEntity* const entity = LoadModel_obj(modelName);
 		dAssert (entity);
 		scene->Append(entity);
 		return entity;
@@ -369,14 +367,14 @@ class SingleBodyVehicleManager: public dVehicleManager
 		tireInfo.m_pivotOffset = 0.01f;
 		tireInfo.m_steerRate = 0.5f * dPi;
 		tireInfo.m_frictionCoefficient = 0.8f;
-		tireInfo.m_maxSteeringAngle = 25.0f * dDegreeToRad;
+		tireInfo.m_maxSteeringAngle = 40.0f * dDegreeToRad;
 		
 		tireInfo.m_suspensionLength = 0.22f;
 		tireInfo.m_dampingRatio = 15.0f * vehicleMass;
 		tireInfo.m_springStiffness = dAbs(vehicleMass * DEMO_GRAVITY * 8.0f / tireInfo.m_suspensionLength);
 
-		tireInfo.m_corneringStiffness = dAbs(vehicleMass * DEMO_GRAVITY * 1.0f);
-		tireInfo.m_longitudinalStiffness = dAbs(vehicleMass * DEMO_GRAVITY * 1.0f);
+		tireInfo.m_corneringStiffness = dAbs(vehicleMass * DEMO_GRAVITY * 0.5f);
+		tireInfo.m_longitudinalStiffness = dAbs(vehicleMass * DEMO_GRAVITY * 0.25f);
 
 		//tireInfo.m_aligningMomentTrail = definition.m_tireAligningMomemtTrail;
 		//tireInfo.m_hasFender = definition.m_wheelHasCollisionFenders;
@@ -452,14 +450,33 @@ class SingleBodyVehicleManager: public dVehicleManager
 		dVehicleTireInterface* const rearLeft = AddTire(vehicle, "rl_tire", width, radio, chassisMass);
 		dVehicleTireInterface* const rearRight = AddTire(vehicle, "rr_tire", width, radio, chassisMass);
 
+		// add vehicle steering control 
+		dVehicleSteeringControl* const steeringControl = vehicle->GetSteeringControl();
+		steeringControl->AddTire(frontLeft);
+		steeringControl->AddTire(frontRight);
+
+		// add vehicle hand brake control 
+		dVehicleBrakeControl* const handBrakeControl = vehicle->GetHandBrakeControl();
+		handBrakeControl->SetBrakeTorque(1000.0f);
+		handBrakeControl->AddTire(rearLeft);
+		handBrakeControl->AddTire(rearRight);
+
+		// add vehicle brake control 
+		dVehicleBrakeControl* const brakeControl = vehicle->GetBrakeControl();
+		brakeControl->SetBrakeTorque(1000.0f);
+		brakeControl->AddTire(frontLeft);
+		brakeControl->AddTire(frontRight);
+		brakeControl->AddTire(rearLeft);
+		brakeControl->AddTire(rearRight);
+
 		// add a differential 
 		dVehicleDifferentialInterface* const differential = vehicle->AddDifferential(rearLeft, rearRight);
 
 		// add and internal combustion engine
 		dVehicleEngineInterface::dEngineInfo engineInfo;
 		engineInfo.m_mass = 50.0f;
-		engineInfo.m_armatureRadius = 0.2f;
-		engineInfo.m_idleTorque = 100.0f;			// IDLE_TORQUE
+		engineInfo.m_armatureRadius = 0.125f;
+		engineInfo.m_idleTorque = 200.0f;			// IDLE_TORQUE
 		engineInfo.m_rpmAtIdleTorque = 450.0f;		// IDLE_TORQUE_RPM
 		engineInfo.m_peakTorque = 500.0f;			// PEAK_TORQUE
 		engineInfo.m_rpmAtPeakTorque = 3000.0f;		// PEAK_TORQUE_RPM
@@ -467,29 +484,23 @@ class SingleBodyVehicleManager: public dVehicleManager
 		engineInfo.m_rpmAtPeakHorsePower = 5200.0f;	// PEAK_HP_RPM
 		engineInfo.m_rpmAtRedLine = 6000.0f;		// REDLINE_TORQUE_RPM
 
+		engineInfo.m_crownGear = 4.0f;
+		engineInfo.m_clutchTorque = 600.0f;
+
+		engineInfo.m_gearRatios[dVehicleEngineInterface::m_reverseGear] = -2.90f;	// reverse
+		engineInfo.m_gearRatios[dVehicleEngineInterface::m_neutralGear] = 0.0f;     // neutral
+		engineInfo.m_gearRatios[dVehicleEngineInterface::m_firstGear + 0] = 2.66f;  // GEAR_1
+		engineInfo.m_gearRatios[dVehicleEngineInterface::m_firstGear + 1] = 1.78f;	// GEAR_2
+		engineInfo.m_gearRatios[dVehicleEngineInterface::m_firstGear + 2] = 1.30f;	// GEAR_3
+		engineInfo.m_gearRatios[dVehicleEngineInterface::m_firstGear + 3] = 1.00f;	// GEAR_4
+		engineInfo.m_gearRatios[dVehicleEngineInterface::m_firstGear + 4] = 0.74f;	// GEAR_5
+		engineInfo.m_gearRatios[dVehicleEngineInterface::m_firstGear + 5] = 0.50f;	// GEAR_6
+		engineInfo.m_gearsCount = 8;
+
 		dVehicleEngineInterface* const engine = vehicle->AddEngine(engineInfo, differential);
 		// Set Engine Control
 		dVehicleEngineControl* const engineControl = vehicle->GetEngineControl();
 		engineControl->SetEngine(engine);
-
-		// add vehicle steering control 
-		dVehicleSteeringControl* const steeringControl = vehicle->GetSteeringControl();
-		steeringControl->AddTire(frontLeft);
-		steeringControl->AddTire(frontRight);
-
-		// add vehicle brake control 
-		dVehicleBrakeControl* const brakeControl = vehicle->GetBrakeControl();
-		brakeControl->SetBrakeTorque(1000.0f);
-		brakeControl->AddTire(frontLeft);
-		brakeControl->AddTire(frontRight);
-		//brakeControl->AddTire(rearLeft);
-		//brakeControl->AddTire(rearRight);
-
-		// add vehicle hand brake control 
-		dVehicleBrakeControl* const handBrakeControl = vehicle->GetHandBrakeControl();
-		handBrakeControl->SetBrakeTorque(1000.0f);
-		handBrakeControl->AddTire(rearLeft);
-		handBrakeControl->AddTire(rearRight);
 
 		// do not forget to call finalize after all components are added or after any change is made to the vehicle
 		vehicle->Finalize();
@@ -551,7 +562,8 @@ axisCount = 0;
 */
 		} else {
 			driverInput.m_throttle = scene->GetKeyState('W') ? 1.0f : 0.0f;
-			//driverInput.m_clutchPedal = 1.0f - scene->GetKeyState('K') ? 1.0f : 0.0f;
+			//driverInput.m_throttle = scene->GetKeyState('W') ? 0.5f : 0.0f;
+			driverInput.m_clutchPedal = scene->GetKeyState('K') ? 0.0f : 1.0f;
 			driverInput.m_steeringValue = (dFloat(scene->GetKeyState('A')) - dFloat(scene->GetKeyState('D')));
 			driverInput.m_brakePedal = scene->GetKeyState('S') ? 1.0f : 0.0f;
 			driverInput.m_handBrakeValue = scene->GetKeyState(' ') ? 1.0f : 0.0f;
@@ -563,6 +575,7 @@ axisCount = 0;
 			//driverInput.m_lockDifferential = m_engineDifferentialLock.UpdatePushButton(scene, 'L');
 		}
 
+		driverInput.m_clutchPedal = 0.0f;
 		//xxxxxx
 #if 0
 	#if 0
@@ -580,9 +593,6 @@ axisCount = 0;
 #endif
 
 		vehicle->ApplyDriverInputs(driverInput, timestep);
-
-//		m_steeringControl->Update(timestep);
-
 	}
 
 	dVehicleChassis* m_player;
@@ -605,11 +615,12 @@ void SingleBodyCar(DemoEntityManager* const scene)
 //	CreateHeightFieldTerrain (scene, 10, 8.0f, 5.0f, 0.2f, 200.0f, -50.0f);
 //	AddPrimitiveArray (scene, 0.0f, dVector (0.0f, 0.0f, 0.0f, 0.0f), dVector (100.0f, 1.0f, 100.0f, 0.0f), 1, 1, 0, _BOX_PRIMITIVE, 0, dGetIdentityMatrix());
 
+
 	dMatrix location (dGetIdentityMatrix());
 	location.m_posit = dVector (0.0f, 10.0f, 0.0f, 1.0f);
 
 	location.m_posit = FindFloor (scene->GetNewton(), location.m_posit, 100.0f);
-	location.m_posit.m_y += 2.0f;
+	location.m_posit.m_y += 2.5f;
 
 	NewtonWorld* const world = scene->GetNewton();
 
