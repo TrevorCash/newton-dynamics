@@ -1282,8 +1282,7 @@ NewtonBody* MousePickBody (NewtonWorld* const nWorld, const dVector& origin, con
 
 void LoadLumberYardMesh(DemoEntityManager* const scene, const dVector& location, int shapeid)
 {
-	DemoEntity entity (dGetIdentityMatrix(), NULL);
-	entity.LoadNGD_mesh ("lumber.ngd", scene->GetNewton());
+	DemoEntity* const entity = DemoEntity::LoadNGD_mesh ("lumber.ngd", scene->GetNewton());
 
 	dTree<NewtonCollision*, DemoMesh*> filter;
 	NewtonWorld* const world = scene->GetNewton();
@@ -1291,7 +1290,7 @@ void LoadLumberYardMesh(DemoEntityManager* const scene, const dVector& location,
 	dFloat density = 15.0f;
 
 	int defaultMaterialID = NewtonMaterialGetDefaultGroupID(scene->GetNewton());
-	for (DemoEntity* child = entity.GetFirst(); child; child = child->GetNext()) {
+	for (DemoEntity* child = entity->GetFirst(); child; child = child->GetNext()) {
 		DemoMesh* const mesh = (DemoMesh*)child->GetMesh();
 		if (mesh) {
 			dAssert(mesh->IsType(DemoMesh::GetRttiType()));
@@ -1335,4 +1334,24 @@ void LoadLumberYardMesh(DemoEntityManager* const scene, const dVector& location,
 		NewtonDestroyCollision(shape);
 		filter.Remove(filter.GetRoot());
 	}
+	delete entity;
+}
+
+
+
+void SetKinematicPose(NewtonBody* const body, const dMatrix& matrix1, dFloat timestep)
+{
+	dMatrix matrix0;
+	const dFloat OneOverDt = 1.0f / timestep;
+	NewtonBodyGetMatrix(body, &matrix0[0][0]);
+
+	dQuaternion q0(matrix0);
+	dQuaternion q1(matrix1);
+
+	dVector omega(q0.CalcAverageOmega(q1, OneOverDt));
+	dVector veloc ((matrix1.m_posit - matrix0.m_posit).Scale (OneOverDt));
+
+	NewtonBodySetVelocity(body, &veloc[0]);
+	NewtonBodySetOmega(body, &omega[0]);
+	NewtonBodyIntegrateVelocity(body, timestep);
 }

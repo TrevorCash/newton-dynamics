@@ -56,11 +56,11 @@
 //#define DEFAULT_SCENE	22			// simple convex decomposition
 //#define DEFAULT_SCENE	23			// scene Collision
 //#define DEFAULT_SCENE	24          // simple boolean operators 
-#define DEFAULT_SCENE	25			// simple convex fracturing 
+//#define DEFAULT_SCENE	25			// simple convex fracturing 
 //#define DEFAULT_SCENE	26			// structured convex fracturing 
 //#define DEFAULT_SCENE	27			// multi ray casting using the threading Job scheduler
 //#define DEFAULT_SCENE	28          // standard joints
-//#define DEFAULT_SCENE	29			// servo joints
+#define DEFAULT_SCENE	29			// servo joints
 //#define DEFAULT_SCENE	30			// articulated joints
 //#define DEFAULT_SCENE	31			// six axis manipulator
 //#define DEFAULT_SCENE	32			// hexapod Robot
@@ -337,13 +337,13 @@ DemoEntityManager::DemoEntityManager ()
 	m_autoSleepMode = false;
 //	m_broadPhaseType = 1;
 	m_solverPasses = 4;
-//	m_workerThreads = 4;
-	m_showNormalForces = true;
+	m_workerThreads = 4;
+//	m_showNormalForces = true;
 //	m_showCenterOfMass = false;
-	m_showJointDebugInfo = true;
+//	m_showJointDebugInfo = true;
 //	m_collisionDisplayMode = 2;
 //	m_asynchronousPhysicsUpdate = true;
-//	m_solveLargeIslandInParallel = true;
+	m_solveLargeIslandInParallel = true;
 
 	m_currentPlugin = 0;
 	void* preferedPlugin = NewtonGetPreferedPlugin(m_world);
@@ -353,7 +353,7 @@ DemoEntityManager::DemoEntityManager ()
 			break;
 		}
 	}
-//m_currentPlugin = 0;
+m_currentPlugin = 0;
 
 /*
 	dFloat A[2][2];
