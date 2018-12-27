@@ -39,7 +39,7 @@
 //#define DEFAULT_SCENE	5			// primitive collision
 //#define DEFAULT_SCENE	6 			// kinematic bodies
 //#define DEFAULT_SCENE	7			// primitive convex cast 
-#define DEFAULT_SCENE	8			// box stacks
+//#define DEFAULT_SCENE	8			// box stacks
 //#define DEFAULT_SCENE	9			// simple level mesh collision
 //#define DEFAULT_SCENE	10			// optimized level mesh collision
 //#define DEFAULT_SCENE	11			// height field Collision
@@ -71,12 +71,13 @@
 //#define DEFAULT_SCENE	37			// David Gravel multi body car
 //#define DEFAULT_SCENE	38			// super Car
 //#define DEFAULT_SCENE	39			// heavy vehicles
-//#define DEFAULT_SCENE	30			// basic player controller
-//#define DEFAULT_SCENE	31			// advanced player controller
-//#define DEFAULT_SCENE	42			// cloth patch			
-//#define DEFAULT_SCENE	43			// soft bodies	
-//#define DEFAULT_SCENE	44			// joe's joint test
-//#define DEFAULT_SCENE	45			// Misho's Hinge Test
+//#define DEFAULT_SCENE	40			// basic player controller
+#define DEFAULT_SCENE	41			// animated player controller
+//#define DEFAULT_SCENE	42			// advanced player controller
+//#define DEFAULT_SCENE	43			// cloth patch			
+//#define DEFAULT_SCENE	44			// soft bodies	
+//#define DEFAULT_SCENE	45			// joe's joint test
+//#define DEFAULT_SCENE	46			// Misho's Hinge Test
 
 /// demos forward declaration 
 void Friction (DemoEntityManager* const scene);
@@ -112,6 +113,7 @@ void BasicMultibodyVehicle(DemoEntityManager* const scene);
 void SuperCar (DemoEntityManager* const scene);
 void MilitaryTransport (DemoEntityManager* const scene);
 void BasicPlayerController (DemoEntityManager* const scene);
+void AnimatedPlayerController (DemoEntityManager* const scene);
 void AdvancedPlayerController (DemoEntityManager* const scene);
 void HeightFieldCollision (DemoEntityManager* const scene);
 void UserPlaneCollision (DemoEntityManager* const scene);
@@ -171,6 +173,7 @@ DemoEntityManager::SDKDemos DemoEntityManager::m_demosSelection[] =
 	{"Super car", "implement a hight performance sport car", SuperCar},
 	{"Heavy vehicles", "implement military type heavy Vehicles", MilitaryTransport},
 	{"Basic player controller", "demonstrate simple player controller", BasicPlayerController},
+	{"Animated player controller", "demonstrate inverse kinematic player controller", AnimatedPlayerController},
 	{"Advanced player controller", "demonstrate player interacting with other objects", AdvancedPlayerController},
 	{"Simple cloth Patch", "show simple cloth patch", ClothPatch},
 	{"Simple soft Body", "show simple soft body", SoftBodies},
@@ -229,6 +232,7 @@ DemoEntityManager::DemoEntityManager ()
 	,m_broadPhaseType(0)
 	,m_workerThreads(1)
 	,m_solverPasses(4)
+	,m_solverSubSteps(2)
 	,m_debugDisplayMode(0)
 	,m_collisionDisplayMode(0)
 	,m_showUI(true)
@@ -338,6 +342,7 @@ DemoEntityManager::DemoEntityManager ()
 //	m_broadPhaseType = 1;
 	m_solverPasses = 4;
 	m_workerThreads = 4;
+//	m_solverSubSteps = 2;
 //	m_showNormalForces = true;
 //	m_showCenterOfMass = false;
 //	m_showJointDebugInfo = true;
@@ -506,7 +511,6 @@ void DemoEntityManager::RemoveEntity (DemoEntity* const ent)
 	}
 }
 
-
 void DemoEntityManager::Cleanup ()
 {
 	// is we are run asynchronous we need make sure no update in on flight.
@@ -639,6 +643,7 @@ void DemoEntityManager::ApplyMenuOptions()
 
 	// clean up all caches the engine have saved
 	//NewtonInvalidateCache(m_world);
+	NewtonSetNumberOfSubsteps (m_world, m_solverSubSteps);
 	NewtonSetSolverIterations(m_world, m_solverPasses);
 	NewtonSetThreadsCount(m_world, m_workerThreads);
 
@@ -742,6 +747,7 @@ void DemoEntityManager::ShowMainMenuBar()
 			ImGui::Separator();
 
 			//ImGui::Text("iterative solver passes %d", m_solverPasses);
+			ImGui::SliderInt_DoubleSpace("solver sub steps", &m_solverSubSteps, 2, 8);
 			ImGui::SliderInt_DoubleSpace("iterative solver passes", &m_solverPasses, 4, 20);
 
 			//ImGui::Text("worker threads %d", m_workerThreads);
@@ -936,6 +942,9 @@ void DemoEntityManager::RenderStats()
 			ImGui::Text(text);
 
 			sprintf(text, "iterations:	%d", NewtonGetSolverIterations(m_world));
+			ImGui::Text(text);
+
+			sprintf(text, "sub steps:     %d", NewtonGetNumberOfSubsteps(m_world));
 			ImGui::Text(text);
 
 			m_suspendPhysicsUpdate = m_suspendPhysicsUpdate || (ImGui::IsMouseHoveringWindow() && ImGui::IsMouseDown(0));  

@@ -675,7 +675,6 @@ class ServoVehicleManagerManager: public dCustomTransformManager
 		dMatrix tireHingeMatrix(dRollMatrix(0.0f * dDegreeToRad) * matrix);
 		tireHingeMatrix = wheel->GetMatrix0() * tireHingeMatrix;
 
-		//ServoEntityModel* const lifterData = (ServoEntityModel*)controller->GetUserData();
 		dLifterUserData* const lifterData = (dLifterUserData*) ((DemoEntity*)controller->GetUserData())->GetUserData();
 
 		dAssert (chassis == lifterData->m_engineJoint->GetBody1());
@@ -836,8 +835,7 @@ class ServoVehicleManagerManager: public dCustomTransformManager
 
 		// set power parameter for a simple DC engine
 		lifterData->m_maxEngineSpeed = 20.0f;
-		lifterData->m_engineMotor->SetTorque(1000.0f);
-		//lifterData->m_engineMotor->SetTorque1(1500.0f);
+		lifterData->m_engineMotor->SetTorque(3000.0f);
 
 		// walk down the model hierarchy an add all the components 
 		int stackIndex = 0;
@@ -938,12 +936,14 @@ void ServoJoints (DemoEntityManager* const scene)
 	dMatrix matrix (dGetIdentityMatrix());
 	matrix.m_posit = FindFloor (world, origin, 100.0f);
 	matrix.m_posit.m_y += 1.5f;
-
+	
 	// load a the mesh of the articulate vehicle
 	dCustomTransformController* const forklift = vehicleManager->CreateForklift(matrix, "forklift.ngd", sizeof(forkliftDefinition) / sizeof (forkliftDefinition[0]), forkliftDefinition);
 	inputManager->AddPlayer(forklift);
 
 	// place heavy load to show reproduce black bird dream problems
+	matrix.m_posit.m_x += 2.0f;	
+	matrix.m_posit.m_z -= 2.0f;	
 	MakeHeavyLoad (scene, matrix);
 
 	// add some object to play with

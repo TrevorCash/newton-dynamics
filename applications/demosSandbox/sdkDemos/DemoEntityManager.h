@@ -181,6 +181,7 @@ class DemoEntityManager: public dList <DemoEntity*>
 	dFloat m_mainThreadPhysicsTimeAcc;
 
 	int m_solverPasses;
+	int m_solverSubSteps;
 	int m_broadPhaseType;
 	int m_workerThreads;
 	int m_debugDisplayMode;

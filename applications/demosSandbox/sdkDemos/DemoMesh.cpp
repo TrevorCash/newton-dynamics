@@ -177,6 +177,9 @@ DemoMesh::DemoMesh(const dScene* const scene, dScene::dTreeNode* const meshNode)
 	
 	NewtonMesh* const mesh = meshInfo->GetMesh();
 
+	// recalculate mesh normals
+	//NewtonMeshCalculateVertexNormals(mesh, 45.0f * dDegreeToRad);
+
 	// extract vertex data  from the newton mesh		
 	AllocVertexData(NewtonMeshGetPointCount (mesh));
 	NewtonMeshGetVertexChannel (mesh, 3 * sizeof (dFloat), (dFloat*) m_vertex);
@@ -850,7 +853,7 @@ void DemoBezierCurve::RenderTransparency () const
 {
 }
 
-NewtonMesh* DemoBezierCurve::CreateNewtonMesh(NewtonWorld* const workd, const dMatrix& meshMatrix)
+NewtonMesh* DemoBezierCurve::CreateNewtonMesh(NewtonWorld* const world, const dMatrix& meshMatrix)
 {
 	dAssert(0);
 	return NULL;
@@ -904,3 +907,34 @@ void DemoBezierCurve::Render (DemoEntityManager* const scene)
 	}
 }
 
+DemoSkinMesh::DemoSkinMesh(DemoMesh* const mesh)
+	:DemoMeshInterface()
+	,m_mesh(mesh)
+{
+	m_mesh->AddRef();
+}
+
+DemoSkinMesh::~DemoSkinMesh()
+{
+	m_mesh->Release();
+}
+
+void DemoSkinMesh::RenderTransparency () const
+{
+	m_mesh->RenderTransparency();
+}
+
+void DemoSkinMesh::RenderNormals ()
+{
+	m_mesh->RenderNormals();
+}
+
+NewtonMesh* DemoSkinMesh::CreateNewtonMesh(NewtonWorld* const world, const dMatrix& meshMatrix)
+{
+	return m_mesh->CreateNewtonMesh(world, meshMatrix);
+}
+
+void DemoSkinMesh::Render (DemoEntityManager* const scene)
+{
+	m_mesh->Render(scene);
+}
