@@ -49,11 +49,11 @@ static dRagDollConfig ragDollConfig[] =
 };
 
 
-class dWalkGenerator: public dAnimationEffectorBlendPose
+class dWalkGenerator: public dAnimIDBlendNodePose
 {
 	public:
-	dWalkGenerator(dAnimationCharacterRig* const character, dAnimationRigEffector* const leftFeet, dAnimationRigEffector* const rightFeet)
-		:dAnimationEffectorBlendPose(character)
+	dWalkGenerator(dAnimIDController* const character, dAnimIDRigEffector* const leftFeet, dAnimIDRigEffector* const rightFeet)
+		:dAnimIDBlendNodePose(character)
 		,m_acc(0.0f)
 		,m_amplitud_x(2.0f)
 		,m_amplitud_y(1.3f)
@@ -102,7 +102,7 @@ class dWalkGenerator: public dAnimationEffectorBlendPose
 
 	void Evaluate(dAnimationPose& output, dFloat timestep)
 	{
-		dAnimationEffectorBlendPose::Evaluate(output, timestep);
+		dAnimIDBlendNodePose::Evaluate(output, timestep);
 
 		dFloat param = m_acc / m_period;
 		dBigVector left(m_cycle.CurvePoint(param));
@@ -134,15 +134,15 @@ timestep *= 0.01f;
 	dFloat m_amplitud_y;
 	dBezierSpline m_cycle;
 	int m_sequence[6];
-	dAnimationRigEffector* m_leftFeet;
-	dAnimationRigEffector* m_rightFeet;
+	dAnimIDRigEffector* m_leftFeet;
+	dAnimIDRigEffector* m_rightFeet;
 };
 
-class dAnimationBipeHipController: public dAnimationEffectorBlendNode
+class dAnimationBipeHipController: public dAnimIDBlendNode
 {
 	public:
-	dAnimationBipeHipController(dAnimationCharacterRig* const character, dAnimationEffectorBlendNode* const child)
-		:dAnimationEffectorBlendNode(character, child)
+	dAnimationBipeHipController(dAnimIDController* const character, dAnimIDBlendNode* const child)
+		:dAnimIDBlendNode(character, child)
 		, m_euler(0.0f)
 		, m_position(0.0f)
 	{
@@ -172,7 +172,7 @@ class dAnimationBipeHipController: public dAnimationEffectorBlendNode
 	dVector m_position;
 };
 
-class dAnimationBalanceController: public dAnimationEffectorBlendNode
+class dAnimationBalanceController: public dAnimIDBlendNode
 {
 	public:
 	class dConvexHullPoint 
@@ -186,8 +186,8 @@ class dAnimationBalanceController: public dAnimationEffectorBlendNode
 		dConvexHullPoint *m_next;
 	};
 
-	dAnimationBalanceController(dAnimationCharacterRig* const character, dAnimationEffectorBlendNode* const child)
-		:dAnimationEffectorBlendNode(character, child)
+	dAnimationBalanceController(dAnimIDController* const character, dAnimIDBlendNode* const child)
+		:dAnimIDBlendNode(character, child)
 	{
 	}
 
@@ -207,7 +207,7 @@ class dAnimationBalanceController: public dAnimationEffectorBlendNode
 
 	int BuildSupportPolygon (dVector* const polygon, int maxCount) const
 	{
-		dAnimationRigJoint* stackPool[32];
+		dAnimIDRigJoint* stackPool[32];
 		int stack = 1;
 
 		stackPool[0] = m_character;
@@ -221,7 +221,7 @@ class dAnimationBalanceController: public dAnimationEffectorBlendNode
 		while (stack) {
 			stack--;
 
-			const dAnimationRigJoint* const node = stackPool[stack];
+			const dAnimIDRigJoint* const node = stackPool[stack];
 			NewtonBody* const newtonBody = node->GetNewtonBody();
 
 			if (newtonBody) {
@@ -238,9 +238,9 @@ class dAnimationBalanceController: public dAnimationEffectorBlendNode
 					}
 				}
 
-				const dList<dAnimationAcyclicJoint*>& children = node->GetChildren();
-				for (dList<dAnimationAcyclicJoint*>::dListNode* child = children.GetFirst(); child; child = child->GetNext()) {
-					stackPool[stack] = (dAnimationRigJoint*)child->GetInfo();
+				const dList<dAnimAcyclicJoint*>& children = node->GetChildren();
+				for (dList<dAnimAcyclicJoint*>::dListNode* child = children.GetFirst(); child; child = child->GetNext()) {
+					stackPool[stack] = (dAnimIDRigJoint*)child->GetInfo();
 					stack++;
 				}
 			}
@@ -397,11 +397,11 @@ class dAnimationBalanceController: public dAnimationEffectorBlendNode
 
 
 
-class dAnimationAnkleJoint: public dAnimationRigForwardDynamicLimb
+class dAnimationAnkleJoint: public dAnimIDRigForwardDynamicLimb
 {
 	public:
-	dAnimationAnkleJoint(const dMatrix& basicMatrix, dAnimationRigJoint* const parent, NewtonBody* const body, const dRagDollConfig& config)
-		:dAnimationRigForwardDynamicLimb(basicMatrix, parent, body)
+	dAnimationAnkleJoint(const dMatrix& basicMatrix, dAnimIDRigJoint* const parent, NewtonBody* const body, const dRagDollConfig& config)
+		:dAnimIDRigForwardDynamicLimb(basicMatrix, parent, body)
 	{
 		SetFriction(config.m_frictionScale * config.m_mass * DEMO_MUSCLE_STRENGTH);
 		SetLimits(config.m_minLimit * dDegreeToRad, config.m_maxLimit * dDegreeToRad);
@@ -415,7 +415,7 @@ class dAnimationAnkleJoint: public dAnimationRigForwardDynamicLimb
 
 	void SubmitConstraints(dFloat timestep, int threadIndex)
 	{
-		dAnimationRigForwardDynamicLimb::SubmitConstraints(timestep, threadIndex);
+		dAnimIDRigForwardDynamicLimb::SubmitConstraints(timestep, threadIndex);
 
 		dMatrix matrix0;
 		dMatrix matrix1;
@@ -430,7 +430,7 @@ class dAnimationAnkleJoint: public dAnimationRigForwardDynamicLimb
 //		floorMatrix.m_right = normal.CrossProduct(floorMatrix.m_front);
 //		floorMatrix.m_right = floorMatrix.m_right.Normalize();
 //		floorMatrix.m_up = floorMatrix.m_right.CrossProduct(floorMatrix.m_front);
-		dAnimationCharacterRig* const root = GetRoot();
+		dAnimIDController* const root = GetRoot();
 		dMatrix floorMatrix (dRollMatrix(dPi) * root->GetBasePoseMatrix());
 
 		dFloat deltaAngle = CalculateAngle(floorMatrix.m_up, matrix0.m_up, matrix0.m_front) - m_offsetAngle;
@@ -455,11 +455,11 @@ class dAnimationAnkleJoint: public dAnimationRigForwardDynamicLimb
 };
 
 
-class dAnimationToeJoint : public dAnimationRigForwardDynamicLimb
+class dAnimationToeJoint : public dAnimIDRigForwardDynamicLimb
 {
 	public:
-	dAnimationToeJoint(const dMatrix& basicMatrix, dAnimationRigJoint* const parent, NewtonBody* const body, const dRagDollConfig& config)
-		:dAnimationRigForwardDynamicLimb(basicMatrix, parent, body)
+	dAnimationToeJoint(const dMatrix& basicMatrix, dAnimIDRigJoint* const parent, NewtonBody* const body, const dRagDollConfig& config)
+		:dAnimIDRigForwardDynamicLimb(basicMatrix, parent, body)
 	{
 		SetFriction(config.m_frictionScale * config.m_mass * DEMO_MUSCLE_STRENGTH);
 		SetLimits(config.m_minLimit * dDegreeToRad, config.m_maxLimit * dDegreeToRad);
@@ -473,7 +473,7 @@ class dAnimationToeJoint : public dAnimationRigForwardDynamicLimb
 
 	void SubmitConstraints(dFloat timestep, int threadIndex)
 	{
-		dAnimationRigForwardDynamicLimb::SubmitConstraints(timestep, threadIndex);
+		dAnimIDRigForwardDynamicLimb::SubmitConstraints(timestep, threadIndex);
 
 		dMatrix matrix0;
 		dMatrix matrix1;
@@ -513,14 +513,14 @@ class dAnimationToeJoint : public dAnimationRigForwardDynamicLimb
 
 
 
-class BalancingDummyManager : public dAnimationCharacterRigManager
+class BalancingDummyManager : public dAnimIDManager
 {
 	public:
 
 	class dAnimationCharacterUserData: public DemoEntity::UserData
 	{
 		public:
-		dAnimationCharacterUserData(dAnimationCharacterRig* const rig, dAnimationEffectorBlendTwoWay* const walk, dAnimationBipeHipController* const posture)
+		dAnimationCharacterUserData(dAnimIDController* const rig, dAnimIDBlendNodeTwoWay* const walk, dAnimationBipeHipController* const posture)
 			:DemoEntity::UserData()
 			,m_rig(rig)
 			,m_walk(walk)
@@ -542,8 +542,8 @@ class BalancingDummyManager : public dAnimationCharacterRigManager
 		{
 		}
 
-		dAnimationCharacterRig* m_rig;
-		dAnimationEffectorBlendTwoWay* m_walk;
+		dAnimIDController* m_rig;
+		dAnimIDBlendNodeTwoWay* m_walk;
 		dAnimationBipeHipController* m_posture;
 
 		dFloat m_hipHigh;
@@ -552,7 +552,7 @@ class BalancingDummyManager : public dAnimationCharacterRigManager
 
 
 	BalancingDummyManager(DemoEntityManager* const scene)
-		:dAnimationCharacterRigManager(scene->GetNewton())
+		:dAnimIDManager(scene->GetNewton())
 		,m_currentRig(NULL)
 	{
 		scene->Set2DDisplayRenderFunction(RenderHelpMenu, NULL, this);
@@ -584,7 +584,7 @@ class BalancingDummyManager : public dAnimationCharacterRigManager
 
 	void OnDebug(dCustomJoint::dDebugDisplay* const debugContext)
 	{
-		dAnimationCharacterRigManager::OnDebug(debugContext);
+		dAnimIDManager::OnDebug(debugContext);
 //		for (dListNode* node = GetFirst(); node; node = node->GetNext()) {
 //			dSixAxisController* const controller = &node->GetInfo();
 //			controller->Debug(debugContext);
@@ -660,7 +660,7 @@ class BalancingDummyManager : public dAnimationCharacterRigManager
 		return body;
 	}
 
-	dAnimationCharacterRig* CreateRagDoll(DemoEntityManager* const scene, const dMatrix& origin)
+	dAnimIDController* CreateRagDoll(DemoEntityManager* const scene, const dMatrix& origin)
 	{
 /*
 DemoEntity* const xxxx0 = DemoEntity::LoadNGD_mesh("tred_1.ngd", scene->GetNewton());
@@ -696,25 +696,25 @@ xxxx1->ResetMatrix(*scene, matrix1);
 		DemoEntity* const localFrame = model->Find("rootLocalFrame");
 		dAssert(localFrame);
 		dMatrix localFrameMatrix(localFrame->CalculateGlobalMatrix());
-		dAnimationCharacterRig* const rig = CreateCharacterRig(rootBody, localFrameMatrix);
+		dAnimIDController* const rig = CreateCharacterRig(rootBody, localFrameMatrix);
 
 		int stackIndex = 0;
 		DemoEntity* childEntities[32];
-		dAnimationRigJoint* parentBones[32];
+		dAnimIDRigJoint* parentBones[32];
 		for (DemoEntity* child = model->GetChild(); child; child = child->GetSibling()) {
 			parentBones[stackIndex] = rig;
 			childEntities[stackIndex] = child;
 			stackIndex++;
 		}
 
-		dAnimationRigEffector* leftFeet = NULL;
-		dAnimationRigEffector* rightFeet = NULL;
+		dAnimIDRigEffector* leftFeet = NULL;
+		dAnimIDRigEffector* rightFeet = NULL;
 
 		const int partCount = sizeof(ragDollConfig) / sizeof(ragDollConfig[0]);
 		while (stackIndex) {
 			stackIndex--;
 			DemoEntity* const entity = childEntities[stackIndex];
-			dAnimationRigJoint* const parentJoint = parentBones[stackIndex];
+			dAnimIDRigJoint* const parentJoint = parentBones[stackIndex];
 
 			const char* const name = entity->GetName().GetStr();
 			for (int i = 0; i < partCount; i++) {
@@ -727,9 +727,9 @@ xxxx1->ResetMatrix(*scene, matrix1);
 						dMatrix matrix;
 						NewtonBodyGetMatrix(limbBody, &matrix[0][0]);
 
-						dAnimationRigLimb* limbJoint = NULL;
+						dAnimIDRigLimb* limbJoint = NULL;
 						if (strstr(name, "boneFD")) {
-							dAnimationRigForwardDynamicLimb* footJoint = NULL;
+							dAnimIDRigForwardDynamicLimb* footJoint = NULL;
 							if (strstr(name, "Ankle")) {
 								footJoint = new dAnimationAnkleJoint(matrix, parentJoint, limbBody, ragDollConfig[i]);
 							} else {
@@ -737,7 +737,7 @@ xxxx1->ResetMatrix(*scene, matrix1);
 							}
 							limbJoint = footJoint;
 						} else {
-							dAnimationRigHinge* const hinge = new dAnimationRigHinge(matrix, parentJoint, limbBody);
+							dAnimIDRigHinge* const hinge = new dAnimIDRigHinge(matrix, parentJoint, limbBody);
 							hinge->SetFriction(ragDollConfig[i].m_frictionScale * ragDollConfig[i].m_mass * DEMO_MUSCLE_STRENGTH);
 							hinge->SetLimits(ragDollConfig[i].m_minLimit * dDegreeToRad, ragDollConfig[i].m_maxLimit * dDegreeToRad);
 							limbJoint = hinge;
@@ -751,7 +751,7 @@ xxxx1->ResetMatrix(*scene, matrix1);
 					} else if (strstr(name, "effector")) {
 						// add an end effector (end effector can't have children)
 						dMatrix pivot(entity->CalculateGlobalMatrix());
-						dAnimationRigEffector* const effector = new dAnimationRigEffector(pivot, parentJoint->GetAsRigLimb(), rig);
+						dAnimIDRigEffector* const effector = new dAnimIDRigEffector(pivot, parentJoint->GetAsRigLimb(), rig);
 						effector->SetLinearSpeed(2.0f);
 						effector->SetMaxLinearFriction(ragDollConfig[i].m_frictionScale * ragDollConfig[i].m_mass * DEMO_MUSCLE_STRENGTH * 50.0f);
 
@@ -769,12 +769,12 @@ xxxx1->ResetMatrix(*scene, matrix1);
 
 		rig->Finalize();
 
-		dAnimationEffectorBlendPose* const fixPose = new dAnimationEffectorBlendPose(rig);
-		dAnimationEffectorBlendPose* const walkPose = new dWalkGenerator(rig, leftFeet, rightFeet);
-		dAnimationEffectorBlendTwoWay* const walkBlend = new dAnimationEffectorBlendTwoWay(rig, fixPose, walkPose);
+		dAnimIDBlendNodePose* const fixPose = new dAnimIDBlendNodePose(rig);
+		dAnimIDBlendNodePose* const walkPose = new dWalkGenerator(rig, leftFeet, rightFeet);
+		dAnimIDBlendNodeTwoWay* const walkBlend = new dAnimIDBlendNodeTwoWay(rig, fixPose, walkPose);
 		dAnimationBipeHipController* const posture = new dAnimationBipeHipController (rig, walkBlend);
 		dAnimationBalanceController* const balance = new dAnimationBalanceController (rig, posture);
-		dAnimationEffectorBlendRoot* const animTree = new dAnimationEffectorBlendRoot(rig, balance);
+		dAnimIDBlendNodeRoot* const animTree = new dAnimIDBlendNodeRoot(rig, balance);
 
 		dAnimationCharacterUserData* const renderCallback = new dAnimationCharacterUserData(rig, walkBlend, posture);
 		model->SetUserData(renderCallback);
@@ -785,7 +785,7 @@ xxxx1->ResetMatrix(*scene, matrix1);
 		return rig;
 	}
 
-	void OnUpdateTransform(const dAnimationRigJoint* const bone, const dMatrix& localMatrix) const
+	void OnUpdateTransform(const dAnimIDRigJoint* const bone, const dMatrix& localMatrix) const
 	{
 		DemoEntityManager* const scene = (DemoEntityManager*)NewtonWorldGetUserData(GetWorld());
 		NewtonBody* const newtonBody = bone->GetNewtonBody();
@@ -801,17 +801,17 @@ xxxx1->ResetMatrix(*scene, matrix1);
 			DemoEntity* const entiry = (DemoEntity*)NewtonBodyGetUserData(m_currentRig->GetNewtonBody());
 			dAnimationCharacterUserData* const controlData = (dAnimationCharacterUserData*)entiry->GetUserData();
 
-			dAnimationEffectorBlendTwoWay* const walkBlend = controlData->m_walk;
+			dAnimIDBlendNodeTwoWay* const walkBlend = controlData->m_walk;
 			walkBlend->SetParam (controlData->m_walkSpeed);
 
 			dAnimationBipeHipController* const posture = controlData->m_posture;
 			posture->m_position.m_y = 0.25f * controlData->m_hipHigh;
 		}
 
-		dAnimationCharacterRigManager::PreUpdate(timestep);
+		dAnimIDManager::PreUpdate(timestep);
 	}
 
-	dAnimationCharacterRig* m_currentRig;
+	dAnimIDController* m_currentRig;
 };
 
 void DynamicRagDoll(DemoEntityManager* const scene)

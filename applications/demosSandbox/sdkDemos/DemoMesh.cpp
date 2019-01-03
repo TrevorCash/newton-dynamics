@@ -12,6 +12,7 @@
 
 #include "toolbox_stdafx.h"
 #include "DemoMesh.h"
+#include "DemoEntity.h"
 #include "TargaToOpenGl.h"
 #include "DemoEntityManager.h"
 
@@ -149,8 +150,6 @@ void DemoSubMesh::AllocIndexData (int indexCount)
 	m_indexes = new unsigned [m_indexCount]; 
 }
 
-
-
 DemoMesh::DemoMesh(const char* const name)
 	:DemoMeshInterface()
 	,dList<DemoSubMesh>()
@@ -193,7 +192,7 @@ DemoMesh::DemoMesh(const dScene* const scene, dScene::dTreeNode* const meshNode)
 	matrix = (matrix.Inverse4x4()).Transpose();
 	matrix.TransformTriplex(m_normal, 3 * sizeof (dFloat), m_normal, 3 * sizeof (dFloat), m_vertexCount);
 
-	bool hasModifiers = false;
+//	bool hasModifiers = false;
 	dTree<dScene::dTreeNode*, dCRCTYPE> materialMap;
 	for (void* ptr = scene->GetFirstChildLink(meshNode); ptr; ptr = scene->GetNextChildLink (meshNode, ptr)) {
 		dScene::dTreeNode* const node = scene->GetNodeFromLink(ptr);
@@ -202,8 +201,8 @@ DemoMesh::DemoMesh(const dScene* const scene, dScene::dTreeNode* const meshNode)
 			dMaterialNodeInfo* const material = (dMaterialNodeInfo*)info;
 			dCRCTYPE id = material->GetId();
 			materialMap.Insert(node, id);
-		} else if (info->IsType(dGeometryNodeModifierInfo::GetRttiType())) {
-			hasModifiers = true;
+//		} else if (info->IsType(dGeometryNodeModifierInfo::GetRttiType())) {
+//			hasModifiers = true;
 		}
 	}
 
@@ -244,10 +243,10 @@ DemoMesh::DemoMesh(const dScene* const scene, dScene::dTreeNode* const meshNode)
 	}
 	NewtonMeshEndHandle (mesh, meshCookie); 
 
-	if (!hasModifiers) {
+//	if (!hasModifiers) {
 		// see if this mesh can be optimized
 		OptimizeForRender ();
-	}
+//	}
 }
 
 DemoMesh::DemoMesh(NewtonMesh* const mesh)
@@ -412,7 +411,6 @@ DemoMesh::DemoMesh(const char* const name, const NewtonCollision* const collisio
 	OptimizeForRender ();
 }
 
-
 DemoMesh::DemoMesh(const char* const name, dFloat* const elevation, int size, dFloat cellSize, dFloat texelsDensity, int tileSize)
 	:DemoMeshInterface()
 	,dList<DemoSubMesh>()
@@ -525,8 +523,6 @@ DemoMesh::DemoMesh(const char* const name, dFloat* const elevation, int size, dF
 	OptimizeForRender();
 }
 
-
-
 DemoMesh::~DemoMesh()
 {
 	if (m_vertex) {
@@ -536,7 +532,6 @@ DemoMesh::~DemoMesh()
 		ResetOptimization();
 	}
 }
-
 
 NewtonMesh* DemoMesh::CreateNewtonMesh(NewtonWorld* const world, const dMatrix& meshMatrix)
 {
@@ -907,16 +902,99 @@ void DemoBezierCurve::Render (DemoEntityManager* const scene)
 	}
 }
 
-DemoSkinMesh::DemoSkinMesh(DemoMesh* const mesh)
+DemoSkinMesh::DemoSkinMesh(dScene* const scene, DemoEntity* const owner, dScene::dTreeNode* const skinMeshNode, DemoEntity** const bones, int bonesCount)
 	:DemoMeshInterface()
-	,m_mesh(mesh)
+	,m_mesh((DemoMesh*)owner->GetMesh())
+	,m_root(owner)
+	,m_entity(owner)
 {
+	while (m_root->GetParent()) {
+		m_root = m_root->GetParent();
+	}
+	
 	m_mesh->AddRef();
+	m_vertex = new dFloat[3 * m_mesh->m_vertexCount];
+	m_normal = new dFloat[3 * m_mesh->m_vertexCount];
+
+	m_weights = new dVector [m_mesh->m_vertexCount];
+	m_weighIndex = new dWeightBoneIndex [m_mesh->m_vertexCount];
+
+	dMeshNodeInfo* const meshInfo = (dMeshNodeInfo*)scene->GetInfoFromNode(skinMeshNode);
+	dAssert (meshInfo->GetTypeId() == dMeshNodeInfo::GetRttiType());
+	NewtonMeshGetWeightBlendsChannel(meshInfo->GetMesh(), sizeof (dVector), &m_weights[0].m_x);
+	NewtonMeshGetWeightBoneIndexChannel(meshInfo->GetMesh(), sizeof (dWeightBoneIndex), &m_weighIndex->m_boneIndex[0]);
+
+	m_weightcount = 0;
+	for (int i = 0; i < m_mesh->m_vertexCount; i ++) {
+		dFloat w = 0.0f;
+		for (int j = 0; j < 4; j ++) {
+			w += m_weights[i][j];
+			if (m_weights[i][j] > 0.0f) {
+				m_weightcount = dMax (m_weightcount, j + 1);
+			}
+		}
+		dAssert (w > 0.999f);
+		dAssert (w <= 1.001f);
+	}
+
+	int stack = 1;
+	int entityCount = 0;
+	DemoEntity* pool[32];
+	dMatrix parentMatrix[32]; 
+	
+	dMatrix* const bindMatrix = dAlloca (dMatrix, 2048);
+	DemoEntity** const entityArray = dAlloca (DemoEntity*, 2048);
+	m_boneRemapIndex = new int [bonesCount];
+	memset (m_boneRemapIndex, -1, bonesCount * sizeof(int));
+	dTree<int, DemoEntity*> nodeMap;
+	for (int i = 0; i < bonesCount; i ++) {
+		nodeMap.Insert(i, bones[i]);
+	}
+
+	pool[0] = m_root;
+	parentMatrix[0] = dGetIdentityMatrix();
+	dMatrix shapeBindMatrix(m_entity->GetMeshMatrix() * m_entity->CalculateGlobalMatrix());
+	while (stack) {
+
+		stack --;
+		DemoEntity* const entity = pool[stack];
+		dMatrix boneMatrix (entity->GetCurrentMatrix() * parentMatrix[stack]);
+	
+		entityArray[entityCount] = entity;
+		bindMatrix[entityCount] = shapeBindMatrix * boneMatrix.Inverse();
+		
+		dTree<int, DemoEntity*>::dTreeNode* const mapNode = nodeMap.Find(entity);
+		if (mapNode) {
+			int index = mapNode->GetInfo();
+			dAssert (index < bonesCount);
+			if (m_boneRemapIndex[index] < 0) {
+				m_boneRemapIndex[index] = entityCount;
+			}
+			dAssert (m_boneRemapIndex[index] == entityCount);
+		}
+		
+		entityCount++;
+		for (DemoEntity* node = entity->GetChild(); node; node = node->GetSibling()) {
+			pool[stack] = node;
+			parentMatrix[stack] = boneMatrix;
+			stack ++;
+		}
+	}
+
+	m_nodeCount = entityCount;
+	m_bindingMatrixArray = new dMatrix [entityCount];
+	memcpy (m_bindingMatrixArray, bindMatrix, entityCount * sizeof (dMatrix));
 }
 
 DemoSkinMesh::~DemoSkinMesh()
 {
 	m_mesh->Release();
+	delete[] m_vertex;
+	delete[] m_normal; 
+	delete[] m_weights;
+	delete[] m_weighIndex;
+	delete[] m_boneRemapIndex;
+	delete[] m_bindingMatrixArray; 
 }
 
 void DemoSkinMesh::RenderTransparency () const
@@ -936,5 +1014,79 @@ NewtonMesh* DemoSkinMesh::CreateNewtonMesh(NewtonWorld* const world, const dMatr
 
 void DemoSkinMesh::Render (DemoEntityManager* const scene)
 {
-	m_mesh->Render(scene);
+	BuildSkin ();
+
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glEnableClientState(GL_NORMAL_ARRAY);
+	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+
+	glVertexPointer(3, GL_FLOAT, 0, m_vertex);
+	glNormalPointer(GL_FLOAT, 0, m_normal);
+	glTexCoordPointer(2, GL_FLOAT, 0, m_mesh->m_uv);
+
+	for (DemoMesh::dListNode* nodes = m_mesh->GetFirst(); nodes; nodes = nodes->GetNext()) {
+		DemoSubMesh& segment = nodes->GetInfo();
+		segment.Render();
+	}
+	glDisableClientState(GL_VERTEX_ARRAY);	// disable vertex arrays
+	glDisableClientState(GL_NORMAL_ARRAY);	// disable normal arrays
+	glDisableClientState(GL_TEXTURE_COORD_ARRAY);	// disable normal arrays
+}
+
+
+void DemoSkinMesh::BuildSkin ()
+{
+	int stack = 1;
+	DemoEntity* pool[32];
+	dMatrix parentMatrix[32];
+	pool[0] = m_root;
+	
+	int count = 0;
+	dMatrix shapeBindMatrix(m_entity->GetMeshMatrix() * m_entity->CalculateGlobalMatrix());
+	shapeBindMatrix = shapeBindMatrix.Inverse();
+
+	parentMatrix[0] = dGetIdentityMatrix();
+	dMatrix* const bindMatrix = dAlloca (dMatrix, m_nodeCount);
+	while (stack) {
+		stack--;
+		DemoEntity* const entity = pool[stack];
+		dMatrix boneMatrix(entity->GetCurrentMatrix() * parentMatrix[stack]);
+		bindMatrix[count] = m_bindingMatrixArray[count] * boneMatrix * shapeBindMatrix;
+		count ++;
+		dAssert (count <= m_nodeCount);
+		for (DemoEntity* node = entity->GetChild(); node; node = node->GetSibling()) {
+			pool[stack] = node;
+			parentMatrix[stack] = boneMatrix;
+			stack++;
+		}
+	}
+
+	const dFloat* const pointSource = m_mesh->m_vertex;
+	const dFloat* const normalSource = m_mesh->m_normal;
+	for (int i = 0 ; i < m_mesh->m_vertexCount; i ++) {
+		dVector point (pointSource[i * 3 + 0], pointSource[i * 3 + 1], pointSource[i * 3 + 2], dFloat (1.0f));
+		dVector normal (normalSource[i * 3 + 0], normalSource[i * 3 + 1], normalSource[i * 3 + 2], dFloat (0.0f));
+		dVector weightedPoint (0.0f);
+		dVector weightedNormal (0.0f);
+
+		const dVector& weight = m_weights[i];
+		const dWeightBoneIndex& boneIndex = m_weighIndex[i];
+		for(int j = 0; j < m_weightcount; j ++) {
+			int index = m_boneRemapIndex[boneIndex.m_boneIndex[j]];
+			dFloat blend = weight[j];
+			const dMatrix& matrix = bindMatrix[index];
+			weightedPoint += matrix.TransformVector(point).Scale (blend);
+			weightedNormal += matrix.RotateVector(normal).Scale (blend);
+		}
+ 		m_vertex[i * 3 + 0] = weightedPoint.m_x;
+		m_vertex[i * 3 + 1] = weightedPoint.m_y;
+		m_vertex[i * 3 + 2] = weightedPoint.m_z;
+
+		m_normal[i * 3 + 0] = weightedNormal.m_x;
+		m_normal[i * 3 + 1] = weightedNormal.m_y;
+		m_normal[i * 3 + 2] = weightedNormal.m_z;
+	}
+
+//	memcpy(m_vertex, m_mesh->m_vertex, 3 * m_mesh->m_vertexCount * sizeof (dFloat));
+//	memcpy(m_normal, m_mesh->m_normal, 3 * m_mesh->m_vertexCount * sizeof (dFloat));
 }

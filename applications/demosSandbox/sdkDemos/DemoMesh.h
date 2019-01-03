@@ -14,6 +14,7 @@
 #define _D_MESH_H_
 
 class DemoMesh;
+class DemoEntity;
 class DemoEntityManager;
 
 class DemoMeshInterface: public dClassInfo  
@@ -103,31 +104,15 @@ class DemoMesh: public DemoMeshInterface, public dList<DemoSubMesh>
 	unsigned m_optimizedTransparentDiplayList;		
 };
 
-class DemoBezierCurve: public DemoMeshInterface
-{
-	public:
-	DemoBezierCurve (const dBezierSpline& curve);
-	DemoBezierCurve(const dScene* const scene, dScene::dTreeNode* const meshNode);
-
-	int GetRenderResolution () const;
-	void SetRenderResolution (int breaks);
-
-	virtual void RenderTransparency () const;
-	virtual void Render (DemoEntityManager* const scene);
-	virtual void RenderNormals ();
-
-	virtual NewtonMesh* CreateNewtonMesh(NewtonWorld* const world, const dMatrix& meshMatrix);
-
-	dBezierSpline m_curve;
-	int m_renderResolution;
-
-	dAddRtti (DemoMeshInterface, DOMMY_API);
-};
-
 class DemoSkinMesh: public DemoMeshInterface
 {
 	public:
-	DemoSkinMesh(DemoMesh* const mesh);
+	struct dWeightBoneIndex
+	{
+		int m_boneIndex[4];
+	};
+
+	DemoSkinMesh(dScene* const scene, DemoEntity* const owner, dScene::dTreeNode* const skinMeshNode, DemoEntity** const bones, int bonesCount);
 	~DemoSkinMesh();
 
 	void Render (DemoEntityManager* const scene);
@@ -136,8 +121,42 @@ class DemoSkinMesh: public DemoMeshInterface
 	NewtonMesh* CreateNewtonMesh(NewtonWorld* const world, const dMatrix& meshMatrix);
 
 	protected: 
+	void BuildSkin ();
+
 	DemoMesh* m_mesh;
+	DemoEntity* m_root; 
+	DemoEntity* m_entity; 
+	dFloat* m_vertex;
+	dFloat* m_normal;
+	dVector* m_weights;
+	dMatrix* m_bindingMatrixArray;
+	dWeightBoneIndex* m_weighIndex;
+	int* m_boneRemapIndex; 
+	int m_weightcount;
+	int m_nodeCount; 
 };
+
+class DemoBezierCurve: public DemoMeshInterface
+{
+	public:
+	DemoBezierCurve(const dBezierSpline& curve);
+	DemoBezierCurve(const dScene* const scene, dScene::dTreeNode* const meshNode);
+
+	int GetRenderResolution() const;
+	void SetRenderResolution(int breaks);
+
+	virtual void RenderTransparency() const;
+	virtual void Render(DemoEntityManager* const scene);
+	virtual void RenderNormals();
+
+	virtual NewtonMesh* CreateNewtonMesh(NewtonWorld* const world, const dMatrix& meshMatrix);
+
+	dBezierSpline m_curve;
+	int m_renderResolution;
+
+	dAddRtti(DemoMeshInterface, DOMMY_API);
+};
+
 
 #endif 
 

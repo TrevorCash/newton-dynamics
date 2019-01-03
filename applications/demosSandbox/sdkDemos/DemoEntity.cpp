@@ -400,15 +400,12 @@ DemoEntity* DemoEntity::LoadNGD_mesh(const char* const fileName, NewtonWorld* co
 					DemoMeshInterface* const mesh = cacheNode->GetInfo();
 					entity->SetMesh(mesh, sceneInfo->GetGeometryTransform());
 
-					// save the modifiers
-					for (void* ptr = scene.GetFirstChildLink(node); ptr; ptr = scene.GetNextChildLink(node, ptr)) {
-						dScene::dTreeNode* const modifierNode = scene.GetNodeFromLink(ptr);
-						dNodeInfo* const modifierInfo = scene.GetInfoFromNode(modifierNode);
-						if (modifierInfo->IsType(dGeometryNodeModifierInfo::GetRttiType())) {
-							entityModifiers[modifiersCount] = entity;
-							nodeModifiers[modifiersCount] = modifierNode;
-							modifiersCount++;
-						}
+					// save mesh with skins for further proccesing.
+					dMeshNodeInfo* const meshInfo = (dMeshNodeInfo*)scene.GetInfoFromNode(node);
+					if (meshInfo->hasSkinWeights()) {
+						entityModifiers[modifiersCount] = entity;
+						nodeModifiers[modifiersCount] = node;
+						modifiersCount++;
 					}
 
 				} else if (nodeInfo->GetTypeId() == dLineNodeInfo::GetRttiType()) {
@@ -454,21 +451,12 @@ DemoEntity* DemoEntity::LoadNGD_mesh(const char* const fileName, NewtonWorld* co
 			}
 
 			for (int i = 0; i < modifiersCount; i++) {
-				dScene::dTreeNode* const skinNode = nodeModifiers[i];
-				dNodeInfo* const skinNodeInfo = scene.GetInfoFromNode(skinNode);
-				if (skinNodeInfo->GetTypeId() == dGeometryNodeSkinModifierInfo::GetRttiType()) {
-					dScene::dTreeNode* const meshNode = scene.FindParentByType(skinNode, dMeshNodeInfo::GetRttiType());
-					dAssert (meshNode);
-					dMeshNodeInfo* const meshInfo = (dMeshNodeInfo*)scene.GetInfoFromNode(meshNode);
-					const int* const indexMap = meshInfo->GetIndexToVertexMap();
-					DemoEntity* const skinEntity = entityModifiers[i];
-					DemoMesh* const mesh = (DemoMesh*)skinEntity->GetMesh();
-					dGeometryNodeSkinModifierInfo* const skinModifier = (dGeometryNodeSkinModifierInfo*)skinNodeInfo;
-
-					DemoSkinMesh* const skinMesh = new DemoSkinMesh(mesh);
-					skinEntity->SetMesh(skinMesh, skinEntity->GetMeshMatrix());
-					skinMesh->Release();
-				}
+				dScene::dTreeNode* const skinMeshNode = nodeModifiers[i];
+				dAssert (((dMeshNodeInfo*)scene.GetInfoFromNode(skinMeshNode))->GetTypeId() == dMeshNodeInfo::GetRttiType());
+				DemoEntity* const skinEntity = entityModifiers[i];
+				DemoSkinMesh* const skinMesh = new DemoSkinMesh(&scene, skinEntity, skinMeshNode, sortedBonesEntities, bonesCount);
+				skinEntity->SetMesh(skinMesh, skinEntity->GetMeshMatrix());
+				skinMesh->Release();
 			}
 		}
 	}
@@ -507,7 +495,8 @@ DemoEntity* DemoEntity::LoadOBJ_mesh (const char* const fileName, NewtonWorld* c
 		mesh.BeginBuild();
 
 		while (!feof(file)) {
-			fgets(line, sizeof(line) - 1, file);
+			char* ret = fgets(line, sizeof(line) - 1, file);
+			ret = 0;
 
 			int index = 0;
 			while (line[index] && (line[index] != '\r') && (line[index] != '\n')) {

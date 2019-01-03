@@ -183,22 +183,26 @@ typedef long long unsigned64;
 #include <dCollisionBoxNodeInfo.h>
 #include <dCollisionSphereNodeInfo.h>
 #include <dCollisionConvexHullNodeInfo.h>
-#include <dGeometryNodeSkinModifierInfo.h>
 
 #include <dStdAfxNewton.h>
 #include <dNewtonMesh.h>
 
 #include <dAnimationStdAfx.h>
-#include <dAnimationRigLimb.h>
-#include <dAnimationRigJoint.h>
-#include <dAnimationRigHinge.h>
-#include <dAnimationRigEffector.h>
-#include <dAnimationEffectorBlendNode.h>
-#include <dAnimationEffectorBlendPose.h>
-#include <dAnimationEffectorBlendRoot.h>
-#include <dAnimationEffectorBlendTwoWay.h>
-#include <dAnimationCharacterRigManager.h>
-#include <dAnimationRigForwardDynamicLimb.h>
+
+#include <dAnimIKManager.h>
+#include <dAnimIKBlendNodePose.h>
+#include <dAnimIKBlendNodeRoot.h>
+
+#include <dAnimIDManager.h>
+#include <dAnimIDRigLimb.h>
+#include <dAnimIDRigJoint.h>
+#include <dAnimIDRigHinge.h>
+#include <dAnimIDRigEffector.h>
+#include <dAnimIDBlendNode.h>
+#include <dAnimIDBlendNodePose.h>
+#include <dAnimIDBlendNodeRoot.h>
+#include <dAnimIDBlendNodeTwoWay.h>
+#include <dAnimIDRigForwardDynamicLimb.h>
 
 /*
 #ifdef _NEWTON_USE_DOUBLE
