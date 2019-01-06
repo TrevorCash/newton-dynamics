@@ -72,12 +72,12 @@
 //#define DEFAULT_SCENE	38			// super Car
 //#define DEFAULT_SCENE	39			// heavy vehicles
 //#define DEFAULT_SCENE	40			// basic player controller
-#define DEFAULT_SCENE	41			// animated player controller
+//#define DEFAULT_SCENE	41			// animated player controller
 //#define DEFAULT_SCENE	42			// advanced player controller
 //#define DEFAULT_SCENE	43			// cloth patch			
 //#define DEFAULT_SCENE	44			// soft bodies	
 //#define DEFAULT_SCENE	45			// joe's joint test
-//#define DEFAULT_SCENE	46			// Misho's Hinge Test
+#define DEFAULT_SCENE	46			// Misho's Hinge Test
 
 /// demos forward declaration 
 void Friction (DemoEntityManager* const scene);
@@ -343,11 +343,11 @@ DemoEntityManager::DemoEntityManager ()
 //	m_broadPhaseType = 1;
 	m_solverPasses = 4;
 	m_workerThreads = 1;
-//	m_solverSubSteps = 2;
+//	m_solverSubSteps = 3;
 //	m_showNormalForces = true;
 //	m_showCenterOfMass = false;
 //	m_showJointDebugInfo = true;
-	m_collisionDisplayMode = 2;
+//	m_collisionDisplayMode = 2;
 //	m_asynchronousPhysicsUpdate = true;
 	m_solveLargeIslandInParallel = true;
 

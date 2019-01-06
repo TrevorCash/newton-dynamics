@@ -124,6 +124,7 @@ typedef long long unsigned64;
 #include <dBezierSpline.h>
 
 #include <dCRC.h>
+#include <dMap.h>
 #include <dHeap.h>
 #include <dList.h>
 #include <dTree.h>
@@ -173,9 +174,11 @@ typedef long long unsigned64;
 #include <dScene.h>
 #include <dRootNodeInfo.h>
 #include <dBoneNodeInfo.h>
-#include <dSceneNodeInfo.h>
 #include <dMeshNodeInfo.h>
 #include <dLineNodeInfo.h>
+#include <dSceneNodeInfo.h>
+#include <dAnimationTake.h>
+#include <dAnimationTrack.h>
 #include <dTextureNodeInfo.h>
 #include <dMaterialNodeInfo.h>
 #include <dRigidbodyNodeInfo.h>
@@ -192,6 +195,7 @@ typedef long long unsigned64;
 #include <dAnimIKManager.h>
 #include <dAnimIKBlendNodePose.h>
 #include <dAnimIKBlendNodeRoot.h>
+#include <dAnimIKBlendNodeTake.h>
 
 #include <dAnimIDManager.h>
 #include <dAnimIDRigLimb.h>

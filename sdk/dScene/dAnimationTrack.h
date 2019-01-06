@@ -1,5 +1,5 @@
 /////////////////////////////////////////////////////////////////////////////
-// Name:        dSceneCacheInfo.h
+// Name:        dAnimationTrack.h
 // Purpose:     
 // Author:      Julio Jerez
 // Modified by: 
@@ -16,33 +16,43 @@
 // freely
 /////////////////////////////////////////////////////////////////////////////
 
-#ifndef _D_SCENE_CACHE_INFO_H_
-#define _D_SCENE_CACHE_INFO_H_
+#ifndef _D_ANIMATION_TRACK_H_
+#define _D_ANIMATION_TRACK_H_
 
 #include "dNodeInfo.h"
 
-class dSceneCacheInfo: public dNodeInfo
+class dAnimationTrack: public dNodeInfo
 {
 	public:
-	D_DEFINE_CLASS_NODE(dSceneCacheInfo,dNodeInfo,DSCENE_API)
+	class dCurveValue
+	{
+		public:
+		dFloat m_x;
+		dFloat m_y;
+		dFloat m_z;
+		dFloat m_time;
+	};
+	D_DEFINE_CLASS_NODE(dAnimationTrack,dNodeInfo,DSCENE_API)
 
-	dSceneCacheInfo();
-	dSceneCacheInfo(dScene* const world);
-	virtual ~dSceneCacheInfo(void);
+	dAnimationTrack();
+	dAnimationTrack(dScene* const world);
+	virtual ~dAnimationTrack(void);
 
-	virtual void SetID(dCRCTYPE id);
-	virtual dCRCTYPE GetID() const;
+	const dList<dCurveValue>& GetPositions() const;
+	const dList<dCurveValue>& GetRotations() const;
+
+	void AddPosition(dFloat time, dFloat x, dFloat y, dFloat z);
+	void AddRotation(dFloat time, dFloat x, dFloat y, dFloat z);
+	void OptimizeCurves();
 
 	protected:
+	void OptimizeCurve(dList<dCurveValue>& curve);
+	virtual void BakeTransform(const dMatrix& matrix);
 	virtual void Serialize (TiXmlElement* const rootNode) const; 
 	virtual bool Deserialize (const dScene* const scene, TiXmlElement* const rootNode);
 
-
-	dCRCTYPE m_internalCacheID;
+	dList<dCurveValue> m_position;
+	dList<dCurveValue> m_rotation;
 };
-
-
-
-
 
 #endif
