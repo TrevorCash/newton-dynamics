@@ -22,39 +22,41 @@ if(NEWTON_BUILD_SHARED_LIBS)
         add_definitions(-D_DCONTAINERS_DLL)
         add_definitions(-D_CUSTOM_JOINTS_BUILD_DLL)
     endif(MSVC)
-    add_library(${projectName} SHARED ${CPP_SOURCE})
+    add_library(${projectName} SHARED ${CPP_SOURCE} ${HEADERS})
 else(NEWTON_BUILD_SHARED_LIBS)
     if (MSVC)
         add_definitions(-D_NEWTON_STATIC_LIB)
         add_definitions(-D_CUSTOM_JOINTS_STATIC_LIB)
+
     endif(MSVC)
 
-    add_library(${projectName} STATIC ${CPP_SOURCE})
+    add_library(${projectName} STATIC ${CPP_SOURCE} ${HEADERS})
+    target_compile_definitions(${projectName} PUBLIC -D_CUSTOM_JOINTS_STATIC_LIB -D_NEWTON_STATIC_LIB)
 endif(NEWTON_BUILD_SHARED_LIBS)
 
 target_link_libraries (${projectName} newton dContainers dMath)
 
-if(UNIX)
+
     target_include_directories(
                         ${projectName} PUBLIC
                         # Headers used from source/build location:
                         "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>"
     )
-endif(UNIX)
+
 
 if (NEWTON_BUILD_PROFILER)
     target_link_libraries (${projectName} dTimeTracker)
 endif()
 
 if (MSVC)
-	set_target_properties(${projectName} PROPERTIES COMPILE_FLAGS "/YudCustomJointLibraryStdAfx.h")
-	set_source_files_properties(dCustomJointLibraryStdAfx.cpp PROPERTIES COMPILE_FLAGS "/YcdCustomJointLibraryStdAfx.h")
-	if (NEWTON_BUILD_SANDBOX_DEMOS)
-		add_custom_command(
-			TARGET ${projectName} POST_BUILD
-			COMMAND ${CMAKE_COMMAND}
-			ARGS -E copy $(TargetPath) ${PROJECT_BINARY_DIR}/applications/demosSandbox/${CMAKE_CFG_INTDIR}/$(TargetFileName))
-	endif ()
+    set_target_properties(${projectName} PROPERTIES COMPILE_FLAGS "/YudCustomJointLibraryStdAfx.h")
+    set_source_files_properties(dCustomJointLibraryStdAfx.cpp PROPERTIES COMPILE_FLAGS "/YcdCustomJointLibraryStdAfx.h")
+    if (NEWTON_BUILD_SANDBOX_DEMOS)
+        add_custom_command(
+            TARGET ${projectName} POST_BUILD
+            COMMAND ${CMAKE_COMMAND}
+            ARGS -E copy $(TargetPath) ${PROJECT_BINARY_DIR}/applications/demosSandbox/${CMAKE_CFG_INTDIR}/$(TargetFileName))
+    endif ()
 endif(MSVC)
 
 
