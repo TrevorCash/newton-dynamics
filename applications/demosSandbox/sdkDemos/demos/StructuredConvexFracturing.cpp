@@ -103,6 +103,9 @@ static void OnReconstructMainMeshCallBack (NewtonBody* const body, NewtonFractur
 	
 	dAssert (NewtonCollisionGetType(fracturedCompoundCollision) == SERIALIZE_ID_FRACTURED_COMPOUND);
 
+	DemoEntityManager* const scene = (DemoEntityManager*)NewtonWorldGetUserData(NewtonBodyGetWorld(body));
+	dAssert (scene);
+
 	visualMesh->RemoveAll();
 	for (void* segment = NewtonFracturedCompoundMeshPartGetFirstSegment(mainMesh); segment; segment = NewtonFracturedCompoundMeshPartGetNextSegment (segment)) {
 		DemoSubMesh* const subMesh = visualMesh->AddSubMesh();
@@ -111,6 +114,7 @@ static void OnReconstructMainMeshCallBack (NewtonBody* const body, NewtonFractur
 		int indexCount = NewtonFracturedCompoundMeshPartGetIndexCount (segment); 
 
 		subMesh->m_textureHandle = AddTextureRef ((GLuint)material);
+		subMesh->m_shader = scene->GetShaderCache().m_diffuseEffect;
 
 		subMesh->AllocIndexData (indexCount);
 		subMesh->m_indexCount = NewtonFracturedCompoundMeshPartGetIndexStream (fracturedCompoundCollision, mainMesh, segment, (int*)subMesh->m_indexes); 
@@ -118,7 +122,6 @@ static void OnReconstructMainMeshCallBack (NewtonBody* const body, NewtonFractur
 
 	visualMesh->OptimizeForRender();
 }
-
 
 static void AddMeshVertexwData (DemoMesh* const visualMesh, NewtonFracturedCompoundMeshPart* const fractureMesh, const NewtonCollision* const fracturedCompoundCollision)
 {
@@ -155,7 +158,7 @@ static void OnEmitFracturedChunk (NewtonBody* const chunkBody, NewtonFracturedCo
 	NewtonBodySetUserData (chunkBody, visualChunkEntity);
 
 	// create the mesh geometry and attach it to the entity
-	DemoMesh* const visualChunkMesh = new DemoMesh ("fracturedChuckMesh");
+	DemoMesh* const visualChunkMesh = new DemoMesh ("fracturedChuckMesh", scene->GetShaderCache());
 	visualChunkEntity->SetMesh (visualChunkMesh, dGetIdentityMatrix());
 	visualChunkMesh->Release();
 
@@ -187,7 +190,7 @@ static void OnEmitFracturedCompound (NewtonBody* const fracturedCompound)
 	NewtonBodySetUserData (fracturedCompound, visualChunkEntity);
 
 	// create the mesh geometry and attach it to the entity
-	DemoMesh* const visualChunkMesh = new DemoMesh ("fracturedChuckMesh");
+	DemoMesh* const visualChunkMesh = new DemoMesh ("fracturedChuckMesh", scene->GetShaderCache());
 	visualChunkEntity->SetMesh (visualChunkMesh, dGetIdentityMatrix());
 	visualChunkMesh->Release();
 
@@ -215,7 +218,7 @@ static void CreateVisualEntity (DemoEntityManager* const scene, NewtonBody* cons
 	NewtonBodySetUserData (body, visualEntity);
 
 	// create the mesh geometry and attach it to the entity
-	DemoMesh* const visualMesh = new DemoMesh ("fraturedMainMesh");
+	DemoMesh* const visualMesh = new DemoMesh ("fraturedMainMesh", scene->GetShaderCache());
 	visualEntity->SetMesh (visualMesh, dGetIdentityMatrix());
 	visualMesh->Release();
 

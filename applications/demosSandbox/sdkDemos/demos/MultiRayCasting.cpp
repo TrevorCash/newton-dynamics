@@ -53,8 +53,8 @@ class dRayCastRecord: public dCustomControllerBase
 		dFloat parameter = 1.1f;
 		NewtonWorld* const world = NewtonBodyGetWorld (m_target);
 		NewtonWorldRayCast(world, &m_p0[0], &matrix.m_posit[0], RayCast, &parameter, NULL, threadIndex);
-
-		dAssert (parameter <= 1.0f);
+		//dAssert (parameter <= 1.0f);
+		parameter = dMin (parameter, dFloat(1.0f));
 		m_p1 = m_p0 + (matrix.m_posit - m_p0).Scale (parameter);
 	}
 
@@ -68,7 +68,6 @@ class dRayCastRecord: public dCustomControllerBase
 	dVector m_p1;
 	NewtonBody* m_target;
 };
-
 
 
 class LineOfSightRayCastEntity: public DemoEntity

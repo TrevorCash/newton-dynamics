@@ -38,14 +38,14 @@ class StupidComplexOfConvexShapes: public DemoEntity
 		int materialID = NewtonMaterialGetDefaultGroupID(world);
 
 		// create a pool of predefined convex mesh
-		//		PrimitiveType selection[] = {_SPHERE_PRIMITIVE,	_BOX_PRIMITIVE,	_CAPSULE_PRIMITIVE, _CYLINDER_PRIMITIVE, _CONE_PRIMITIVE, _CHAMFER_CYLINDER_PRIMITIVE, _RANDOM_CONVEX_HULL_PRIMITIVE, _REGULAR_CONVEX_HULL_PRIMITIVE};
+		// PrimitiveType selection[] = {_SPHERE_PRIMITIVE,	_BOX_PRIMITIVE,	_CAPSULE_PRIMITIVE, _CYLINDER_PRIMITIVE, _CONE_PRIMITIVE, _CHAMFER_CYLINDER_PRIMITIVE, _RANDOM_CONVEX_HULL_PRIMITIVE, _REGULAR_CONVEX_HULL_PRIMITIVE};
 		PrimitiveType selection[] = {_SPHERE_PRIMITIVE};
 		for (int i = 0; i < int (sizeof (collisionArray) / sizeof (collisionArray[0])); i ++) {
 			int index = dRand() % (sizeof (selection) / sizeof (selection[0]));
 			dVector shapeSize (size + dGaussianRandom  (size / 2.0f), size + dGaussianRandom  (size / 2.0f), size + dGaussianRandom  (size / 2.0f), 0.0f);
 			shapeSize = dVector(size, size, size, 0.0f);
 			collisionArray[i] = CreateConvexCollision (world, dGetIdentityMatrix(), shapeSize, selection[index], materialID);
-			gemetries[i] = new DemoMesh("geometry", collisionArray[i], "wood_4.tga", "wood_4.tga", "wood_1.tga");
+			gemetries[i] = new DemoMesh("geometry", scene->GetShaderCache(), collisionArray[i], "wood_4.tga", "wood_4.tga", "wood_1.tga");
 		}
 
 		// make a large complex of plane by adding lost of these shapes at a random location and oriention;
@@ -127,7 +127,7 @@ class StupidComplexOfConvexShapes: public DemoEntity
 			NewtonDestroyCollision(collision);
 			NewtonCompoundCollisionEndAddRemove(m_castingShapeArray[i]);
 #endif
-			m_castingGeometries[i] = new DemoMesh("geometry", m_castingShapeArray[i], "smilli.tga", "smilli.tga", "smilli.tga");
+			m_castingGeometries[i] = new DemoMesh("geometry", scene->GetShaderCache(), m_castingShapeArray[i], "smilli.tga", "smilli.tga", "smilli.tga");
 		}
 
 		// make and entity for showing the result of the convex cast
@@ -321,7 +321,7 @@ static void AddSingleCompound(DemoEntityManager* const scene)
 	NewtonBodySetTransformCallback(compoundBody, DemoEntity::TransformCallback);
 	NewtonBodySetForceAndTorqueCallback(compoundBody, PhysicsApplyGravityForce);
 
-	DemoMesh* mesh = new DemoMesh("geometry", NewtonBodyGetCollision(compoundBody), "smilli.tga", "smilli.tga", "smilli.tga");
+	DemoMesh* mesh = new DemoMesh("geometry", scene->GetShaderCache(), NewtonBodyGetCollision(compoundBody), "smilli.tga", "smilli.tga", "smilli.tga");
 	DemoEntity* const entity = new DemoEntity(matrix, NULL);
 	entity->SetMesh(mesh, dGetIdentityMatrix());
 	mesh->Release();
@@ -342,7 +342,7 @@ static void AddStaticMesh(DemoEntityManager* const scene)
 	NewtonMesh* const ntMesh = NewtonMeshLoadOFF(world, fileName);
 
 	dMatrix matrix (dGetIdentityMatrix());
-	DemoMesh* mesh = new DemoMesh(ntMesh);
+	DemoMesh* mesh = new DemoMesh(ntMesh, scene->GetShaderCache());
 	DemoEntity* const entity = new DemoEntity(matrix, NULL);
 	entity->SetMesh(mesh, dGetIdentityMatrix());
 	mesh->Release();
@@ -364,7 +364,7 @@ static void AddUserDefineStaticMesh(DemoEntityManager* const scene)
 	NewtonBody* const body = NewtonCreateDynamicBody(scene->GetNewton(), planeCollision, &matrix[0][0]);
 
 	// create a visual mesh
-	DemoMesh* const mesh = CreateVisualPlaneMesh (planeEquation);
+	DemoMesh* const mesh = CreateVisualPlaneMesh (planeEquation, scene->GetShaderCache().m_diffuseEffect);
 	DemoEntity* const entity = new DemoEntity(matrix, NULL);
 
 	NewtonCollisionGetMatrix(planeCollision, &matrix[0][0]);

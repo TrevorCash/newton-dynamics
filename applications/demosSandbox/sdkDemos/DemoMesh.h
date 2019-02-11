@@ -15,7 +15,32 @@
 
 class DemoMesh;
 class DemoEntity;
+class ShaderPrograms;
 class DemoEntityManager;
+
+class DemoSubMesh
+{
+	public:
+	DemoSubMesh();
+	~DemoSubMesh();
+
+	void Render() const;
+	void AllocIndexData(int indexCount);
+	void OptimizeForRender(const DemoMesh* const mesh) const;
+
+	void SetOpacity(dFloat opacity);
+
+	dVector m_ambient;
+	dVector m_diffuse;
+	dVector m_specular;
+	dString  m_textureName;
+	dFloat m_opacity;
+	dFloat m_shiness;
+	int m_indexCount;
+	unsigned m_shader;
+	unsigned m_textureHandle;
+	unsigned *m_indexes;
+};
 
 class DemoMeshInterface: public dClassInfo  
 {
@@ -26,6 +51,8 @@ class DemoMeshInterface: public dClassInfo
 
 	bool GetVisible () const;
 	void SetVisible (bool visibilityFlag);
+
+	virtual DemoMeshInterface* Clone(DemoEntity* const owner) { dAssert(0); return NULL; }
 
 	virtual void RenderTransparency () const = 0;
 	virtual void Render (DemoEntityManager* const scene) = 0;
@@ -38,39 +65,17 @@ class DemoMeshInterface: public dClassInfo
 	bool m_isVisible;
 };
 
-class DemoSubMesh
-{
-	public:
-	DemoSubMesh ();
-	~DemoSubMesh ();
-
-	void Render() const;
-	void AllocIndexData (int indexCount);
-	void OptimizeForRender(const DemoMesh* const mesh) const;
-	
-	void SetOpacity(dFloat opacity);
-
-	int m_indexCount;
-	unsigned *m_indexes;
-	unsigned m_textureHandle;
-
-	dFloat m_shiness;
-	dVector m_ambient;
-	dVector m_diffuse;
-	dVector m_specular;
-	dFloat m_opacity;
-	dString  m_textureName;
-};
-
 class DemoMesh: public DemoMeshInterface, public dList<DemoSubMesh>
 {
 	public:
-	DemoMesh(const DemoMesh& mesh);
-	DemoMesh(const char* const name);
-	DemoMesh(NewtonMesh* const mesh);
-	DemoMesh(const dScene* const scene, dScene::dTreeNode* const meshNode);
-	DemoMesh(const char* const name, const NewtonCollision* const collision, const char* const texture0, const char* const texture1, const char* const texture2, dFloat opacity = 1.0f, const dMatrix& uvMatrix = dGetIdentityMatrix());
-	DemoMesh(const char* const name, dFloat* const elevation, int size, dFloat cellSize, dFloat texelsDensity, int tileSize);
+	DemoMesh(const DemoMesh& mesh, const ShaderPrograms& shaderCache);
+	DemoMesh(const char* const name, const ShaderPrograms& shaderCache);
+	DemoMesh(NewtonMesh* const mesh, const ShaderPrograms& shaderCache);
+	DemoMesh(const dScene* const scene, dScene::dTreeNode* const meshNode, const ShaderPrograms& shaderCache);
+	DemoMesh(const char* const name, const ShaderPrograms& shaderCache, const NewtonCollision* const collision, const char* const texture0, const char* const texture1, const char* const texture2, dFloat opacity = 1.0f, const dMatrix& uvMatrix = dGetIdentityMatrix());
+	DemoMesh(const char* const name, const ShaderPrograms& shaderCache, dFloat* const elevation, int size, dFloat cellSize, dFloat texelsDensity, int tileSize);
+
+	virtual DemoMeshInterface* Clone(DemoEntity* const owner) { AddRef(); return this;}
 
 	using dClassInfo::operator new;
 	using dClassInfo::operator delete;
@@ -112,7 +117,8 @@ class DemoSkinMesh: public DemoMeshInterface
 		int m_boneIndex[4];
 	};
 
-	DemoSkinMesh(dScene* const scene, DemoEntity* const owner, dScene::dTreeNode* const skinMeshNode, DemoEntity** const bones, int bonesCount);
+	DemoSkinMesh(const DemoSkinMesh& clone, DemoEntity* const owner);
+	DemoSkinMesh(dScene* const scene, DemoEntity* const owner, dScene::dTreeNode* const meshNode, const dTree<DemoEntity*, dScene::dTreeNode*>& boneMap, const ShaderPrograms& shaderCache);
 	~DemoSkinMesh();
 
 	void Render (DemoEntityManager* const scene);
@@ -121,19 +127,17 @@ class DemoSkinMesh: public DemoMeshInterface
 	NewtonMesh* CreateNewtonMesh(NewtonWorld* const world, const dMatrix& meshMatrix);
 
 	protected: 
-	void BuildSkin ();
+	virtual DemoMeshInterface* Clone(DemoEntity* const owner);
+	int CalculateMatrixPalette(dMatrix* const bindMatrix) const;
+	void ConvertToGlMatrix(int count, const dMatrix* const bindMatrix, GLfloat* const glMatrices) const;
+	dGeometryNodeSkinClusterInfo* FindSkinModifier(dScene* const scene, dScene::dTreeNode* const meshNode) const;
+	void OptimizeForRender(const DemoSubMesh& segment, const dVector* const pointWeights, const dWeightBoneIndex* const pointSkinBone) const;
 
 	DemoMesh* m_mesh;
-	DemoEntity* m_root; 
 	DemoEntity* m_entity; 
-	dFloat* m_vertex;
-	dFloat* m_normal;
-	dVector* m_weights;
 	dMatrix* m_bindingMatrixArray;
-	dWeightBoneIndex* m_weighIndex;
-	int* m_boneRemapIndex; 
-	int m_weightcount;
 	int m_nodeCount; 
+	int m_shader;
 };
 
 class DemoBezierCurve: public DemoMeshInterface

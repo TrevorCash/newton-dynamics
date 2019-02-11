@@ -65,6 +65,7 @@ typedef long long unsigned64;
 	#include <tchar.h>
 	#include <crtdbg.h>
 
+	#include <glatter.h>
 	#include <GL/glu.h>
 	#include <GL/gl.h>
 	#include <imgui.h>
@@ -77,6 +78,7 @@ typedef long long unsigned64;
 	#include <unistd.h>
 	#include <time.h>
 
+	#include <glatter.h>
 	#include <GL/glu.h>
 	#include <GL/gl.h>
 	#include <imgui.h>
@@ -129,6 +131,8 @@ typedef long long unsigned64;
 #include <dList.h>
 #include <dTree.h>
 #include <dRtti.h>
+#include <dArray.h>
+#include <dPointer.h>
 #include <dClassInfo.h>
 #include <dRefCounter.h>
 #include <dBaseHierarchy.h>
@@ -186,6 +190,7 @@ typedef long long unsigned64;
 #include <dCollisionBoxNodeInfo.h>
 #include <dCollisionSphereNodeInfo.h>
 #include <dCollisionConvexHullNodeInfo.h>
+#include <dGeometryNodeSkinClusterInfo.h>
 
 #include <dStdAfxNewton.h>
 #include <dNewtonMesh.h>
@@ -193,6 +198,7 @@ typedef long long unsigned64;
 #include <dAnimationStdAfx.h>
 
 #include <dAnimIKManager.h>
+#include <dAnimIK3dofJoint.h>
 #include <dAnimIKBlendNodePose.h>
 #include <dAnimIKBlendNodeRoot.h>
 #include <dAnimIKBlendNodeTake.h>

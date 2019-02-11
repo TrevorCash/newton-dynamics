@@ -18,12 +18,12 @@
 #include "OpenGlUtil.h"
 
 
-static NewtonBody* CreateBox (DemoEntityManager* const scene, const dVector& location, const dVector& size)
+static NewtonBody* CreateBox (DemoEntityManager* const scene, const dVector& location, const dVector& size, const char* const textName = "smilli.tga")
 {
     NewtonWorld* const world = scene->GetNewton();
     int materialID =  NewtonMaterialGetDefaultGroupID (world);
     NewtonCollision* const collision = CreateConvexCollision (world, dGetIdentityMatrix(), size, _BOX_PRIMITIVE, 0);
-   	DemoMesh* const geometry = new DemoMesh("primitive", collision, "smilli.tga", "smilli.tga", "smilli.tga");
+   	DemoMesh* const geometry = new DemoMesh("primitive", scene->GetShaderCache(), collision, textName, textName, textName);
 
     dFloat mass = 1.0f;
     dMatrix matrix (dGetIdentityMatrix());
@@ -42,7 +42,7 @@ static NewtonBody* CreateSphere(DemoEntityManager* const scene, const dVector& l
 	int materialID = NewtonMaterialGetDefaultGroupID(world);
 	dMatrix matrix(dGetIdentityMatrix());
 	NewtonCollision* const collision = CreateConvexCollision(world, &matrix[0][0], size, _SPHERE_PRIMITIVE, 0);
-	DemoMesh* const geometry = new DemoMesh("primitive", collision, "smilli.tga", "smilli.tga", "smilli.tga");
+	DemoMesh* const geometry = new DemoMesh("primitive", scene->GetShaderCache(), collision, "smilli.tga", "smilli.tga", "smilli.tga");
 
 	dFloat mass = 1.0f;
 	matrix.m_posit = location;
@@ -61,7 +61,7 @@ static NewtonBody* CreateCapule (DemoEntityManager* const scene, const dVector& 
 	int materialID =  NewtonMaterialGetDefaultGroupID (world);
 	dMatrix uprightAligment (dRollMatrix(90.0f * dDegreeToRad));
 	NewtonCollision* const collision = CreateConvexCollision (world, &uprightAligment[0][0], size, _CAPSULE_PRIMITIVE, 0);
-	DemoMesh* const geometry = new DemoMesh("primitive", collision, "smilli.tga", "smilli.tga", "smilli.tga");
+	DemoMesh* const geometry = new DemoMesh("primitive", scene->GetShaderCache(), collision, "smilli.tga", "smilli.tga", "smilli.tga");
 
 	dFloat mass = 1.0f;
 	dMatrix matrix (dGetIdentityMatrix());
@@ -80,7 +80,7 @@ static NewtonBody* CreateWheel (DemoEntityManager* const scene, const dVector& l
     int materialID =  NewtonMaterialGetDefaultGroupID (world);
     dVector size (radius, height, radius, 0.0f);
     NewtonCollision* const collision = CreateConvexCollision (world, dGetIdentityMatrix(), size, _CHAMFER_CYLINDER_PRIMITIVE, 0);
-    DemoMesh* const geometry = new DemoMesh("primitive", collision, "smilli.tga", "smilli.tga", "smilli.tga");
+    DemoMesh* const geometry = new DemoMesh("primitive", scene->GetShaderCache(), collision, "smilli.tga", "smilli.tga", "smilli.tga");
 
     dFloat mass = 1.0f;
     dMatrix matrix (dGetIdentityMatrix());
@@ -99,7 +99,7 @@ static NewtonBody* CreateCylinder (DemoEntityManager* const scene, const dVector
     int materialID =  NewtonMaterialGetDefaultGroupID (world);
     dVector size (radius, height, radius, 0.0f);
     NewtonCollision* const collision = CreateConvexCollision (world, dGetIdentityMatrix(), size, _CYLINDER_PRIMITIVE, 0);
-    DemoMesh* const geometry = new DemoMesh("primitive", collision, "smilli.tga", "smilli.tga", "smilli.tga");
+    DemoMesh* const geometry = new DemoMesh("primitive", scene->GetShaderCache(), collision, "smilli.tga", "smilli.tga", "smilli.tga");
 
     dFloat mass = 1.0f;
     dMatrix matrix (dGetIdentityMatrix());
@@ -396,15 +396,15 @@ class JoesRagdollJoint: public dCustomBallAndSocket
 		dQuaternion q0(matrix0);
 		dQuaternion q1(matrix1);
 		dQuaternion qt0 = m_target * q1;
-		dQuaternion qErr = ((q0.DotProduct(qt0) < 0.0f)	? dQuaternion(-q0.m_q0, q0.m_q1, q0.m_q2, q0.m_q3) : dQuaternion(q0.m_q0, -q0.m_q1, -q0.m_q2, -q0.m_q3)) * qt0;
+		dQuaternion qErr = ((q0.DotProduct(qt0) < 0.0f)	? dQuaternion(-q0.m_w, q0.m_x, q0.m_y, q0.m_z) : dQuaternion(q0.m_w, -q0.m_x, -q0.m_y, -q0.m_z)) * qt0;
 		qErr.Normalize();
 
-		dFloat errorAngle = 2.0f * dAcos(dMax(dFloat(-1.0f), dMin(dFloat(1.0f), qErr.m_q0)));
+		dFloat errorAngle = 2.0f * dAcos(dMax(dFloat(-1.0f), dMin(dFloat(1.0f), qErr.m_w)));
 		dVector errorAngVel(0, 0, 0);
 
 		dMatrix basis;
 		if (errorAngle > 1.0e-10f) {
-			dVector errorAxis(qErr.m_q1, qErr.m_q2, qErr.m_q3, 0.0f);
+			dVector errorAxis(qErr.m_x, qErr.m_y, qErr.m_z, 0.0f);
 			errorAxis = errorAxis.Scale(1.0f / dSqrt(errorAxis.DotProduct3(errorAxis)));
 			errorAngVel = errorAxis.Scale(errorAngle * invTimestep);
 
@@ -436,113 +436,6 @@ class JoesRagdollJoint: public dCustomBallAndSocket
 	}
 };
 
-/*
-void AddJoesPoweredRagDoll (DemoEntityManager* const scene, const dVector& origin, const dFloat animSpeed, const int numSegments)
-{
-    dFloat height = 1.0f;
-    dFloat width = 4.0f;
-
-    dVector size (width, height, width);
-    NewtonBody* parent = CreateBox (scene, origin + dVector (0.0f,  0.5f, 0.0f, 0.0f), size);
-	
-    for (int i=0; i < numSegments; i++)
-	{
-        dFloat height = 1.0f;
-        dFloat width = 0.5f;
-
-        dVector size (width, height, width);
-        NewtonBody* child = CreateBox (scene, origin + dVector (0.0f,  0.5f + height * dFloat(i+1), 0.0f, 0.0f), size);
-
-        dMatrix matrix0 = dGetIdentityMatrix(); matrix0.m_posit = dVector (0.0f, height*-0.5f, 0.0f, 1.0f);
-        dMatrix matrix1 = dGetIdentityMatrix(); matrix1.m_posit = dVector (0.0f, height*0.5f, 0.0f, 1.0f);
-        JoesRagdollJoint* joint = new JoesRagdollJoint (child, parent, matrix0, matrix1, scene->GetNewton());
-
-		if (animSpeed != 0.0f) {
-			joint->m_anim_speed = animSpeed, joint->m_anim_offset = dFloat(i) / dFloat(numSegments); // animated      
-	}
-
-        parent = child;
-	}
-}*/
-
-
-static void AddJoesPoweredRagDoll (DemoEntityManager* const scene, const dVector& origin, const dFloat animSpeed, const int numSegments,
-	const int numArms = 1,
-	const dFloat torsoHeight = 1.0f, 
-	const dFloat torsoWidth = 4.0f, 
-	const dFloat randomness = 0.0f, 
-	const dFloat armHeight = 1.0f, 
-	const dFloat armWidth = 0.5f,
-	const int pickMe = -1)
-{
-    dFloat height = torsoHeight;
-    dFloat width = torsoWidth;
-
-    dVector size (width, height, width);
-    NewtonBody* torso = CreateBox (scene, origin + dVector (0.0f,  0.5f, 0.0f, 0.0f), size);
-	dMatrix torsoMatrix; 
-	NewtonBodyGetMatrix (torso, (dFloat*) &torsoMatrix);
-
-	int bodyIndex = 0;
-	NewtonBody* pickBody = 0;
-	for (int j=0; j < numArms; j++)
-	{
-		dFloat angle = dFloat(j) / dFloat(numArms) * dPi*2.0f;
-		dMatrix armRotation = dPitchMatrix(angle);
-		dMatrix armTransform = armRotation * torsoMatrix;
-		
-		NewtonBody* parent = torso;
-		int numBodies = numSegments;
-		if (randomness > 0.0f) numBodies += int (dGaussianRandom (dFloat(numSegments)) + 0.5f);
-		for (int i=0; i < numBodies; i++)
-		{
-			dFloat height = armHeight;
-			dFloat width = armWidth;
-
-			dVector size (width, height, width);
-			dVector pos (0.0f,  height * dFloat(i + (numArms>1 ? 2 : 1)), 0.0f, 0.0f);
-			NewtonBody* child = CreateBox (scene, pos, size);
-			
-			dMatrix bodyMatrix; 
-			NewtonBodyGetMatrix (child, (dFloat*) &bodyMatrix);
-			bodyMatrix = bodyMatrix * armTransform;
-			NewtonBodySetMatrix (child, (dFloat*) &bodyMatrix);
-
-			dMatrix matrix0 = dGetIdentityMatrix(); matrix0.m_posit = dVector (0.0f, height*-0.5f, 0.0f, 1.0f);
-			dMatrix matrix1 = dGetIdentityMatrix(); matrix1.m_posit = dVector (0.0f, height*0.5f, 0.0f, 1.0f);
-			if (parent == torso) 
-			{
-				matrix1.m_posit.m_y += height;
-				matrix1 = matrix1 * armRotation;
-			}
-			if (randomness > 0.0f)
-			{
-				dMatrix rotation =  dPitchMatrix(dGaussianRandom  (dPi) * randomness);
-				rotation = rotation * dYawMatrix(dGaussianRandom  (dPi) * randomness);
-				rotation = rotation * dYawMatrix(dGaussianRandom  (dPi) * randomness);
-				matrix0 = matrix0 * rotation;
-			}
-			JoesRagdollJoint* joint = new JoesRagdollJoint (child, parent, matrix0, matrix1, scene->GetNewton());
-
-			if (animSpeed != 0.0f) {
-				joint->m_anim_speed = animSpeed, joint->m_anim_offset = dFloat(i) / dFloat(numBodies); // animated      
-			}
-
-			parent = child;
-			if (bodyIndex == pickMe) {
-				pickBody = child;
-			}
-			bodyIndex++;
-		}
-	}
-
-	if (pickBody)
-	{
-		dMatrix matrix;
-		NewtonBodyGetMatrix(pickBody, &matrix[0][0]);
-		new dCustomBallAndSocket(matrix, pickBody);
-	}
-}
 
 static void AddHinge (DemoEntityManager* const scene, const dVector& origin)
 {
@@ -575,6 +468,39 @@ static void AddHinge (DemoEntityManager* const scene, const dVector& origin)
 	}
 }
 
+
+static void AddHingeMotor(DemoEntityManager* const scene, const dVector& origin)
+{
+	NewtonBody* parent = CreateBox(scene, origin + dVector(-0.8f, 4.0f, 0.0f, 0.0f), dVector(0.2f, 0.2f, 0.2f));
+	NewtonBodySetMassMatrix(parent, 0.0f, 0.0f, 0.0f, 0.0f);
+
+	dMatrix matrix;
+	NewtonBodyGetMatrix(parent, &matrix[0][0]);
+	NewtonBody* child = NULL;
+	dVector size(0.25f, 0.25f, 1.5f, .0f);
+
+	matrix.m_posit.m_x += 0.22f;
+	matrix.m_posit.m_z += size.m_z / 2.0f - 0.1f;
+
+	dFloat rpm = 3.0f;
+	int count = 10;
+
+	for (int i = 0; i < count; i++) {
+		child = CreateBox(scene, matrix.m_posit, size, "wood_1.tga");
+
+		NewtonBodyGetMatrix(child, &matrix[0][0]);
+		dMatrix hingeMatrix(matrix);
+		hingeMatrix.m_posit.m_z -= (size.m_z / 2.0f - 0.1f);
+		dCustomHinge* const hinge = new dCustomHinge(hingeMatrix, child, parent);
+
+		hinge->EnableMotor(true, rpm + (i&1 ? -2.0f : 2.0f));
+		hinge->SetFriction(1.0e4f);
+
+		parent = child;
+		matrix.m_posit.m_x += size.m_x;
+		matrix.m_posit.m_z += size.m_z - 0.2f;
+	}
+}
 
 static void AddSlider (DemoEntityManager* const scene, const dVector& origin)
 {
@@ -1240,15 +1166,15 @@ struct JoesNewRagdollJoint: public dCustomJoint
 			dQuaternion q0(matrix0);
 			dQuaternion q1(matrix1);
 			dQuaternion qt0 = m_target * q1;
-			dQuaternion qErr = ((q0.DotProduct(qt0) < 0.0f) ? dQuaternion(-q0.m_q0, q0.m_q1, q0.m_q2, q0.m_q3) : dQuaternion(q0.m_q0, -q0.m_q1, -q0.m_q2, -q0.m_q3)) * qt0;
+			dQuaternion qErr = ((q0.DotProduct(qt0) < 0.0f) ? dQuaternion(-q0.m_w, q0.m_x, q0.m_y, q0.m_z) : dQuaternion(q0.m_w, -q0.m_x, -q0.m_y, -q0.m_z)) * qt0;
 			qErr.Normalize();
 
-			dFloat errorAngle = 2.0f * dFloat(dAcos(dMax(dFloat(-1.0f), dMin(dFloat(1.0f), qErr.m_q0))));
+			dFloat errorAngle = 2.0f * dFloat(dAcos(dMax(dFloat(-1.0f), dMin(dFloat(1.0f), qErr.m_w))));
 			dVector errorAngVel(0, 0, 0);
 
 			dMatrix basis;
 			if (errorAngle > 1.0e-10f) {
-				dVector errorAxis(qErr.m_q1, qErr.m_q2, qErr.m_q3, 0.0f);
+				dVector errorAxis(qErr.m_x, qErr.m_y, qErr.m_z, 0.0f);
 				errorAxis = errorAxis.Scale(1.0f / dSqrt(errorAxis.DotProduct3(errorAxis)));
 				errorAngVel = errorAxis.Scale(errorAngle * invTimestep);
 
@@ -1323,28 +1249,18 @@ void StandardJoints (DemoEntityManager* const scene)
     dVector location (0.0f);
     dVector size (1.5f, 2.0f, 2.0f, 0.0f);
 
-//	Add6DOF(scene, dVector(-20.0f, 0.0f, 32.0f));
-//	AddJoesPoweredRagDoll(scene, dVector(40.0f, 10.0f, -30.0f), 0.0f, 20);
-//	AddJoesPoweredRagDoll(scene, dVector(40.0f, 10.0f, -20.0f), 1.5f, 4);
-//	AddJoesPoweredRagDoll(scene, dVector(40.0f, 10.0f, -10.0f), 0.0f, 4);
-//	AddJoesPoweredRagDoll(scene, dVector(40.0f, 10.0f,   0.0f), 0.0f, 4, 4, 1.0f, 1.0f);
-//	AddJoesPoweredRagDoll(scene, dVector(40.0f, 10.0f,  10.0f), 0.0f, 7, 2, 0.4f, 0.4f, 1.3f);
-//	AddJoesPoweredRagDoll(scene, dVector(40.0f, 10.0f,  20.0f), 0.0f, 5, 3, 0.4f, 0.4f, 1.0f, 0.5f, 0.5f);
-//	AddJoesPoweredRagDoll(scene, dVector(40.0f, 10.0f,  30.0f), 0.0f, 3, 5, 1.0f, 1.0f, 1.3f, 0.5f, 0.5f, 4); // no picking problem here
-//	AddJoesLimitJoint (scene, dVector(-24.0f, 0.0f, -15.0f));
-
+//	joints still with problems
+//	Add6DOF (scene, dVector (-20.0f, 0.0f, -25.0f));
 //	AddDoubleHinge(scene, dVector(-20.0f, 0.0f, 30.0f));
 
-	AddBallAndSockectWithFriction (scene, dVector (-20.0f, 0.0f, -10.0f));
-	AddLimitedBallAndSocket (scene, dVector (-20.0f, 0.0f, -15.0f));
-
-#if 0
-	Add6DOF (scene, dVector (-20.0f, 0.0f, -25.0f));
+#if 1
+//	Add6DOF (scene, dVector (-20.0f, 0.0f, -25.0f));
 	AddDistance (scene, dVector (-20.0f, 0.0f, -20.0f));
 	AddLimitedBallAndSocket (scene, dVector (-20.0f, 0.0f, -15.0f));
 	AddBallAndSockectWithFriction (scene, dVector (-20.0f, 0.0f, -10.0f));
 	AddFixDistance(scene, dVector(-20.0f, 0.0f, -5.0f));
 	AddHinge (scene, dVector (-20.0f, 0.0f, 0.0f));
+	AddHingeMotor(scene, dVector(0.0f, 0.0f, -20.0f));
 	AddHingeSpringDamper (scene, dVector (dVector (-20.0f, 0.0f, 5.0f)));
 	AddSlider (scene, dVector (-20.0f, 0.0f, 7.0f));
 	AddSliderSpringDamper (scene, dVector (dVector (-20.0f, 0.0f, 9.0f)));
@@ -1354,15 +1270,13 @@ void StandardJoints (DemoEntityManager* const scene)
 	AddGear (scene, dVector (-20.0f, 0.0f, 22.0f));
 	AddPulley (scene, dVector (-20.0f, 0.0f, 25.0f));
 	AddGearAndRack (scene, dVector (-20.0f, 0.0f, 29.0f));
-
-//	AddPathFollow (scene, dVector (20.0f, 0.0f, 0.0f));
-
+	AddPathFollow (scene, dVector (20.0f, 0.0f, 0.0f));
 #endif
     // place camera into position
     dMatrix camMatrix (dGetIdentityMatrix());
     dQuaternion rot (camMatrix);
-	//dVector origin (-50.0f, 5.0f, 0.0f, 0.0f);
-	dVector origin (-30.0f, 5.0f, -10.0f, 0.0f);
+	dVector origin (-50.0f, 7.0f, 0.0f, 0.0f);
+	//dVector origin (-30.0f, 5.0f, -10.0f, 0.0f);
 	//dVector origin(-30.0f, 5.0f, 32.0f, 0.0f);
     scene->SetCameraMatrix(rot, origin);
 }

@@ -942,7 +942,7 @@ void AddPrimitiveArray (DemoEntityManager* const scene, dFloat mass, const dVect
 	// test collision mode
 	//NewtonCollisionSetCollisonMode(collision, 0);
 
-	DemoMesh* const geometry = new DemoMesh("primitive", collision, "smilli.tga", "smilli.tga", "smilli.tga");
+	DemoMesh* const geometry = new DemoMesh("primitive", scene->GetShaderCache(), collision, "smilli.tga", "smilli.tga", "smilli.tga");
 
 	dMatrix matrix (dGetIdentityMatrix());
 	for (int i = 0; i < xCount; i ++) {
@@ -982,7 +982,6 @@ void CalculateAABB (const NewtonCollision* const collision, const dMatrix& matri
 	}
 }
 
-
 void SetAutoSleepMode (NewtonWorld* const world, int mode)
 {
 	mode = mode ? 0 : 1;
@@ -990,7 +989,6 @@ void SetAutoSleepMode (NewtonWorld* const world, int mode)
 		NewtonBodySetAutoSleep (body, mode);
 	}
 }
-
 
 class CollsionTreeFaceMap
 {
@@ -1162,7 +1160,7 @@ NewtonBody* AddFloorBox(DemoEntityManager* const scene, const dVector& origin, c
 	// test collision mode
 	//NewtonCollisionSetCollisonMode(collision, 0);
 
-	DemoMesh* const geometry = new DemoMesh("primitive", collision, "wood_3.tga", "wood_3.tga", "wood_3.tga");
+	DemoMesh* const geometry = new DemoMesh("primitive", scene->GetShaderCache(), collision, "wood_3.tga", "wood_3.tga", "wood_3.tga");
 
 	dMatrix matrix(dGetIdentityMatrix());
 	matrix.m_posit = origin;
@@ -1282,7 +1280,7 @@ NewtonBody* MousePickBody (NewtonWorld* const nWorld, const dVector& origin, con
 
 void LoadLumberYardMesh(DemoEntityManager* const scene, const dVector& location, int shapeid)
 {
-	DemoEntity* const entity = DemoEntity::LoadNGD_mesh ("lumber.ngd", scene->GetNewton());
+	DemoEntity* const entity = DemoEntity::LoadNGD_mesh ("lumber.ngd", scene->GetNewton(), scene->GetShaderCache());
 
 	dTree<NewtonCollision*, DemoMesh*> filter;
 	NewtonWorld* const world = scene->GetNewton();

@@ -30,12 +30,12 @@ struct ARTICULATED_VEHICLE_DEFINITION
 {
 	enum SHAPES_ID
 	{
-		m___terrain		= 1<<0,
+		m___terrain			= 1<<0,
 		m___woodSlab		= 1<<1,
 		m___bodyPart		= 1<<2,
 		m___linkPart 		= 1<<3,
 		m___tirePart		= 1<<4,
-		m___tireInnerRing = 1<<5,
+		m___tireInnerRing	= 1<<5,
 	};
 
 	char m_boneName[32];
@@ -79,7 +79,7 @@ class ArticulatedEntityModel: public DemoEntity
 		,m_gripperRotator(NULL)
 	{
 		// load the vehicle model
-		LoadNGD_mesh (name, scene->GetNewton());
+		LoadNGD_mesh (name, scene->GetNewton(), scene->GetShaderCache());
 	}
 
 	ArticulatedEntityModel (const ArticulatedEntityModel& copy)
@@ -1152,7 +1152,7 @@ class ArticulatedVehicleManagerManager: public dCustomTransformManager
 		// make a clone of the mesh 
 		ArticulatedEntityModel* const vehicleModel = (ArticulatedEntityModel*)model->CreateClone();
 		scene->Append(vehicleModel);
-
+return NULL;
 		// plane the model at its location
 		dMatrix matrix (vehicleModel->GetCurrentMatrix());
 		matrix.m_posit = location.m_posit;
@@ -1256,7 +1256,7 @@ class AriculatedJointInputManager: public dCustomInputManager
 	void OnBeginUpdate (dFloat timestepInSecunds)
 	{
 		ArticulatedEntityModel::InputRecord inputs;
-		if (m_playersCount) {
+		if (m_playersCount && m_player[m_currentPlayer % m_playersCount]) {
 			dCustomTransformController* const player = m_player[m_currentPlayer % m_playersCount];
 			ArticulatedEntityModel* const vehicleModel = (ArticulatedEntityModel*) player->GetUserData();
 
@@ -1307,7 +1307,7 @@ class AriculatedJointInputManager: public dCustomInputManager
 
 	void UpdateCamera (dFloat timestepInSecunds)
 	{
-		if (m_playersCount) {
+		if (m_playersCount && m_player[m_currentPlayer % m_playersCount]) {
 			DemoCamera* const camera = m_scene->GetCamera();
 			ArticulatedEntityModel* const vehicleModel = (ArticulatedEntityModel*) m_player[m_currentPlayer % m_playersCount]->GetUserData();
 
@@ -1411,10 +1411,17 @@ void ArticulatedJoints (DemoEntityManager* const scene)
 	matrix.m_posit = FindFloor (world, origin, 100.0f);
 	matrix.m_posit.m_y += 1.5f;
 
-	ArticulatedEntityModel robotModel(scene, "robot.ngd");
+//	DemoEntity* xxxx = DemoEntity::LoadNGD_mesh ("excavator.ngd", scene->GetNewton(), scene->GetShaderCache());
+	DemoEntity* xxxx = DemoEntity::LoadNGD_mesh ("ragdoll.ngd", scene->GetNewton(), scene->GetShaderCache());
+	scene->Append(xxxx);
+/*
+	ArticulatedEntityModel* const vehicleModel = (ArticulatedEntityModel*)robotModel.CreateClone();
+	scene->Append(vehicleModel);
+
+	ArticulatedEntityModel robotModel(scene, "excavator.ngd");
 	dCustomTransformController* const robot = vehicleManager->CreateRobot (matrix, &robotModel, 0, NULL);
 	inputManager->AddPlayer (robot);
-/*
+
 	matrix.m_posit.m_z += 4.0f;
 
 	// add some object to play with

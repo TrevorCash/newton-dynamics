@@ -13,6 +13,8 @@
 #define __DEMO_ENTITY_H__
 
 #include "DemoEntityManager.h"
+
+class ShaderPrograms;
 class DemoMeshInterface;
 
 
@@ -32,8 +34,6 @@ class DemoEntity: public dHierarchy<DemoEntity>, virtual public dClassInfo
 		}
 		
 		virtual void OnRender (dFloat timestep) const = 0;
-		virtual void OnTransformCallback(DemoEntityManager& world) const = 0;
-		virtual void OnInterpolateMatrix (DemoEntityManager& world, dFloat param) const = 0;
 	};
 
 	DemoEntity(const DemoEntity& copyFrom);
@@ -51,8 +51,7 @@ class DemoEntity: public dHierarchy<DemoEntity>, virtual public dClassInfo
 	void SetUserData (UserData* const data);
 
 	dBaseHierarchy* CreateClone () const;
-	static DemoEntity* LoadNGD_mesh (const char* const fileName, NewtonWorld* const world);
-	static DemoEntity* LoadOBJ_mesh (const char* const fileName, NewtonWorld* const world, const dMatrix& convertMatrix = dGetIdentityMatrix());
+	static DemoEntity* LoadNGD_mesh (const char* const fileName, NewtonWorld* const world, const ShaderPrograms& shaderCache);
 
 	const dMatrix& GetRenderMatrix () const;
 	dMatrix CalculateGlobalMatrix (const DemoEntity* const root = NULL) const;
@@ -62,13 +61,14 @@ class DemoEntity: public dHierarchy<DemoEntity>, virtual public dClassInfo
 	virtual void SetMatrix(DemoEntityManager& world, const dQuaternion& rotation, const dVector& position);
 	virtual void SetNextMatrix (DemoEntityManager& world, const dQuaternion& rotation, const dVector& position);
 
-	void InterpolateMatrixUsafe(dFloat param);
+	void InterpolateMatrixUnsafe(dFloat param);
 	void SetMatrixUsafe(const dQuaternion& rotation, const dVector& position);
 
 	virtual void ResetMatrix(DemoEntityManager& world, const dMatrix& matrix);
 	virtual void InterpolateMatrix (DemoEntityManager& world, dFloat param);
 	dMatrix CalculateInterpolatedGlobalMatrix (const DemoEntity* const root = NULL) const;
 
+	void RenderBone() const;
 	virtual void Render(dFloat timeStep, DemoEntityManager* const scene) const;
 	virtual void SimulationPreListener(DemoEntityManager* const scene, DemoEntityManager::dListNode* const mynode, dFloat timeStep){};
 	virtual void SimulationPostListener(DemoEntityManager* const scene, DemoEntityManager::dListNode* const mynode, dFloat timeStep){};

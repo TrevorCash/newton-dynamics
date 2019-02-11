@@ -44,7 +44,7 @@ struct SERVO_VEHICLE_DEFINITION
 };
 
 
-static SERVO_VEHICLE_DEFINITION forkliftDefinition[] =
+static SERVO_VEHICLE_DEFINITION inverseKinematicsRidParts[] =
 {
 	{"body",		"convexHull",		   4096.0f, SERVO_VEHICLE_DEFINITION::m_bodyPart, "mainBody"},
 	{"fr_tire",		"tireShape",			 64.0f, SERVO_VEHICLE_DEFINITION::m_tirePart, "frontTire"},
@@ -98,14 +98,6 @@ class dLifterUserData: public DemoEntity::UserData
 	}
 
 	void OnRender(dFloat timestep) const
-	{
-	}
-
-	void OnInterpolateMatrix(DemoEntityManager& world, dFloat param) const
-	{
-	}
-
-	void OnTransformCallback(DemoEntityManager& world) const
 	{
 	}
 
@@ -163,6 +155,9 @@ class ServoInputManager: public dCustomInputManager
 
 	void OnBeginUpdate(dFloat timestepInSecunds)
 	{
+		if (!m_player[m_currentPlayer % m_playersCount]) {
+			return ;
+		}
 		dLifterUserData::InputRecord inputs;
 		DemoEntity* const entity = (DemoEntity*)m_player[m_currentPlayer % m_playersCount]->GetUserData();
 		dLifterUserData* const lifterData = (dLifterUserData*)(entity->GetUserData());
@@ -208,6 +203,10 @@ class ServoInputManager: public dCustomInputManager
 
 	void UpdateCamera(dFloat timestepInSecunds)
 	{
+		if (!m_player[m_currentPlayer % m_playersCount]) {
+			return;
+		}
+
 		DemoCamera* const camera = m_scene->GetCamera();
 		DemoEntity* const entity = (DemoEntity*)m_player[m_currentPlayer % m_playersCount]->GetUserData();
 
@@ -452,11 +451,13 @@ class ServoVehicleManagerManager: public dCustomTransformManager
 	{
 		//ServoEntityModel* const lifterData = (ServoEntityModel*)controller->GetUserData();
 		dLifterUserData* const lifterData = (dLifterUserData*) ((DemoEntity*)controller->GetUserData())->GetUserData();
+		if (!lifterData) {
+			return;
+		}
 
+		dFloat brakeTorque = 10000.0f;
 		if (lifterData->m_engineJoint) {
 			dFloat engineRPM = 0.0f;
-			dFloat brakeTorque = 2000.0f;
-
 			if (lifterData->m_inputs.m_throttleValue > 0) {
 				brakeTorque = 0.0f;
 				engineRPM = -lifterData->m_maxEngineSpeed;
@@ -467,11 +468,12 @@ class ServoVehicleManagerManager: public dCustomTransformManager
 
 			// apply DC engine torque
 			lifterData->m_engineMotor->SetSpeed(engineRPM);
+		}
 
-			// apply breaks
-			//for (int i = 0; i < lifterData->m_tractionTiresCount; i++) {
-			//	lifterData->m_tractionTiresJoints[i]->SetFriction(brakeTorque);
-			//}
+		//apply breaks
+		if (lifterData->m_frontTiresJoints[0] && lifterData->m_frontTiresJoints[1]) {
+			lifterData->m_frontTiresJoints[0]->SetAngularFriction(brakeTorque);
+			lifterData->m_frontTiresJoints[1]->SetAngularFriction(brakeTorque);
 		}
 
 		// update steering wheels
@@ -482,6 +484,8 @@ class ServoVehicleManagerManager: public dCustomTransformManager
 			} else if (lifterData->m_inputs.m_steerValue < 0) {
 				steeringAngle = -30.0f * dDegreeToRad;
 			}
+			lifterData->m_rearTireJoints[0]->SetAngularFriction(brakeTorque);
+			lifterData->m_rearTireJoints[1]->SetAngularFriction(brakeTorque);
 			lifterData->m_rearTireJoints[0]->SetTargetSteerAngle(steeringAngle);
 			lifterData->m_rearTireJoints[1]->SetTargetSteerAngle(steeringAngle);
 		}
@@ -797,7 +801,7 @@ class ServoVehicleManagerManager: public dCustomTransformManager
 		DemoEntityManager* const scene = (DemoEntityManager*)NewtonWorldGetUserData(world);
 
 		// make a clone of the mesh 
-		DemoEntity* const vehicleModel = DemoEntity::LoadNGD_mesh(filename, scene->GetNewton());
+		DemoEntity* const vehicleModel = DemoEntity::LoadNGD_mesh(filename, scene->GetNewton(), scene->GetShaderCache());
 		scene->Append(vehicleModel);
 
 		// plane the model at its location
@@ -827,6 +831,7 @@ class ServoVehicleManagerManager: public dCustomTransformManager
 
 		// add the root bone to the articulation manager
 		dCustomTransformController::dSkeletonBone* const chassisBone = controller->AddRoot(rootBody, dGetIdentityMatrix());
+
 
 		// add engine
 		dCustomTransformController::dSkeletonBone* const engineBone = CreateEngineNode(controller, chassisBone);
@@ -908,7 +913,7 @@ static void MakeHeavyLoad (DemoEntityManager* const scene, const dMatrix& locati
 	NewtonDestroyCollision(bar);
 	NewtonDestroyCollision(bell);
 
-	DemoMesh* const mesh = new DemoMesh ("weight", collision, "wood_1.tga", "wood_1.tga", "wood_1.tga");
+	DemoMesh* const mesh = new DemoMesh ("weight", scene->GetShaderCache(), collision, "wood_1.tga", "wood_1.tga", "wood_1.tga");
 	CreateSimpleSolid (scene, mesh, mass, matrix, collision, 0, false);
 
 	mesh->Release();
@@ -938,7 +943,7 @@ void ServoJoints (DemoEntityManager* const scene)
 	matrix.m_posit.m_y += 1.5f;
 	
 	// load a the mesh of the articulate vehicle
-	dCustomTransformController* const forklift = vehicleManager->CreateForklift(matrix, "forklift.ngd", sizeof(forkliftDefinition) / sizeof (forkliftDefinition[0]), forkliftDefinition);
+	dCustomTransformController* const forklift = vehicleManager->CreateForklift(matrix, "forklift.ngd", sizeof(inverseKinematicsRidParts) / sizeof (inverseKinematicsRidParts[0]), inverseKinematicsRidParts);
 	inputManager->AddPlayer(forklift);
 
 	// place heavy load to show reproduce black bird dream problems
@@ -948,7 +953,14 @@ void ServoJoints (DemoEntityManager* const scene)
 
 	// add some object to play with
 	LoadLumberYardMesh (scene, dVector(5.0f, 0.0f, 0.0f, 0.0f), SERVO_VEHICLE_DEFINITION::m_landPart);
-	LoadLumberYardMesh (scene, dVector(5.0f, 0.0f, 10.0f, 0.0f), SERVO_VEHICLE_DEFINITION::m_landPart);
+	LoadLumberYardMesh (scene, dVector(5.0f, 0.0f, 6.0f, 0.0f), SERVO_VEHICLE_DEFINITION::m_landPart);
+
+	LoadLumberYardMesh(scene, dVector(10.0f, 0.0f, -4.0f, 0.0f), SERVO_VEHICLE_DEFINITION::m_landPart);
+	LoadLumberYardMesh(scene, dVector(10.0f, 0.0f,  2.0f, 0.0f), SERVO_VEHICLE_DEFINITION::m_landPart);
+
+	LoadLumberYardMesh(scene, dVector(15.0f, 0.0f, 0.0f, 0.0f), SERVO_VEHICLE_DEFINITION::m_landPart);
+	LoadLumberYardMesh(scene, dVector(15.0f, 0.0f, 6.0f, 0.0f), SERVO_VEHICLE_DEFINITION::m_landPart);
+
 
 //	origin.m_x -= 5.0f;
 	origin.m_y += 2.0f;

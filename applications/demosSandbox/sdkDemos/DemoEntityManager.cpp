@@ -17,10 +17,12 @@
 #include "PhysicsUtils.h"
 #include "DebugDisplay.h"
 #include "TargaToOpenGl.h"
+#include "ShaderPrograms.h"
 #include "DemoEntityManager.h"
 #include "DemoCameraManager.h"
 #include "DemoEntityListener.h"
 #include "DemoCameraManager.h"
+
 #include "dHighResolutionTimer.h"
 
 #ifdef _MACOSX_VER
@@ -64,7 +66,7 @@
 //#define DEFAULT_SCENE	30			// articulated joints
 //#define DEFAULT_SCENE	31			// six axis manipulator
 //#define DEFAULT_SCENE	32			// hexapod Robot
-//#define DEFAULT_SCENE	33			// basic rag doll
+#define DEFAULT_SCENE	33			// basic rag doll
 //#define DEFAULT_SCENE	34			// dynamic rag doll
 //#define DEFAULT_SCENE	35			// basic Car
 //#define DEFAULT_SCENE	36			// single body vehicle
@@ -77,7 +79,7 @@
 //#define DEFAULT_SCENE	43			// cloth patch			
 //#define DEFAULT_SCENE	44			// soft bodies	
 //#define DEFAULT_SCENE	45			// joe's joint test
-#define DEFAULT_SCENE	46			// Misho's Hinge Test
+//#define DEFAULT_SCENE	46			// Misho's Hinge Test
 
 /// demos forward declaration 
 void Friction (DemoEntityManager* const scene);
@@ -343,10 +345,10 @@ DemoEntityManager::DemoEntityManager ()
 //	m_broadPhaseType = 1;
 	m_solverPasses = 4;
 	m_workerThreads = 1;
-//	m_solverSubSteps = 3;
+//	m_solverSubSteps = 2;
 //	m_showNormalForces = true;
 //	m_showCenterOfMass = false;
-//	m_showJointDebugInfo = true;
+	m_showJointDebugInfo = true;
 //	m_collisionDisplayMode = 2;
 //	m_asynchronousPhysicsUpdate = true;
 	m_solveLargeIslandInParallel = true;
@@ -360,6 +362,8 @@ DemoEntityManager::DemoEntityManager ()
 		}
 	}
 //m_currentPlugin = 0;
+
+	m_shadeCache.CreateAllEffects();
 
 /*
 	dFloat A[2][2];
@@ -614,8 +618,10 @@ void DemoEntityManager::LoadFont()
     io.Fonts->AddFontFromFileTTF(pathName, pixedSize);
     //io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf", 18.0f, NULL, io.Fonts->GetGlyphRangesJapanese());
 
-	// Load as RGBA 32-bits (75% of the memory is wasted, but default font is so small) because it is more likely to be compatible with user's existing shaders. 
-	// If your ImTextureId represent a higher-level concept than just a GL texture id, consider calling GetTexDataAsAlpha8() instead to save on GPU memory.
+	// Load as RGBA 32-bits (75% of the memory is wasted, but default font is so small) 
+	// because it is more likely to be compatible with user's existing shaders. 
+	// If your ImTextureId represent a higher-level concept than just a GL texture id, 
+	// consider calling GetTexDataAsAlpha8() instead to save on GPU memory.
 	unsigned char* pixels;
 	int width, height;
 	io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);   
@@ -985,7 +991,7 @@ void DemoEntityManager::CalculateFPS(dFloat timestep)
 void DemoEntityManager::CreateSkyBox()
 {
 	if (!m_sky) {
-		m_sky = new SkyBox();
+		m_sky = new SkyBox(m_shadeCache.m_solidColor);
 		Append(m_sky);
 	}
 }
@@ -1007,7 +1013,7 @@ void DemoEntityManager::LoadVisualScene(dScene* const scene, EntityDictionary& d
 	for (dScene::dTreeNode* node = scene->GetFirstNode (); node; node = scene->GetNextNode (node)) {
 		dNodeInfo* info = scene->GetInfoFromNode(node);
 		if (info->GetTypeId() == dMeshNodeInfo::GetRttiType()) {
-			DemoMeshInterface* const mesh = new DemoMesh(scene, node);
+			DemoMeshInterface* const mesh = new DemoMesh(scene, node, m_shadeCache);
 			meshDictionary.Insert(mesh, node);
 		}
 	}
@@ -1032,7 +1038,6 @@ void DemoEntityManager::LoadVisualScene(dScene* const scene, EntityDictionary& d
 		mesh->Release();
 	}
 }
-
 
 void DemoEntityManager::LoadScene (const char* const fileName)
 {
@@ -1144,7 +1149,7 @@ void DemoEntityManager::BodyDeserialization (NewtonBody* const body, void* const
 	dTree <DemoMeshInterface*, const void*>* const cache = (dTree <DemoMeshInterface*, const void*>*)bodyUserData;
 	dTree <DemoMeshInterface*, const void*>::dTreeNode* node = cache->Find(NewtonCollisionDataPointer (collision));
 	if (!node) {
-		DemoMeshInterface* mesh = new DemoMesh(bodyIndentification, collision, NULL, NULL, NULL);
+		DemoMeshInterface* mesh = new DemoMesh(bodyIndentification, scene->m_shadeCache, collision, NULL, NULL, NULL);
 		node = cache->Insert(mesh, NewtonCollisionDataPointer (collision));
 	} else {
 		node->GetInfo()->AddRef();
@@ -1375,23 +1380,24 @@ void DemoEntityManager::RenderScene()
 	glMaterialf(GL_FRONT, GL_SHININESS, 50.0);
 	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 
-	// one light from the Camera eye point
-	GLfloat lightDiffuse0[] = { 0.5f, 0.5f, 0.5f, 0.0 };
-	GLfloat lightAmbient0[] = { 0.0f, 0.0f, 0.0f, 0.0 };
-	dVector camPosition (m_cameraManager->GetCamera()->m_matrix.m_posit);
-	GLfloat lightPosition0[] = {GLfloat(camPosition.m_x), GLfloat(camPosition.m_y), GLfloat(camPosition.m_z)};
-
+	// set just one directional light
+	GLfloat lightDiffuse0[] = { 0.8f, 0.8f, 0.8f, 0.0f };
+	GLfloat lightAmbient0[] = { 0.2f, 0.2f, 0.2f, 0.0f };
+	GLfloat lightSpecular0[] = { 1.0f, 1.0f, 1.0f, 0.0f };
+	GLfloat lightPosition0[] = { 0.0f, 200.0f, 150.0f, 0.0f };
+	
 	glLightfv(GL_LIGHT0, GL_POSITION, lightPosition0);
 	glLightfv(GL_LIGHT0, GL_AMBIENT, lightAmbient0);
 	glLightfv(GL_LIGHT0, GL_DIFFUSE, lightDiffuse0);
-	glLightfv(GL_LIGHT0, GL_SPECULAR, lightDiffuse0);
+	glLightfv(GL_LIGHT0, GL_SPECULAR, lightSpecular0);
 	glEnable(GL_LIGHT0);
 
-	// set just one directional light
-	GLfloat lightDiffuse1[] = { 0.7f, 0.7f, 0.7f, 0.0 };
-	GLfloat lightAmbient1[] = { 0.2f, 0.2f, 0.2f, 0.0 };
-	GLfloat lightSpecular1[] = { 0.1f, 0.1f, 0.1f, 0.0 };
-	GLfloat lightPosition1[] = { -500.0f, 200.0f, 500.0f, 0.0 };
+	// one light from the Camera eye point
+	dVector camPosition (m_cameraManager->GetCamera()->m_matrix.m_posit);
+	GLfloat lightDiffuse1[] = { 0.5f, 0.5f, 0.5f, 0.0f };
+	GLfloat lightAmbient1[] = { 0.0f, 0.0f, 0.0f, 0.0f };
+	GLfloat lightSpecular1[] = { 0.0f, 0.0f, 0.0f, 0.0f };
+	GLfloat lightPosition1[] = {0.0f, 0.0f, 0.0f, 1.0f};
 
 	glLightfv(GL_LIGHT1, GL_POSITION, lightPosition1);
 	glLightfv(GL_LIGHT1, GL_AMBIENT, lightAmbient1);
@@ -1399,9 +1405,7 @@ void DemoEntityManager::RenderScene()
 	glLightfv(GL_LIGHT1, GL_SPECULAR, lightSpecular1);
 	glEnable(GL_LIGHT1);
 
-	//glEnable(GL_BLEND);
-	//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	//glUseProgram(0); // You may want this if using this code in an OpenGL 3+ context
+
 
 	// Setup matrix
 	glMatrixMode(GL_PROJECTION);
@@ -1456,8 +1460,8 @@ void DemoEntityManager::RenderScene()
 
 	if (m_showJointDebugInfo) {
 		dJointDebugDisplay jointDebugRender (m_cameraManager->GetCamera()->GetCurrentMatrix());
-		//jointDebugRender.SetScale(0.25f);
-		jointDebugRender.SetScale(0.01f);
+		jointDebugRender.SetScale(0.25f);
+		//jointDebugRender.SetScale(0.01f);
 
 		RenderJointsDebugInfo(m_world, &jointDebugRender);
 	}

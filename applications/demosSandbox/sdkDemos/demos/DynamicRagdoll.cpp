@@ -534,14 +534,6 @@ class BalancingDummyManager : public dAnimIDManager
 		{
 		}
 
-		void OnInterpolateMatrix(DemoEntityManager& world, dFloat param) const
-		{
-		}
-
-		void OnTransformCallback(DemoEntityManager& world) const
-		{
-		}
-
 		dAnimIDController* m_rig;
 		dAnimIDBlendNodeTwoWay* m_walk;
 		dAnimationBipeHipController* m_posture;
@@ -679,7 +671,7 @@ matrix1.m_posit.m_z -= 2.0f;
 xxxx1->ResetMatrix(*scene, matrix1);
 */
 
-		DemoEntity* const model = DemoEntity::LoadNGD_mesh("tred_2.ngd", scene->GetNewton());
+		DemoEntity* const model = DemoEntity::LoadNGD_mesh("tred_2.ngd", scene->GetNewton(), scene->GetShaderCache());
 		scene->Append(model);
 
 		dMatrix modelMatrix(model->GetCurrentMatrix());

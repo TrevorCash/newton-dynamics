@@ -94,13 +94,11 @@ DemoEntity::DemoEntity(const DemoEntity& copyFrom)
 	,m_curRotation(copyFrom.m_curRotation)
 	,m_nextRotation(copyFrom.m_nextRotation)
 	,m_meshMatrix(copyFrom.m_meshMatrix)
-	,m_mesh(copyFrom.m_mesh)
+	,m_mesh(NULL)
 	,m_userData(NULL)
 	,m_lock(0)
 {
-	if (m_mesh) {
-		m_mesh->AddRef();
-	}
+	m_mesh = copyFrom.m_mesh ? copyFrom.m_mesh->Clone(this) : NULL;
 }
 
 DemoEntity::~DemoEntity(void)
@@ -116,7 +114,6 @@ dBaseHierarchy* DemoEntity::CreateClone () const
 {
 	return new DemoEntity(*this);
 }
-
 
 DemoEntity::UserData* DemoEntity::GetUserData ()
 {
@@ -136,13 +133,10 @@ void DemoEntity::TransformCallback(const NewtonBody* body, const dFloat* matrix,
 		dMatrix transform(matrix);
 		//dQuaternion rot1(transform);
 		dQuaternion rot;
-		NewtonBodyGetRotation(body, &rot.m_q0);
+		NewtonBodyGetRotation(body, &rot.m_x);
 
 		scene->Lock(ent->m_lock);
 		ent->SetMatrixUsafe(rot, transform.m_posit);
-		if (ent->m_userData) {
-			ent->m_userData->OnTransformCallback(*scene);
-		}
 		scene->Unlock(ent->m_lock);
 	}
 }
@@ -244,7 +238,6 @@ void DemoEntity::SetNextMatrix (DemoEntityManager& world, const dQuaternion& rot
 	world.Unlock(m_lock);
 }
 
-
 void DemoEntity::ResetMatrix(DemoEntityManager& scene, const dMatrix& matrix)
 {
 	dQuaternion rot (matrix);
@@ -253,7 +246,7 @@ void DemoEntity::ResetMatrix(DemoEntityManager& scene, const dMatrix& matrix)
 	InterpolateMatrix (scene, 0.0f);
 }
 
-void DemoEntity::InterpolateMatrixUsafe(dFloat param)
+void DemoEntity::InterpolateMatrixUnsafe(dFloat param)
 {
 	dVector p0(m_curPosition);
 	dVector p1(m_nextPosition);
@@ -262,31 +255,44 @@ void DemoEntity::InterpolateMatrixUsafe(dFloat param)
 
 	dVector posit(p0 + (p1 - p0).Scale(param));
 	dQuaternion rotation(r0.Slerp(r1, param));
-
 	m_matrix = dMatrix(rotation, posit);
-}
 
+	for (DemoEntity* child = GetChild(); child; child = child->GetSibling()) {
+		child->InterpolateMatrixUnsafe(param);
+	}
+}
 
 void DemoEntity::InterpolateMatrix (DemoEntityManager& world, dFloat param)
 {
 	// read the data in a critical section to prevent race condition from other thread  
 	world.Lock(m_lock);
-
-	InterpolateMatrixUsafe(param);
-	if (m_userData) {
-		m_userData->OnInterpolateMatrix(world, param);
-	}
-
-	// release the critical section
+	InterpolateMatrixUnsafe(param);
 	world.Unlock(m_lock);
 }
-
 
 const dMatrix& DemoEntity::GetRenderMatrix () const
 {
 	return m_matrix;
 }
 
+void DemoEntity::RenderBone() const
+{
+	if (GetParent()) {
+		glDisable(GL_LIGHTING);
+		glDisable(GL_TEXTURE_2D);
+
+		glColor3f(0.5f, 0.5f, 0.5f);
+		glBegin(GL_LINES);
+		for (DemoEntity* child = GetChild(); child; child = child->GetSibling()) {
+			const dVector& posit = child->m_matrix.m_posit;
+			glVertex3f(GLfloat(0.0f), GLfloat(0.0f), GLfloat(0.0f));
+			glVertex3f(GLfloat(posit.m_x), GLfloat(posit.m_y), GLfloat(posit.m_z));
+		}
+
+		glEnd();
+		glEnable(GL_LIGHTING);
+	}
+}
 
 void DemoEntity::Render(dFloat timestep, DemoEntityManager* const scene) const
 {
@@ -301,13 +307,14 @@ void DemoEntity::Render(dFloat timestep, DemoEntityManager* const scene) const
 		glPushMatrix();
 		glMultMatrix(&m_meshMatrix[0][0]);
 		m_mesh->Render (scene);
-//		m_mesh->RenderNormals ();
-
+		//m_mesh->RenderNormals ();
 		if (m_userData) {
 			m_userData->OnRender(timestep);
 		}
 		glPopMatrix();
 	}
+
+	RenderBone();
 
 	for (DemoEntity* child = GetChild(); child; child = child->GetSibling()) {
 		child->Render(timestep, scene);
@@ -318,7 +325,7 @@ void DemoEntity::Render(dFloat timestep, DemoEntityManager* const scene) const
 	
 }
 
-DemoEntity* DemoEntity::LoadNGD_mesh(const char* const fileName, NewtonWorld* const world)
+DemoEntity* DemoEntity::LoadNGD_mesh(const char* const fileName, NewtonWorld* const world, const ShaderPrograms& shaderCache)
 {
 	dScene scene(world);
 
@@ -344,20 +351,17 @@ DemoEntity* DemoEntity::LoadNGD_mesh(const char* const fileName, NewtonWorld* co
 		}
 	}
 
+	dTree<DemoEntity*, dScene::dTreeNode*> boneMap;
 	DemoEntity* returnEntity = NULL;
 	DemoEntity* entity[256];
 	entity[0] = NULL;
 	if (rootCount) {
 		int stack = 0;
-		int bonesCount = 0;
 		int modifiersCount = 0;
 		DemoEntity* entityStack[256];
 		dScene::dTreeNode* nodeStack[256];
 		DemoEntity* entityModifiers[256];
 		dScene::dTreeNode* nodeModifiers[256];
-		dBoneNodeInfo* bones[256];
-		DemoEntity* bonesEntities[256];
-		//int bonesIndex[256];
 
 		DemoEntity* parent = NULL;
 		if (rootCount > 1) {
@@ -377,6 +381,8 @@ DemoEntity* DemoEntity::LoadNGD_mesh(const char* const fileName, NewtonWorld* co
 			DemoEntity* const entity = entityStack[stack];
 			dScene::dTreeNode* sceneNode = nodeStack[stack];
 
+			boneMap.Insert(entity, sceneNode);
+
 			dSceneNodeInfo* const sceneInfo = (dSceneNodeInfo*)scene.GetInfoFromNode(sceneNode);
 			dMatrix matrix(sceneInfo->GetTransform());
 			dQuaternion rot(matrix);
@@ -388,39 +394,37 @@ DemoEntity* DemoEntity::LoadNGD_mesh(const char* const fileName, NewtonWorld* co
 			entity->SetNameID(sceneInfo->GetName());
 
 			for (void* child = scene.GetFirstChildLink(sceneNode); child; child = scene.GetNextChildLink(sceneNode, child)) {
-				dScene::dTreeNode* const node = scene.GetNodeFromLink(child);
-				dNodeInfo* const nodeInfo = scene.GetInfoFromNode(node);
+				dScene::dTreeNode* const meshNode = scene.GetNodeFromLink(child);
+				dNodeInfo* const nodeInfo = scene.GetInfoFromNode(meshNode);
 
 				if (nodeInfo->GetTypeId() == dMeshNodeInfo::GetRttiType()) {
-					dTree<DemoMeshInterface*, dScene::dTreeNode*>::dTreeNode* cacheNode = meshDictionary.Find(node);
+					dTree<DemoMeshInterface*, dScene::dTreeNode*>::dTreeNode* cacheNode = meshDictionary.Find(meshNode);
 					if (!cacheNode) {
-						DemoMeshInterface* const mesh = new DemoMesh(&scene, node);
-						cacheNode = meshDictionary.Insert(mesh, node);
+						DemoMeshInterface* const mesh = new DemoMesh(&scene, meshNode, shaderCache);
+						cacheNode = meshDictionary.Insert(mesh, meshNode);
 					}
 					DemoMeshInterface* const mesh = cacheNode->GetInfo();
 					entity->SetMesh(mesh, sceneInfo->GetGeometryTransform());
 
-					// save mesh with skins for further proccesing.
-					dMeshNodeInfo* const meshInfo = (dMeshNodeInfo*)scene.GetInfoFromNode(node);
-					if (meshInfo->hasSkinWeights()) {
-						entityModifiers[modifiersCount] = entity;
-						nodeModifiers[modifiersCount] = node;
-						modifiersCount++;
+					for (void* modifierChild = scene.GetFirstChildLink(meshNode); modifierChild; modifierChild = scene.GetNextChildLink(sceneNode, modifierChild)) {
+						dScene::dTreeNode* const modifierNode = scene.GetNodeFromLink(modifierChild);
+						dGeometryNodeSkinClusterInfo* const modifierInfo = (dGeometryNodeSkinClusterInfo*)scene.GetInfoFromNode(modifierNode);
+						if (modifierInfo->GetTypeId() == dGeometryNodeSkinClusterInfo::GetRttiType()) {
+							entityModifiers[modifiersCount] = entity;
+							nodeModifiers[modifiersCount] = meshNode;
+							modifiersCount++;
+							break;
+						}
 					}
 
 				} else if (nodeInfo->GetTypeId() == dLineNodeInfo::GetRttiType()) {
-					dTree<DemoMeshInterface*, dScene::dTreeNode*>::dTreeNode* cacheNode = meshDictionary.Find(node);
+					dTree<DemoMeshInterface*, dScene::dTreeNode*>::dTreeNode* cacheNode = meshDictionary.Find(meshNode);
 					if (!cacheNode) {
-						DemoMeshInterface* const mesh = new DemoBezierCurve(&scene, node);
-						cacheNode = meshDictionary.Insert(mesh, node);
+						DemoMeshInterface* const mesh = new DemoBezierCurve(&scene, meshNode);
+						cacheNode = meshDictionary.Insert(mesh, meshNode);
 					}
 					DemoMeshInterface* const mesh = cacheNode->GetInfo();
 					entity->SetMesh(mesh, sceneInfo->GetGeometryTransform());
-				} else if (nodeInfo->GetTypeId() == dBoneNodeInfo::GetRttiType()) {
-					dBoneNodeInfo* const bone = (dBoneNodeInfo*)nodeInfo;
-					bones[bonesCount] = bone;
-					bonesEntities[bonesCount] = entity;
-					bonesCount++;
 				}
 			}
 
@@ -444,17 +448,11 @@ DemoEntity* DemoEntity::LoadNGD_mesh(const char* const fileName, NewtonWorld* co
 
 		returnEntity = entity[0] ? (entity[0]->GetParent() ? entity[0]->GetParent() : entity[0]) : NULL;
 		if (modifiersCount) {
-			DemoEntity* sortedBonesEntities[256];
-			for (int i = 0; i < bonesCount; i ++) {
-				dBoneNodeInfo* const bone = bones[i];
-				sortedBonesEntities[bone->GetId()] = bonesEntities[i];
-			}
-
 			for (int i = 0; i < modifiersCount; i++) {
 				dScene::dTreeNode* const skinMeshNode = nodeModifiers[i];
 				dAssert (((dMeshNodeInfo*)scene.GetInfoFromNode(skinMeshNode))->GetTypeId() == dMeshNodeInfo::GetRttiType());
 				DemoEntity* const skinEntity = entityModifiers[i];
-				DemoSkinMesh* const skinMesh = new DemoSkinMesh(&scene, skinEntity, skinMeshNode, sortedBonesEntities, bonesCount);
+				DemoSkinMesh* const skinMesh = new DemoSkinMesh(&scene, skinEntity, skinMeshNode, boneMap, shaderCache);
 				skinEntity->SetMesh(skinMesh, skinEntity->GetMeshMatrix());
 				skinMesh->Release();
 			}
@@ -462,150 +460,4 @@ DemoEntity* DemoEntity::LoadNGD_mesh(const char* const fileName, NewtonWorld* co
 	}
 
 	return returnEntity;
-}
-
-DemoEntity* DemoEntity::LoadOBJ_mesh (const char* const fileName, NewtonWorld* const world, const dMatrix& convertMatrix)
-{
-	char pathName[2048];
-	dGetWorkingFileName(fileName, pathName);
-
-	FILE* const file = fopen(pathName, "rb");
-//	materialLibraryOut[0] = 0;
-
-	if (file) {
-		int uvCount = 0;
-
-		int vertexCount = 0;
-		int normalCount = 0;
-		int uvMaxCount = 4096;
-		int vertexMaxCount = 4096;
-		int normalMaxCount = 4096;
-		dVector* vertex = new dVector[4096];
-		dVector* normal = new dVector[4096];
-		dVector* uv = new dVector[4096];
-		dTree<int, dString> materialMap;
-
-		int materialId = 0;
-		int materialIndex = 0;
-		bool hasUV = false;
-		bool hasNormal = false;
-		char line[1024];
-
-		dNewtonMesh mesh(world);
-		mesh.BeginBuild();
-
-		while (!feof(file)) {
-			char* ret = fgets(line, sizeof(line) - 1, file);
-			ret = 0;
-
-			int index = 0;
-			while (line[index] && (line[index] != '\r') && (line[index] != '\n')) {
-				dFloat32 x;
-				dFloat32 y;
-				dFloat32 z;
-				char token[256];
-				sscanf(&line[index], "%s", token);
-				if (strcmp(token, "#") == 0) {
-					index = int (strlen(line));
-				} else if (strcmp(token, "mtllib") == 0) {
-					char* ptr = strstr(line, token);
-					ptr += int (strlen(token));
-					//dAssert(0);
-					//sscanf(ptr, "%s", materialLibraryOut);
-
-					index = int (strlen(line));
-				} else if (strcmp(token, "v") == 0) {
-					sscanf(&line[index + 1], "%f %f %f", &x, &y, &z);
-					vertex[vertexCount] = dVector(x, y, z, 0.0f);
-					vertexCount++;
-					if (vertexCount >= vertexMaxCount) {
-						dAssert(0);
-					}
-					index = int (strlen(line));
-				} else if (strcmp(token, "vn") == 0) {
-					hasNormal = true;
-					sscanf(&line[index + 1], "%f %f %f", &x, &y, &z);
-					normal[vertexCount] = dVector(x, y, z, 0.0f);
-					normalCount++;
-					if (normalCount >= normalMaxCount) {
-						dAssert(0);
-					}
-					index = int (strlen(line));
-				} else if (strcmp(token, "vt") == 0) {
-					hasUV = true;
-					sscanf(&line[index + 1], "%f %f %f", &x, &y, &z);
-					uv[vertexCount] = dVector(x, y, 0.0f, 0.0f);
-					uvCount++;
-					if (uvCount >= uvMaxCount) {
-						dAssert(0);
-					}
-					index = int (strlen(line));
-				} else if (strcmp(token, "g") == 0) {
-					sscanf(&line[index + 1], "%s", token);
-					index = int (strlen(line));
-				} else if (strcmp(token, "usemtl") == 0) {
-					char* ptr = strstr(line, token);
-					ptr += strlen(token);
-					sscanf(ptr, "%s", token);
-					dTree<int, dString>::dTreeNode* node = materialMap.Find(token);
-					if (!node) {
-						node = materialMap.Insert(materialIndex, token);
-						materialIndex++;
-					}
-					materialId = node->GetInfo();
-
-					index = int (strlen(line));
-				} else if (strcmp(token, "s") == 0) {
-					//fscanf(file, "%d", &material);
-					index = int (strlen(line));
-				} else if (strcmp(token, "f") == 0) {
-					mesh.BeginPolygon();
-					char* ptr = &line[index + 1];
-					do {
-						token[0] = 0;
-						sscanf(ptr, "%s", token);
-						if (*token) {
-							if (hasUV && hasNormal) {
-								int v;
-								int n;
-								int t;
-								sscanf(token, "%d/%d/%d", &v, &t, &n);
-								v--;
-								t--;
-								n--;
-								mesh.AddPoint(vertex[v].m_x, vertex[v].m_y, vertex[v].m_z);
-								mesh.AddNormal(dFloat32(normal[n].m_x), dFloat32(normal[n].m_y), dFloat32(normal[n].m_z));
-								mesh.AddUV0(dFloat32(uv[t].m_x), dFloat32(uv[t].m_y));
-								mesh.AddMaterial(materialId);
-							} else {
-								dAssert(0);
-							}
-
-							ptr = strstr(ptr, token);
-							ptr += strlen(token);
-						}
-					} while (*token);
-					mesh.EndPolygon();
-					index = int (strlen(line));
-				} else {
-					dAssert(0);
-				}
-			}
-		}
-		mesh.EndBuild();
-		delete[] uv;
-		delete[] normal;
-		delete[] vertex;
-		fclose(file);
-
-		mesh.ApplyTransform(&convertMatrix[0][0]);
-		mesh.CalculateVertexNormals(20.0f * dDegreeToRad);
-		DemoMesh* const visualMesh = new DemoMesh(mesh.GetMesh());
-
-		DemoEntity* const entity = new DemoEntity(dGetIdentityMatrix(), NULL);
-		entity->SetMesh(visualMesh, dGetIdentityMatrix());
-		visualMesh->Release();
-		return entity;
-	}
-	return NULL;
 }
