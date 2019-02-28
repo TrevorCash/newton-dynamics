@@ -271,13 +271,16 @@ void DemoCameraManager::UpdatePickBody(DemoEntityManager* const scene, bool mous
 					dFloat mass;
 					NewtonBodyGetMass(body, &mass, &Ixx, &Iyy, &Izz);
 
-					const dFloat angularFritionAccel = 100.0f;
-					const dFloat linearFrictionAccel = 100.0f * dAbs (dMax (DEMO_GRAVITY, 10.0f));
+					// change this to make the grabbing stronger or weaker
+					//const dFloat gfactor = 500.0f;
+					const dFloat angularFritionAccel = 50.0f;
+					const dFloat linearFrictionAccel = 400.0f * dMax (dAbs (DEMO_GRAVITY), dFloat(10.0f));
 					const dFloat inertia = dMax (Izz, dMax (Ixx, Iyy));
 
-					//m_pickJoint = new dCustomKinematicController (body, posit);
 					m_pickJoint = new DemoCameraPickBodyJoint (body, posit, this);
-					m_pickJoint->SetPickMode (0);
+					// set this to 1 for full matrix control
+					m_pickJoint->SetPickMode (2);
+
 					m_pickJoint->SetMaxLinearFriction(mass * linearFrictionAccel);
 					m_pickJoint->SetMaxAngularFriction(inertia * angularFritionAccel);
 				#endif
@@ -299,6 +302,39 @@ void DemoCameraManager::UpdatePickBody(DemoEntityManager* const scene, bool mous
 			CalculatePickForceAndTorque (m_targetPicked, point, m_pickedBodyTargetPosition, timestep);
 			#else 
 				if (m_pickJoint) {
+					// using Dave Gravel method of setting the min and Max friction base of mouse speed.
+					#if 0
+					// my math is very bad here
+					// it is only some tests...
+					// it is surely better to use the mouse move speed and not the object vel speed....
+
+					dFloat Ixx;
+					dFloat Iyy;
+					dFloat Izz;
+					dFloat mass;
+					NewtonBodyGetMass(m_targetPicked, &mass, &Ixx, &Iyy, &Izz);
+
+					dVector svel;
+					NewtonBodyGetVelocity(m_targetPicked, &svel[0]);
+
+					float speed = dSqrt(svel.m_x * svel.m_x + svel.m_y * svel.m_y + svel.m_z * svel.m_z);
+
+					dFloat angularFritionAccel = (((5.0f*timestep*120.0f) + (5.0f + speed))*2.0f);
+					dFloat linearFrictionAccel = angularFritionAccel * dAbs(dMax(-9.81f, 5.0f));
+					dFloat inertia = dMax(Izz, dMax(Ixx, Iyy));
+
+					if (speed >= 5.0f) {
+						angularFritionAccel = (((5.0f*timestep*120.0f) + speed)*6.0f);
+						linearFrictionAccel = angularFritionAccel * dAbs(dMax(-9.81f, 5.0f));
+					} else {
+						if (angularFritionAccel > 5.0f) angularFritionAccel = 5.0f;
+					}
+
+					m_pickJoint->SetMaxLinearFriction((mass*10.0f) * linearFrictionAccel);
+					m_pickJoint->SetMaxAngularFriction(inertia * angularFritionAccel);
+
+					#endif		
+
 					m_pickJoint->SetTargetPosit (m_pickedBodyTargetPosition); 
 				}
 			#endif
