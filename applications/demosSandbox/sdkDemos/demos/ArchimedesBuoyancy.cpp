@@ -8,7 +8,7 @@
 #include "OpenGlUtil.h"
 
 
-class MyTriggerManager: public dCustomTriggerManager
+class BuoyancyTriggerManager: public dCustomTriggerManager
 {
 	public:
 	class TriggerCallback
@@ -71,10 +71,9 @@ class MyTriggerManager: public dCustomTriggerManager
 				cog = matrix.TransformVector (cog);
 				NewtonCollision* const collision = NewtonBodyGetCollision(visitor);
 
-				
 				dFloat shapeVolume = NewtonConvexCollisionCalculateVolume (collision);
-				dFloat fluidDentity = 1.0f / (m_waterToSolidVolumeRatio * shapeVolume);
-				dFloat viscosity = 0.995f;
+				dFloat fluidDentity = 1.4f / (m_waterToSolidVolumeRatio * shapeVolume);
+				dFloat viscosity = 0.99f;
 
 				NewtonConvexCollisionCalculateBuoyancyAcceleration (collision, &matrix[0][0], &cog[0], &gravity[0], &m_plane[0], fluidDentity, viscosity, &accelPerUnitMass[0], &torquePerUnitMass[0]);
 
@@ -95,28 +94,53 @@ class MyTriggerManager: public dCustomTriggerManager
 		dFloat m_waterToSolidVolumeRatio;
 	};
 
-
-
-	MyTriggerManager(NewtonWorld* const world)
+	BuoyancyTriggerManager(NewtonWorld* const world)
 		:dCustomTriggerManager(world)
+	{
+	}
+
+	~BuoyancyTriggerManager()
 	{
 	}
 
 	void CreateBuoyancyTrigger (const dMatrix& matrix, NewtonCollision* const convexShape)
 	{
-		dCustomTriggerController* const controller = CreateTrigger (matrix, convexShape, NULL);
-		BuoyancyForce* const buoyancyForce = new BuoyancyForce (controller);
-		controller->SetUserData (buoyancyForce);
-	}
+		NewtonWorld* const world = GetWorld();
+		DemoEntityManager* const scene = (DemoEntityManager*)NewtonWorldGetUserData(world);
 
-	void DestroyController (dCustomTriggerController* const controller)
-	{
-		TriggerCallback* const userData = (TriggerCallback*) controller->GetUserData();
-		delete userData;
-		dCustomTriggerManager::DestroyController (controller);
+		dCustomTriggerController* const trigger = CreateTrigger (matrix, convexShape, NULL);
+		NewtonBody* const triggerBody = trigger->GetBody();
+
+		NewtonBodySetTransformCallback(triggerBody, DemoEntity::TransformCallback);
+		DemoMesh* const geometry = new DemoMesh("pool", scene->GetShaderCache(), convexShape, "", "", "");
+		DemoEntity* const entity = new DemoEntity(matrix, NULL);
+		scene->Append(entity);
+		entity->SetMesh(geometry, dGetIdentityMatrix());
+		NewtonBodySetUserData(triggerBody, entity);
+
+		for (DemoMesh::dListNode* ptr = geometry->GetFirst(); ptr; ptr = ptr->GetNext()) {
+			DemoSubMesh* const subMesh = &ptr->GetInfo();
+			subMesh->SetOpacity(0.25f);
+			subMesh->m_diffuse.m_x = 0.0f;
+			subMesh->m_diffuse.m_y = 0.0f;
+			subMesh->m_diffuse.m_z = 1.0f;
+			subMesh->m_diffuse.m_z = 1.0f;
+		}
+		geometry->OptimizeForRender();
+
+		geometry->Release();
+
+		BuoyancyForce* const buoyancyForce = new BuoyancyForce (trigger);
+		trigger->SetUserData (buoyancyForce);
 	}
 	
-
+	void DestroyTrigger (dCustomTriggerController* const trigger)
+	{
+		TriggerCallback* const userData = (TriggerCallback*) trigger->GetUserData();
+		delete userData;
+		dCustomTriggerManager::DestroyTrigger (trigger);
+	}
+	
 	virtual void EventCallback (const dCustomTriggerController* const me, dTriggerEventType event, NewtonBody* const visitor) const
 	{
 		TriggerCallback* const callback = (TriggerCallback*) me->GetUserData();
@@ -144,19 +168,17 @@ class MyTriggerManager: public dCustomTriggerManager
 };
 
 
-
 void AlchimedesBuoyancy(DemoEntityManager* const scene)
 {
 	// load the sky box
 	scene->CreateSkyBox();
-
 
 	// load the mesh 
 	CreateLevelMesh (scene, "swimmingPool.ngd", true);
 
 
 	// add a trigger Manager to the world
-	MyTriggerManager* const triggerManager = new MyTriggerManager(scene->GetNewton());
+	BuoyancyTriggerManager* const triggerManager = new BuoyancyTriggerManager(scene->GetNewton());
 
 	dMatrix triggerLocation (dGetIdentityMatrix());
 	triggerLocation.m_posit.m_x =  17.0f;
@@ -176,7 +198,6 @@ void AlchimedesBuoyancy(DemoEntityManager* const scene)
 	dQuaternion rot (camMatrix);
 	dVector origin (-20.0f, 10.0f, 0.0f, 0.0f);
 	scene->SetCameraMatrix(rot, origin);
-
 
 	int defaultMaterialID = NewtonMaterialGetDefaultGroupID (scene->GetNewton());
 

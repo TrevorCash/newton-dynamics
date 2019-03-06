@@ -605,7 +605,6 @@ void  PhysicsBodyDestructor (const NewtonBody* body)
 	//	delete primitive;
 }
 
-
 // add force and torque to rigid body
 void  PhysicsApplyGravityForce (const NewtonBody* body, dFloat timestep, int threadIndex)
 {
@@ -621,7 +620,6 @@ void  PhysicsApplyGravityForce (const NewtonBody* body, dFloat timestep, int thr
 	dVector force (dir.Scale (mass * DEMO_GRAVITY));
 	NewtonBodySetForce (body, &force.m_x);
 }
-
 
 void GenericContactProcess (const NewtonJoint* contactJoint, dFloat timestep, int threadIndex)
 {
@@ -931,8 +929,6 @@ NewtonBody* CreateSimpleSolid (DemoEntityManager* const scene, DemoMesh* const m
 	return CreateSimpleBody (scene->GetNewton(), entity, mass, matrix, collision, materialId, generalInertia);
 }
 
-
-
 void AddPrimitiveArray (DemoEntityManager* const scene, dFloat mass, const dVector& origin, const dVector& size, int xCount, int zCount, dFloat spacing, PrimitiveType type, int materialID, const dMatrix& shapeOffsetMatrix, dFloat startElevation, dFloat offsetHigh)
 {
 	// create the shape and visual mesh as a common data to be re used
@@ -1219,8 +1215,11 @@ class MakeViualMesh: public dScene::dSceneExportCallback
 	NewtonWorld* m_world;
 };
 
-void ExportScene (NewtonWorld* const world, const char* const fileName)
+void ExportScene (NewtonWorld* const world, const char* const name)
 {
+	char fileName[2048];
+	dGetWorkingFileName(name, fileName);
+
 	MakeViualMesh context (world);
 	dScene testScene (world);
 	testScene.NewtonWorldToScene (world, &context);
