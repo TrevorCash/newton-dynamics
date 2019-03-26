@@ -27,7 +27,6 @@ endif()
 add_definitions(-DNEWTONCPU_EXPORTS)
 add_library(${projectName} SHARED ${source})
 
-target_include_directories(${projectName} PUBLIC ../dgCore ../dgPhysics)
 if (NEWTON_BUILD_PROFILER)
 		target_link_libraries (${projectName} dTimeTracker)
 endif ()
@@ -38,7 +37,7 @@ if (MSVC)
 		set_source_files_properties(dgNewtonPluginStdafx.cpp PROPERTIES COMPILE_FLAGS "/YcdgNewtonPluginStdafx.h")
 	endif()
 else()
-	target_compile_options(${projectName} PRIVATE -msse4.2 -mfma)
+	target_compile_options(${projectName} PRIVATE -msse4.2)
 endif()
 
 target_include_directories(${projectName} PUBLIC 

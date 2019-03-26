@@ -27,7 +27,6 @@ endif()
 add_definitions(-DNEWTONCPU_EXPORTS)
 add_library(${projectName} SHARED ${source})
 
-target_include_directories(${projectName} PUBLIC ../dgCore ../dgPhysics)
 if (NEWTON_BUILD_PROFILER)
 	target_link_libraries (${projectName} dTimeTracker)
 endif ()
