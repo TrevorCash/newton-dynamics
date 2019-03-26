@@ -31,6 +31,16 @@ enum PrimitiveType
 };
 
 
+class MakeViualMesh : public dScene::dSceneExportCallback
+{
+	public:
+	MakeViualMesh(NewtonWorld* const world);
+	NewtonMesh* CreateVisualMesh(NewtonBody* const body, char* const name, int maxNameSize) const;
+	NewtonWorld* m_world;
+};
+
+
+
 void ExportScene (NewtonWorld* const world, const char* const fileName);
 
 class DemoMesh;
@@ -69,6 +79,7 @@ void CalculateAABB (const NewtonCollision* const collision, const dMatrix& matri
 
 void GenericContactProcess (const NewtonJoint* contactJoint, dFloat timestep, int threadIndex);
 
+bool GetLastHit (dVector& posit, dVector& normal);
 NewtonCollision* CreateCollisionTree (NewtonWorld* const world, DemoEntity* const entity, int materialID, bool optimize);
 NewtonCollision* CreateConvexCollision (NewtonWorld* const world, const dMatrix& offsetMatrix, const dVector& size, PrimitiveType type, int materialID);
 

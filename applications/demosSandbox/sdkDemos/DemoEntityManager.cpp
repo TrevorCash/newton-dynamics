@@ -14,6 +14,7 @@
 #include "DemoMesh.h"
 #include "DemoEntity.h"
 #include "DemoCamera.h"
+#include "FileBrowser.h"
 #include "PhysicsUtils.h"
 #include "DebugDisplay.h"
 #include "TargaToOpenGl.h"
@@ -22,7 +23,6 @@
 #include "DemoCameraManager.h"
 #include "DemoEntityListener.h"
 #include "DemoCameraManager.h"
-
 #include "dHighResolutionTimer.h"
 
 #ifdef _MACOSX_VER
@@ -42,7 +42,7 @@
 //#define DEFAULT_SCENE	6		// kinematic bodies
 //#define DEFAULT_SCENE	7		// Object Placement
 //#define DEFAULT_SCENE	8		// primitive convex cast 
-#define DEFAULT_SCENE	9		// box stacks
+//#define DEFAULT_SCENE	9		// box stacks
 //#define DEFAULT_SCENE	10		// simple level mesh collision
 //#define DEFAULT_SCENE	11		// optimized level mesh collision
 //#define DEFAULT_SCENE	12		// height field Collision
@@ -68,7 +68,7 @@
 //#define DEFAULT_SCENE	32		// six axis manipulator
 //#define DEFAULT_SCENE	33		// hexapod Robot
 //#define DEFAULT_SCENE	34		// basic rag doll
-//#define DEFAULT_SCENE	35		// dynamic rag doll
+#define DEFAULT_SCENE	35		// dynamic rag doll
 //#define DEFAULT_SCENE	36		// basic Car
 //#define DEFAULT_SCENE	37		// single body vehicle
 //#define DEFAULT_SCENE	38		// David Gravel multi body car
@@ -256,6 +256,9 @@ DemoEntityManager::DemoEntityManager ()
 	,m_suspendPhysicsUpdate(false)
 	,m_asynchronousPhysicsUpdate(false)
 	,m_solveLargeIslandInParallel(false)
+	,m_showRaycastHit(false)
+	,m_contactlock(0)
+	,m_contactList()
 {
 	// Setup window
 	glfwSetErrorCallback(ErrorCallback);
@@ -349,9 +352,10 @@ DemoEntityManager::DemoEntityManager ()
 //	m_solverPasses = 4;
 //	m_workerThreads = 4;
 //	m_solverSubSteps = 2;
+	m_showRaycastHit = true;
 //	m_showNormalForces = true;
 //	m_showCenterOfMass = false;
-	m_showJointDebugInfo = true;
+//	m_showJointDebugInfo = true;
 //	m_collisionDisplayMode = 2;
 //	m_asynchronousPhysicsUpdate = true;
 	m_solveLargeIslandInParallel = true;
@@ -574,6 +578,9 @@ void DemoEntityManager::Cleanup ()
 	// set the number of sub steps
 	NewtonSetNumberOfSubsteps (m_world, MAX_PHYSICS_SUB_STEPS);
 
+	// register contact creation destrution callbacks
+	NewtonWorldSetCreateDestroyContactCallback(m_world, OnCreateContact, OnDestroyContact);
+
 	// load all available plug ins
 	char plugInPath[2048];
 //	GetModuleFileNameA(NULL, plugInPath, 256);
@@ -704,31 +711,29 @@ void DemoEntityManager::ShowMainMenuBar()
 		if (ImGui::BeginMenu("File")) {
 			m_suspendPhysicsUpdate = true;
 
-			//if (ImGui::MenuItem("About", "")) {
-			//	dAssert (0);
-			//}
-			//ImGui::Separator();
 			if (ImGui::MenuItem("Preferences", "")) {
 				dAssert (0);
 			}
 			ImGui::Separator();
+
 			if (ImGui::MenuItem("New", "")) {
 				mainMenu = 1;
 			}
 			ImGui::Separator();
+
 			if (ImGui::MenuItem("Open", "")) {
-				dAssert (0);
+				mainMenu = 2;
 			}
 			if (ImGui::MenuItem("Save", "")) {
-				dAssert (0);
+				mainMenu = 3;
 			}
 			ImGui::Separator();
+
 			if (ImGui::MenuItem("Serialize", "")) {
-				//mainMenu = 2;
-				dAssert (0);
+				mainMenu = 4;
 			}
 			if (ImGui::MenuItem("Deserialize", "")) {
-				dAssert (0);
+				mainMenu = 5;
 			}
 			ImGui::Separator();
 			if (ImGui::MenuItem("Exit", "")) {
@@ -793,6 +798,7 @@ void DemoEntityManager::ShowMainMenuBar()
 			ImGui::Checkbox("show aabb", &m_showAABB);
 			ImGui::Checkbox("hide visual meshes", &m_hideVisualMeshes);
 			ImGui::Checkbox("show contact points", &m_showContactPoints);
+			ImGui::Checkbox("show ray cast hit point", &m_showRaycastHit);
 			ImGui::Checkbox("show normal forces", &m_showNormalForces);
 			ImGui::Checkbox("show center of mass", &m_showCenterOfMass);
 			ImGui::Checkbox("show body frame", &m_showBodyFrame);
@@ -821,6 +827,7 @@ void DemoEntityManager::ShowMainMenuBar()
 	{
 		case 1:
 		{
+			// menu new 
 			Cleanup();
 			ApplyMenuOptions();
 			ResetTimer();
@@ -830,15 +837,64 @@ void DemoEntityManager::ShowMainMenuBar()
 
 		case 2:
 		{
-			Cleanup();
-			ApplyMenuOptions();
-			ResetTimer();
+			// open Scene
 			m_currentScene = -1;
+			char fileName[1024];
+			Cleanup();
+			if (dGetOpenFileNameNgd(fileName, 1024)) {
+				ApplyMenuOptions();
+				LoadScene (fileName);
+				ResetTimer();
+
+				//MakeViualMesh context(m_world);
+				//dScene testScene(m_world);
+				//testScene.Deserialize(fileName);
+				//dList<NewtonBody*> loadedBodies;
+				//testScene.SceneToNewtonWorld(m_world, loadedBodies);
+			}
+			break;
+		}
+
+		case 3:
+		{
+			m_currentScene = -1;
+			char fileName[1024];
+			if (dGetSaveFileNameNgd(fileName, 1024)) {
+				MakeViualMesh context(m_world);
+				dScene testScene(m_world);
+				testScene.NewtonWorldToScene(m_world, &context);
+				testScene.Serialize(fileName);
+			}
+			break;
+		}
+
+		case 5:
+		{
+			// open Scene
+			m_currentScene = -1;
+			char fileName[1024];
+			Cleanup();
+			if (dGetOpenFileNameSerialization(fileName, 1024)) {
+				ApplyMenuOptions();
+				DeserializedPhysicScene(fileName);
+				ResetTimer();
+			}
+			break;
+		}
+
+		case 4:
+		{
+			m_currentScene = -1;
+			char fileName[1024];
+			if (dGetSaveFileNameSerialization(fileName, 1024)) {
+				SerializedPhysicScene(fileName);
+			}
 			break;
 		}
 
 		default:
 		{
+			// load a demo 
 			if (m_currentScene != -1) {
 				Cleanup();
 				m_demosSelection[m_currentScene].m_launchDemoCallback(this);
@@ -1135,7 +1191,6 @@ void DemoEntityManager::BodySerialization (NewtonBody* const body, void* const b
 	serializeCallback (serializeHandle, bodyIndentification, size);
 }
 
-
 void DemoEntityManager::BodyDeserialization (NewtonBody* const body, void* const bodyUserData, NewtonDeserializeCallback deserializecallback, void* const serializeHandle)
 {
 	int size;
@@ -1180,6 +1235,25 @@ void DemoEntityManager::BodyDeserialization (NewtonBody* const body, void* const
 	mesh->Release();
 }
 
+void DemoEntityManager::SerializedPhysicScene(const char* const name)
+{
+//	NewtonSerializeToFile(m_world, name, NULL, NULL);
+	NewtonSerializeToFile(m_world, name, BodySerialization, NULL);
+}
+
+void DemoEntityManager::DeserializedPhysicScene(const char* const name)
+{
+	// add the sky
+	CreateSkyBox();
+
+	dQuaternion rot;
+	dVector origin(-30.0f, 10.0f, 10.0f, 0.0f);
+	SetCameraMatrix(rot, origin);
+
+	dTree <DemoMeshInterface*, const void*> cache;
+	NewtonDeserializeFromFile(m_world, name, BodyDeserialization, &cache);
+}
+
 int DemoEntityManager::Print (const dVector& color, const char *fmt, ... ) const
 {
 	va_list argptr;
@@ -1191,6 +1265,22 @@ int DemoEntityManager::Print (const dVector& color, const char *fmt, ... ) const
 	ImGui::Text(string, "");
 	return 0;
 }
+
+void DemoEntityManager::OnCreateContact(const NewtonWorld* const world, NewtonJoint* const contact)
+{
+	DemoEntityManager* const scene = (DemoEntityManager*) NewtonWorldGetUserData(world);
+	dCustomScopeLock lock(&scene->m_contactlock);
+	NewtonJointSetUserData(contact, scene->m_contactList.Append(contact));
+}
+
+void DemoEntityManager::OnDestroyContact(const NewtonWorld* const world, NewtonJoint* const contact)
+{
+	DemoEntityManager* const scene = (DemoEntityManager*)NewtonWorldGetUserData(world);
+	dList<NewtonJoint*>::dListNode* const cooky = (dList<NewtonJoint*>::dListNode*)NewtonJointGetUserData(contact);
+	dCustomScopeLock lock(&scene->m_contactlock);
+	scene->m_contactList.Remove(cooky);
+}
+
 
 void DemoEntityManager::SetCameraMatrix (const dQuaternion& rotation, const dVector& position)
 {
@@ -1425,8 +1515,6 @@ void DemoEntityManager::RenderScene()
 	glLightfv(GL_LIGHT1, GL_SPECULAR, lightSpecular1);
 	glEnable(GL_LIGHT1);
 
-
-
 	// Setup matrix
 	glMatrixMode(GL_PROJECTION);
 	glPushMatrix();
@@ -1468,6 +1556,10 @@ void DemoEntityManager::RenderScene()
 
 	if (m_showContactPoints) {
 		RenderContactPoints (m_world);
+	}
+
+	if (m_showRaycastHit) {
+		RenderRayCastHit(m_world);
 	}
 
 	if (m_showBodyFrame) {
