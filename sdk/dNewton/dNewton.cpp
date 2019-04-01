@@ -77,7 +77,10 @@ dNewton::ScopeLock::~ScopeLock()
 
 
 dNewton::dNewton()
-	:m_maxUpdatePerIterations(2)
+	:m_frequency(0)
+	,m_baseCount(0)
+	,m_microseconds(0)
+	,m_maxUpdatePerIterations(2)
 {
 	// create a newton world
 	m_world = NewtonCreate();
@@ -222,6 +225,7 @@ void dNewton::DestroyAllBodies()
 
 void dNewton::ResetTimer()
 {
+    m_frequency = 0;
 	#ifdef _MSC_VER
 		LARGE_INTEGER baseCount;
 		LARGE_INTEGER frequency;
@@ -230,21 +234,23 @@ void dNewton::ResetTimer()
 		m_baseCount = dLong (baseCount.QuadPart);
 		m_frequency = dLong (frequency.QuadPart);
 	#endif
-/*
-	#if (defined (_POSIX_VER) || defined (_POSIX_VER_64))
-		timespec ts;
+
+	//#if (defined (_POSIX_VER) || defined (_POSIX_VER_64))
+	#ifdef __linux__
+        timespec ts;
 		clock_gettime(CLOCK_REALTIME, &ts); // Works on Linux
 		//baseCount = ts.tv_nsec / 1000;
-		baseCount = unsigned64 (ts.tv_sec) * 1000000 + ts.tv_nsec / 1000;
+		m_baseCount = dLong (ts.tv_sec) * 1000000 + ts.tv_nsec / 1000;
 	#endif
 
 	#ifdef _MACOSX_VER
 		timeval tp;
 		gettimeofday(&tp, NULL);
-		unsigned64 microsecunds =  unsigned64 (tp.tv_sec) * 1000000 + tp.tv_usec;
-		baseCount = microsecunds;
+		//unsigned64 microsecunds =  unsigned64 (tp.tv_sec) * 1000000 + tp.tv_usec;
+		dLong microsecunds = ((dLong)tp.tv_sec) * 1000000 + tp.tv_usec;
+		m_baseCount = microsecunds;
 	#endif
-*/
+
 
 	m_microseconds = GetTimeInMicrosenconds();
 }
@@ -259,25 +265,24 @@ dLong dNewton::GetTimeInMicrosenconds() const
 		dLong ticks = count.QuadPart * LONGLONG (1000000) / m_frequency;
 		return ticks;
 	#endif
-/*
-	#if (defined (_POSIX_VER) || defined (_POSIX_VER_64))
-		timespec ts;
-		clock_gettime(CLOCK_REALTIME, &ts); // Works on Linux
-		//return unsigned64 (ts.tv_nsec / 1000) - baseCount;
-		
-		return unsigned64 (ts.tv_sec) * 1000000 + ts.tv_nsec / 1000 - baseCount;
-	#endif
 
+	//#if (defined (_POSIX_VER) || defined (_POSIX_VER_64))
+	#ifdef __linux__
+        timespec ts;
+		clock_gettime(CLOCK_REALTIME, &ts); // Works on Linux
+		//return unsigned64 (ts.tv_nsec / 1000) - m_baseCount;
+		
+		return unsigned64 (ts.tv_sec) * 1000000 + ts.tv_nsec / 1000 - m_baseCount;
+	#endif
 
 	#ifdef _MACOSX_VER
 		timeval tp;
 		gettimeofday(&tp, NULL);
-		unsigned64 microsecunds =  unsigned64 (tp.tv_sec) * 1000000 + tp.tv_usec;
-		return microsecunds - baseCount;
+		//unsigned64 microsecunds =  unsigned64 (tp.tv_sec) * 1000000 + tp.tv_usec;
+		dLong microsecunds = ((dLong)tp.tv_sec) * 1000000 + tp.tv_usec;
+		return microsecunds - m_baseCount;
 	#endif
-*/
 }
-
 
 dFloat dNewton::GetInterpolationParam(dFloat timestepInSecunds) const
 {

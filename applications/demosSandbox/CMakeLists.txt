@@ -34,7 +34,7 @@ include_directories(../../sdk/dCustomJoints/)
 include_directories(../../sdk/thirdParty/tinyxml/)
 
 if (NEWTON_BUILD_PROFILER)
-	include_directories(../../sdk/dProfiler/dTimeTracker/)
+	include_directories(../../sdk/dProfiler/dProfiler/)
 endif ()
 
 include_directories(../../sdk/thirdParty/glfw/)
