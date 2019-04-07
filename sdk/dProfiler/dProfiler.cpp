@@ -11,83 +11,92 @@
 
 #include "dProfiler.h"
 
+//#if 0
 #if !defined (WIN32) || (_MSC_VER >= 1900)
+
 
 	#include "Tracy.hpp"
 	#include "common\TracySystem.hpp"
 	#include "client\TracyProfiler.hpp"
+
+	using namespace tracy;
+
+	static bool profileOn = false;
+
+	void dProfilerEnableProlingLow(int mode)
+	{
+		profileOn = mode ? true : false;
+	}
 	
-	long long dProfilerStartTrace(const dProfilerSourceLocation* const sourceLocation)
+	long long dProfilerStartTraceLow(const dProfilerSourceLocation* const srcloc)
 	{
-		std::thread::native_handle_type thread = (std::thread::native_handle_type)tracy::GetThreadHandle();
-//		m_thread = thread;
-		tracy::Magic magic;
-		auto& token = tracy::s_token.ptr;
-		auto& tail = token->get_tail_index();
-		auto item = token->enqueue_begin<tracy::moodycamel::CanAlloc>(magic);
-		tracy::MemWrite(&item->hdr.type, tracy::QueueType::ZoneBegin);
+		if (profileOn) {
+			const auto thread = GetThreadHandle();
+			Magic magic;
+			auto token = GetToken();
+			auto& tail = token->get_tail_index();
+			auto item = token->enqueue_begin<tracy::moodycamel::CanAlloc>(magic);
+			MemWrite(&item->hdr.type, QueueType::ZoneBegin);
 #ifdef TRACY_RDTSCP_OPT
-		tracy::MemWrite(&item->zoneBegin.time, tracy::Profiler::GetTime(item->zoneBegin.cpu));
+			MemWrite(&item->zoneBegin.time, Profiler::GetTime(item->zoneBegin.cpu));
 #else
-		uint32_t cpu;
-		tracy::MemWrite(&item->zoneBegin.time, tracy::Profiler::GetTime(cpu));
-		tracy::MemWrite(&item->zoneBegin.cpu, cpu);
+			uint32_t cpu;
+			MemWrite(&item->zoneBegin.time, Profiler::GetTime(cpu));
+			MemWrite(&item->zoneBegin.cpu, cpu);
 #endif
-		tracy::MemWrite(&item->zoneBegin.thread, thread);
-		tracy::MemWrite(&item->zoneBegin.srcloc, (uint64_t)sourceLocation);
-		tail.store(magic + 1, std::memory_order_release);
-
-		return long long (thread);
+			MemWrite(&item->zoneBegin.thread, thread);
+			MemWrite(&item->zoneBegin.srcloc, (uint64_t)srcloc);
+			tail.store(magic + 1, std::memory_order_release);
+			return long long(thread);
+		} else {
+			return 0;
+		}
 	}
 
-	void dProfilerEndTrace(long long threadId)
+	void dProfilerEndTraceLow(long long threadId)
 	{
-		std::thread::native_handle_type thread = (std::thread::native_handle_type) threadId;
-		tracy::Magic magic;
-		auto& token = tracy::s_token.ptr;
-		auto& tail = token->get_tail_index();
-		auto item = token->enqueue_begin<tracy::moodycamel::CanAlloc>(magic);
-		tracy::MemWrite(&item->hdr.type, tracy::QueueType::ZoneEnd);
+		if (profileOn) {
+			Magic magic;
+			std::thread::native_handle_type thread = (std::thread::native_handle_type) threadId;
+			auto token = GetToken();
+			auto& tail = token->get_tail_index();
+			auto item = token->enqueue_begin<tracy::moodycamel::CanAlloc>(magic);
+			MemWrite(&item->hdr.type, QueueType::ZoneEnd);
 #ifdef TRACY_RDTSCP_OPT
-		tracy::MemWrite(&item->zoneEnd.time, tracy::Profiler::GetTime(item->zoneEnd.cpu));
+			MemWrite(&item->zoneEnd.time, Profiler::GetTime(item->zoneEnd.cpu));
 #else
-		uint32_t cpu;
-		tracy::MemWrite(&item->zoneEnd.time, tracy::Profiler::GetTime(cpu));
-		tracy::MemWrite(&item->zoneEnd.cpu, cpu);
+			uint32_t cpu;
+			MemWrite(&item->zoneEnd.time, Profiler::GetTime(cpu));
+			MemWrite(&item->zoneEnd.cpu, cpu);
 #endif
-		tracy::MemWrite(&item->zoneEnd.thread, thread);
-		tail.store(magic + 1, std::memory_order_release);
+			MemWrite(&item->zoneEnd.thread, thread);
+			tail.store(magic + 1, std::memory_order_release);
+		}
 	}
 
-	void dProfilerSetTrackName(const char* const trackName)
+	void dProfilerSetTrackNameLow(const char* const trackName)
 	{
-		std::thread::native_handle_type handle = (std::thread::native_handle_type) tracy::GetThreadHandle();
-		tracy::SetThreadName(handle, trackName);
-
-		//const char* xxx0 = tracy::GetThreadName(long long (handle));
-		//const char* xxx1 = tracy::GetThreadName(long long (handle));
-	}
-
-	void dProfilerDeleteTrack()
-	{
+		std::thread::native_handle_type handle = (std::thread::native_handle_type) GetThreadHandle();
+		SetThreadName(handle, trackName);
 	}
 
 #else
 
-	long long dProfilerStartTrace(const char* const fileName)
+	void dProfilerEnableProlingLow(int mode)
+	{
+		mode = 0;
+	}
+
+	long long dProfilerStartTraceLow(const dProfilerSourceLocation* const)
 	{
 		return 0;
 	}
 
-	void dProfilerEndTrace(int long long)
+	void dProfilerEndTraceLow(int long long)
 	{
 	}
 
-	void dProfilerSetTrackName(const char* const trackName)
-	{
-	}
-
-	void dProfilerDeleteTrack()
+	void dProfilerSetTrackNameLow(const char* const)
 	{
 	}
 

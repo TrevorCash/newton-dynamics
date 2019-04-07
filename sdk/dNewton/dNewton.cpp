@@ -225,7 +225,8 @@ void dNewton::DestroyAllBodies()
 
 void dNewton::ResetTimer()
 {
-    m_frequency = 0;
+	m_frequency = 0;
+	m_baseCount = 0;
 	#ifdef _MSC_VER
 		LARGE_INTEGER baseCount;
 		LARGE_INTEGER frequency;
@@ -237,24 +238,21 @@ void dNewton::ResetTimer()
 
 	//#if (defined (_POSIX_VER) || defined (_POSIX_VER_64))
 	#ifdef __linux__
-        timespec ts;
+		timespec ts;
 		clock_gettime(CLOCK_REALTIME, &ts); // Works on Linux
-		//baseCount = ts.tv_nsec / 1000;
+		baseCount = ts.tv_nsec / 1000;
 		m_baseCount = dLong (ts.tv_sec) * 1000000 + ts.tv_nsec / 1000;
 	#endif
 
 	#ifdef _MACOSX_VER
 		timeval tp;
 		gettimeofday(&tp, NULL);
-		//unsigned64 microsecunds =  unsigned64 (tp.tv_sec) * 1000000 + tp.tv_usec;
 		dLong microsecunds = ((dLong)tp.tv_sec) * 1000000 + tp.tv_usec;
 		m_baseCount = microsecunds;
 	#endif
 
-
 	m_microseconds = GetTimeInMicrosenconds();
 }
-
 
 dLong dNewton::GetTimeInMicrosenconds() const 
 {
@@ -270,8 +268,6 @@ dLong dNewton::GetTimeInMicrosenconds() const
 	#ifdef __linux__
         timespec ts;
 		clock_gettime(CLOCK_REALTIME, &ts); // Works on Linux
-		//return unsigned64 (ts.tv_nsec / 1000) - m_baseCount;
-		
 		return unsigned64 (ts.tv_sec) * 1000000 + ts.tv_nsec / 1000 - m_baseCount;
 	#endif
 

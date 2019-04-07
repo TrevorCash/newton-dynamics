@@ -19,6 +19,8 @@
 #define D_PROFILER_API __declspec(dllimport)
 #endif
 
+//#define D_PROFILER
+
 struct dProfilerSourceLocation
 {
 	const char* name;
@@ -28,30 +30,43 @@ struct dProfilerSourceLocation
 	long long color;
 };
 
-D_PROFILER_API long long dProfilerStartTrace(const dProfilerSourceLocation* const sourceLocation);
-D_PROFILER_API void dProfilerEndTrace(long long id);
-D_PROFILER_API void dProfilerSetTrackName(const char* const trackName);
+D_PROFILER_API void dProfilerEnableProlingLow(int mode);
+D_PROFILER_API long long dProfilerStartTraceLow(const dProfilerSourceLocation* const sourceLocation);
+D_PROFILER_API void dProfilerEndTraceLow(long long id);
+D_PROFILER_API void dProfilerSetTrackNameLow(const char* const trackName);
+
+
+#ifdef D_PROFILER
 
 class dgProfile
 {
 	public:
 	dgProfile(const dProfilerSourceLocation* const location)
-		:m_thread(dProfilerStartTrace(location))
+		:m_thread(dProfilerStartTraceLow(location))
 	{
 	}
 
 	~dgProfile()
 	{
-		dProfilerEndTrace(m_thread);
+		dProfilerEndTraceLow(m_thread);
 	}
 
 	private:
 	long long m_thread;
 };
 
-
+#define dProfilerEnableProling(mode) dProfilerEnableProlingLow(mode);
 #define dProfilerZoneScoped(name)					\
-static const dProfilerSourceLocation __dprofiler_source_location { name, __FUNCTION__,  __FILE__, (long long)__LINE__, 0 }; \
+static const dProfilerSourceLocation __dprofiler_source_location { NULL, __FUNCTION__,  __FILE__, (long long)__LINE__, 0 }; \
 dgProfile ___dgprofile_scoped_zone( &__dprofiler_source_location );
+
+#define dProfilerSetTrackName(trackName) dProfilerSetTrackNameLow(trackName) 
+
+#else
+
+#define dProfilerEnableProling(mode);
+#define dProfilerZoneScoped(name)
+#define dProfilerSetTrackName(trackName)
+#endif
 
 #endif
