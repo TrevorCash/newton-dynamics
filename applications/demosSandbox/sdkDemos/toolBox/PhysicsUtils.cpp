@@ -100,11 +100,54 @@ bool GetLastHit (dVector& posit, dVector& normal)
 	return dMousePickClass::GetLastHit(posit, normal);
 }
 
+dFloat ForceBodyAccelerationMichio (NewtonBody* const body)
+{
+	dVector reactionforce (0.0f);
+	// calcualte accelration generate by all contacts
+	for (NewtonJoint* joint = NewtonBodyGetFirstContactJoint(body); joint; joint = NewtonBodyGetNextContactJoint(body, joint)) {
+		if (NewtonJointIsActive(joint)) {
+			for (void* contact = NewtonContactJointGetFirstContact(joint); contact; contact = NewtonContactJointGetNextContact(joint, contact)) {
+				dVector contactForce(0.0f);
+				NewtonMaterial* const material = NewtonContactGetMaterial(contact);
+				NewtonMaterialGetContactForce(material, body, &contactForce[0]);
+				reactionforce += contactForce;
+			}
+		}
+	}
+
+	dMatrix matrix;
+	dVector accel;
+	dVector veloc;
+
+	dFloat Ixx;
+	dFloat Iyy;
+	dFloat Izz;
+	dFloat mass;
+	NewtonBodyGetMass(body, &mass, &Ixx, &Iyy, &Izz);
+	NewtonBodyGetAcceleration(body, &accel[0]);
+	accel -= reactionforce.Scale (1.0f/mass);
+
+
+	//calculate centripetal acceleration here.
+	NewtonBodyGetMatrix(body, &matrix[0][0]);
+	dVector radius(matrix.m_posit.Scale(-1.0f));
+	radius.m_w = 0.0f;
+	dFloat radiusMag = dSqrt(radius.DotProduct3(radius));
+	dVector radiusDir (radius.Normalize());
+	
+	NewtonBodyGetVelocity(body, &veloc[0]);
+	veloc += radiusDir.Scale(veloc.DotProduct3(radiusDir));
+
+	dVector centripetalAccel(veloc.DotProduct3(veloc) / radiusMag);
+	accel += centripetalAccel;
+	return dSqrt (accel.DotProduct3(accel));
+}
+
 dVector ForceBetweenBody (NewtonBody* const body0, NewtonBody* const body1)
 {
 	dVector reactionforce (0.0f);
 	for (NewtonJoint* joint = NewtonBodyGetFirstContactJoint(body0); joint; joint = NewtonBodyGetNextContactJoint(body0, joint)) {
-		if ((NewtonJointGetBody0(joint) == body0) || (NewtonJointGetBody0(joint) == body1)) {
+		if (NewtonJointIsActive(joint) &&  (NewtonJointGetBody0(joint) == body0) || (NewtonJointGetBody0(joint) == body1)) {
 			for (void* contact = NewtonContactJointGetFirstContact (joint); contact; contact = NewtonContactJointGetNextContact (joint, contact)) {
 				dVector point(0.0f);
 				dVector normal(0.0f);	
@@ -112,7 +155,6 @@ dVector ForceBetweenBody (NewtonBody* const body0, NewtonBody* const body1)
 				NewtonMaterial* const material = NewtonContactGetMaterial (contact);
 				NewtonMaterialGetContactPositionAndNormal (material, body0, &point.m_x, &normal.m_x);
 				NewtonMaterialGetContactForce(material, body0, &contactForce[0]);
-				//forceAcc += normal.Scale (forceMag);
 				reactionforce += contactForce;
 			}
 			break;
@@ -638,6 +680,9 @@ void  PhysicsApplyGravityForce (const NewtonBody* body, dFloat timestep, int thr
 //mass = 0.0f;
 	dVector force (dir.Scale (mass * DEMO_GRAVITY));
 	NewtonBodySetForce (body, &force.m_x);
+
+	// test going to sleep bug
+//	NewtonBodySetSleepState(body, 0);
 }
 
 void GenericContactProcess (const NewtonJoint* contactJoint, dFloat timestep, int threadIndex)
