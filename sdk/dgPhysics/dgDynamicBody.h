@@ -82,10 +82,10 @@ class dgDynamicBody : public dgBody
 	void SetSkeleton(dgSkeletonContainer* const skeleton);
 
 	void IntegrateImplicit(dgFloat32 timeStep);
-	void IntegrateExplicit(dgFloat32 timeStep, dgInt32 method);
-
 	virtual void IntegrateOpenLoopExternalForce(dgFloat32 timeStep);
 	const dgVector& GetDampCoeffcient (dgFloat32 timestep);
+
+	virtual dgJacobian IntegrateForceAndToque(const dgVector& force, const dgVector& torque, const dgVector& timestep);
 
 	private:
 	virtual void AddDampingAcceleration(dgFloat32 timestep);
@@ -244,7 +244,6 @@ DG_INLINE void dgDynamicBody::SetSkeleton(dgSkeletonContainer* const skeleton)
 	dgAssert (!(m_skeleton && skeleton));
 	m_skeleton = skeleton;
 }
-
 
 DG_INLINE const dgVector& dgDynamicBody::GetDampCoeffcient (dgFloat32 timestep)
 {

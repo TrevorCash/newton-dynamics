@@ -236,19 +236,12 @@ dgMatrix dgMatrix::Inverse4x4 () const
 			}
 			dgAssert(pivot > dgFloat32(1.0e-6f));
 			if (permute != i) {
-				//for (dgInt32 j = 0; j < 4; j++) {
-					dgSwap(inv[i], inv[permute]);
-					dgSwap(tmp[i], tmp[permute]);
-				//}
+				dgSwap(inv[i], inv[permute]);
+				dgSwap(tmp[i], tmp[permute]);
 			}
 		}
 
 		for (dgInt32 j = i + 1; j < 4; j++) {
-//			dgFloat32 scale = tmp[j][i] / tmp[i][i];
-//			for (dgInt32 k = 0; k < 4; k++) {
-//				tmp[j][k] -= scale * tmp[i][k];
-//				inv[j][k] -= scale * inv[i][k];
-//			}
 			dgVector scale (tmp[j][i] / tmp[i][i]);
 			tmp[j] -= tmp[i] * scale;
 			inv[j] -= inv[i] * scale;
@@ -259,20 +252,13 @@ dgMatrix dgMatrix::Inverse4x4 () const
 	for (dgInt32 i = 3; i >= 0; i--) {
 		dgVector acc(dgVector::m_zero);
 		for (dgInt32 j = i + 1; j < 4; j++) {
-//			dgFloat32 pivot = tmp[i][j];
-//			for (dgInt32 k = 0; k < 4; k++) {
-//				acc[k] += pivot * inv[j][k];
-//			}
 			dgVector pivot(tmp[i][j]);
 			acc += pivot * inv[j];
 		}
-		//dgFloat32 den = dgFloat32(1.0f) / tmp[i][i];
-		//for (dgInt32 k = 0; k < 4; k++) {
-		//	inv[i][k] = den * (inv[i][k] - acc[k]);
-		//}
 		dgVector den(dgFloat32(1.0f) / tmp[i][i]);
 		inv[i] = den * (inv[i] - acc);
 	}
+
 #ifdef _DEBUG
 	tmp = *this * inv;
 	for (dgInt32 i = 0; i < 4; i++) {
@@ -287,31 +273,43 @@ dgMatrix dgMatrix::Inverse4x4 () const
 	return inv;
 }
 
-dgMatrix dgMatrix::Symetric3by3Inverse () const
+dgVector dgMatrix::SolveByGaussianElimination(const dgVector &v) const
 {
-	dgMatrix copy(*this);
-	dgMatrix inverse(dgGetIdentityMatrix());
-	for (dgInt32 i = 0; i < 3; i++) {
-		dgVector den(dgFloat32(1.0f) / copy[i][i]);
-		copy[i] = copy[i] * den;
-		inverse[i] = inverse[i] * den;
-		for (dgInt32 j = 0; j < 3; j++) {
-			if (j != i) {
-				dgVector pivot(copy[j][i]);
-				copy[j] -= copy[i] * pivot;
-				inverse[j] -= inverse[i] * pivot;
+//	return  Inverse4x4().UnrotateVector(v);
+	dgMatrix tmp(*this);
+	dgVector ret(v);
+	for (dgInt32 i = 0; i < 4; i++) {
+		dgFloat32 pivot = dgAbs(tmp[i][i]);
+		if (pivot < dgFloat32(0.01f)) {
+			dgInt32 permute = i;
+			for (dgInt32 j = i + 1; j < 4; j++) {
+				dgFloat32 pivot1 = dgAbs(tmp[j][i]);
+				if (pivot1 > pivot) {
+					permute = j;
+					pivot = pivot1;
+				}
+			}
+			dgAssert(pivot > dgFloat32(1.0e-6f));
+			if (permute != i) {
+				dgSwap(ret[i], ret[permute]);
+				dgSwap(tmp[i], tmp[permute]);
 			}
 		}
-	}
-	
-#ifdef _DEBUG
-	dgMatrix test(*this * inverse);
-	dgAssert(dgAbs(test[0][0] - dgFloat32(1.0f)) < dgFloat32(0.01f));
-	dgAssert(dgAbs(test[1][1] - dgFloat32(1.0f)) < dgFloat32(0.01f));
-	dgAssert(dgAbs(test[2][2] - dgFloat32(1.0f)) < dgFloat32(0.01f));
-#endif
 
-	return inverse;
+		for (dgInt32 j = i + 1; j < 4; j++) {
+			dgVector scale(tmp[j][i] / tmp[i][i]);
+			tmp[j] -= tmp[i] * scale;
+			ret[j] -= ret[i] * scale.GetScalar();
+			tmp[j][i] = dgFloat32(0.0f);
+		}
+	}
+
+	for (dgInt32 i = 3; i >= 0; i--) {
+		dgVector pivot(tmp[i] * ret);
+		ret[i] = (ret[i] - pivot.AddHorizontal().GetScalar() + tmp[i][i] * ret[i]) / tmp[i][i];
+	}
+
+	return ret;
 }
 
 void dgMatrix::CalcPitchYawRoll (dgVector& euler0, dgVector& euler1) const
@@ -373,7 +371,7 @@ void dgMatrix::CalcPitchYawRoll (dgVector& euler0, dgVector& euler1) const
 	// Assuming the angles are in radians.
 	if (matrix[0][2] > dgFloat32 (0.99995f)) {
 		dgFloat32 picth0 = dgFloat32(0.0f);
-		dgFloat32 yaw0 = dgFloat32(-dgPI * 0.5f);
+		dgFloat32 yaw0 = dgFloat32(-dgPi * 0.5f);
 		dgFloat32 roll0 = -dgAtan2(matrix[2][1], matrix[1][1]);
 		euler0[0] = picth0;
 		euler0[1] = yaw0;
@@ -385,7 +383,7 @@ void dgMatrix::CalcPitchYawRoll (dgVector& euler0, dgVector& euler1) const
 
 	} else if (matrix[0][2] < dgFloat32 (-0.99995f)) {
 		dgFloat32 picth0 = dgFloat32 (0.0f);
-		dgFloat32 yaw0 = dgFloat32(dgPI * 0.5f);
+		dgFloat32 yaw0 = dgFloat32(dgPi * 0.5f);
 		dgFloat32 roll0 = dgAtan2(matrix[2][1], matrix[1][1]);
 		euler0[0] = picth0;
 		euler0[1] = yaw0;
@@ -397,7 +395,7 @@ void dgMatrix::CalcPitchYawRoll (dgVector& euler0, dgVector& euler1) const
 
 	} else {
 		dgFloat32 yaw0 = -dgAsin(matrix[0][2]);
-		dgFloat32 yaw1 = dgFloat32(dgPI) - yaw0;
+		dgFloat32 yaw1 = dgFloat32(dgPi) - yaw0;
 
 		dgFloat32 picth0 = dgAtan2( matrix[1][2],  matrix[2][2]);
 		dgFloat32 picth1 = dgAtan2(-matrix[1][2], -matrix[2][2]);
@@ -405,8 +403,8 @@ void dgMatrix::CalcPitchYawRoll (dgVector& euler0, dgVector& euler1) const
 		dgFloat32 roll0 = dgAtan2( matrix[0][1],  matrix[0][0]);
 		dgFloat32 roll1 = dgAtan2(-matrix[0][1], -matrix[0][0]);
 
-		if (yaw1 > dgFloat32 (dgPI)) {
-			yaw1 -= dgFloat32 (2.0f * dgPI);
+		if (yaw1 > dgFloat32 (dgPi)) {
+			yaw1 -= dgFloat32 (2.0f * dgPi);
 		}
 
 		euler0[0] = picth0;

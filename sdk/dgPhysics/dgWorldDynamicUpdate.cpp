@@ -182,7 +182,7 @@ dgInt32 dgWorldDynamicUpdate::CompareClusterInfos(const dgBodyCluster* const clu
 
 void dgWorldDynamicUpdate::BuildClusters(dgFloat32 timestep)
 {
-	DG_TRACKTIME();
+	D_TRACKTIME();
 	dgWorld* const world = (dgWorld*) this;
 	dgContactList& contactList = *world;
 	dgBodyMasterList& masterList = *world;
@@ -566,6 +566,7 @@ dgBody* dgWorldDynamicUpdate::GetClusterBody(const void* const clusterPtr, dgInt
 
 void dgWorldDynamicUpdate::CalculateClusterReactionForcesKernel (void* const context, void* const worldContext, dgInt32 threadID)
 {
+	D_TRACKTIME();
 	dgWorldDynamicUpdateSyncDescriptor* const descriptor = (dgWorldDynamicUpdateSyncDescriptor*) context;
 
 	dgFloat32 timestep = descriptor->m_timestep;
@@ -671,7 +672,6 @@ dgInt32 dgWorldDynamicUpdate::GetJacobianDerivatives(dgContraintDescritor& const
 	constraint->ResetInverseDynamics();
 	return rowCount;
 }
-
 
 void dgWorldDynamicUpdate::BuildJacobianMatrix(const dgBodyInfo* const bodyInfoArray, dgJointInfo* const jointInfo, dgJacobian* const internalForces, dgLeftHandSide* const leftHandSide, dgRightHandSide* const rightHandSide, dgFloat32 forceImpulseScale) const
 {
@@ -790,6 +790,7 @@ void dgWorldDynamicUpdate::BuildJacobianMatrix(const dgBodyInfo* const bodyInfoA
 
 void dgWorldDynamicUpdate::BuildJacobianMatrix(dgBodyCluster* const cluster, dgInt32 threadID, dgFloat32 timestep) const
 {
+	D_TRACKTIME();
 	dgAssert(cluster->m_bodyCount >= 2);
 
 	dgWorld* const world = (dgWorld*) this;
@@ -815,9 +816,6 @@ void dgWorldDynamicUpdate::BuildJacobianMatrix(dgBodyCluster* const cluster, dgI
 				dgAssert(body->m_invMass.m_w > dgFloat32(0.0f));
 				body->AddDampingAcceleration(timestep);
 				body->CalcInvInertiaMatrix();
-				if (body->m_gyroTorqueOn) {
-					body->m_gyroTorque = body->m_omega.CrossProduct(body->CalculateAngularMomentum());
-				}
 			}
 
 			// re use these variables for temp storage 
@@ -882,6 +880,7 @@ void dgWorldDynamicUpdate::BuildJacobianMatrix(dgBodyCluster* const cluster, dgI
 
 void dgWorldDynamicUpdate::IntegrateVelocity(const dgBodyCluster* const cluster, dgFloat32 accelTolerance, dgFloat32 timestep, dgInt32 threadID) const
 {
+	D_TRACKTIME();
 	dgWorld* const world = (dgWorld*) this;
 	dgFloat32 velocityDragCoeff = DG_FREEZZING_VELOCITY_DRAG;
 	dgBodyInfo* const bodyArray = &world->m_bodiesMemory[cluster->m_bodyStart + 1];
@@ -903,7 +902,7 @@ void dgWorldDynamicUpdate::IntegrateVelocity(const dgBodyCluster* const cluster,
 	dgFloat32 maxOmega = dgFloat32(0.0f);
 
 	const dgFloat32 speedFreeze = world->m_freezeSpeed2;
-	const dgFloat32 accelFreeze = world->m_freezeAccel2 * ((cluster->m_jointCount <= DG_SMALL_ISLAND_COUNT) ? dgFloat32(0.05f) : dgFloat32(1.0f));
+	const dgFloat32 accelFreeze = world->m_freezeAccel2 * ((cluster->m_jointCount <= DG_SMALL_ISLAND_COUNT) ? dgFloat32(0.009f) : dgFloat32(1.0f));
 	dgVector velocDragVect(velocityDragCoeff, velocityDragCoeff, velocityDragCoeff, dgFloat32(0.0f));
 
 	bool stackSleeping = true;

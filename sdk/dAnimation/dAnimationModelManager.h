@@ -14,13 +14,13 @@
 #define __D_ANIMATION_MODEL_MANAGER_H__
 
 #include "dAnimationStdAfx.h"
-//#include "dAnimationJoint.h"
+#include "dAnimationJoint.h"
 #include "dAnimationJointRoot.h"
 
 #define D_ANIMATION_MODEL_MANAGER	"__dAnimationModelManager__"
 
 
-class dAnimationModelManager: public dCustomListener
+class dAnimationModelManager: public dCustomParallelListener
 {
 	public:
 	dAnimationModelManager(NewtonWorld* const world, const char* const name = D_ANIMATION_MODEL_MANAGER);
@@ -29,6 +29,9 @@ class dAnimationModelManager: public dCustomListener
 	//dAnimationJointRoot* CreateModel(NewtonBody* const bone, const dMatrix& bindMatrix);
 	void AddModel(dAnimationJointRoot* const model);
 	void RemoveModel(dAnimationJointRoot* const model);
+
+	dAnimationJoint* GetFirstJoint(const dAnimationJointRoot* const model) const;
+	dAnimationJoint* GetNextJoint(const dAnimationJoint* const joint) const;
 
 	//virtual void OnDebug(dCustomJoint::dDebugDisplay* const debugContext) = 0;
 	virtual void OnUpdateTransform(const dAnimationJoint* const bone, const dMatrix& localMatrix) const = 0;
@@ -39,17 +42,14 @@ class dAnimationModelManager: public dCustomListener
 	virtual void OnPostUpdate(dAnimationJointRoot* const model, dFloat timestep) {}
 
 	private:
-	virtual void PreUpdate(dFloat timestep);
-	virtual void PostUpdate(dFloat timestep);
-
-	static void PreUpdate(NewtonWorld* const world, void* const context, int threadIndex);
-	static void PostUpdate(NewtonWorld* const world, void* const context, int threadIndex);
+	void PreUpdate(dFloat timestep, int threadID);
+	void PostUpdate(dFloat timestep, int threadID);
+	dAnimationJoint* GetFirstJoint(const dAnimationJoint* const joint) const;
 
 	private:
 	dList<dAnimationJointRoot*> m_controllerList;
 	dFloat m_timestep;
 	//unsigned m_lock;
-
 };
 
 

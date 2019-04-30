@@ -23,6 +23,19 @@ static void ZeroGravityForce(const NewtonBody* body, dFloat timestep, int thread
 {
 }
 
+static void PhiTopClampOmega(const NewtonBody* body, dFloat timestep, int threadIndex)
+{
+	PhysicsApplyGravityForce(body, timestep, threadIndex);
+
+	dVector omega(0.0f);
+	NewtonBodyGetOmega(body, &omega[0]);
+	dFloat mag2 = omega.DotProduct3(omega);
+	dFloat maxMag = 50.0f;
+	if (mag2 > (maxMag * maxMag)) {
+		omega = omega.Normalize().Scale(maxMag);
+		NewtonBodySetOmega(body, &omega[0]);
+	}
+}
 
 static NewtonBody* DzhanibekovEffect(DemoEntityManager* const scene, const dVector& posit, dVector omega, dFloat radius, dFloat lenght)
 {
@@ -32,15 +45,19 @@ static NewtonBody* DzhanibekovEffect(DemoEntityManager* const scene, const dVect
 
 	dFloat shortLength = lenght * 0.3f;
 	offset.m_posit.m_z = radius * 0.75f + shortLength * 0.5f;
+#if 1
 	NewtonCollision* const longCylinder = NewtonCreateCylinder(world, radius, radius, lenght, 0, NULL);
 	NewtonCollision* const shortCylinder = NewtonCreateCylinder(world, radius, radius, shortLength, 0, &offset[0][0]);
-
 	NewtonCollision* const dzhanibekovShape = NewtonCreateCompoundCollision(world, 0);
 	NewtonCompoundCollisionBeginAddRemove(dzhanibekovShape);
-
 	NewtonCompoundCollisionAddSubCollision(dzhanibekovShape, longCylinder);
 	NewtonCompoundCollisionAddSubCollision(dzhanibekovShape, shortCylinder);
 	NewtonCompoundCollisionEndAddRemove(dzhanibekovShape);
+	NewtonDestroyCollision(longCylinder);
+	NewtonDestroyCollision(shortCylinder);
+#else
+	NewtonCollision* const dzhanibekovShape = NewtonCreateBox(world, lenght, lenght * 0.25f, lenght * 0.5f, 0, NULL);
+#endif
 
 	dMatrix matrix(dGetIdentityMatrix());
 	matrix.m_posit = posit;
@@ -65,8 +82,6 @@ static NewtonBody* DzhanibekovEffect(DemoEntityManager* const scene, const dVect
 
 	geometry->Release();
 	NewtonDestroyCollision(dzhanibekovShape);
-	NewtonDestroyCollision(longCylinder);
-	NewtonDestroyCollision(shortCylinder);
 
 	return dzhanibekovBody;
 }
@@ -122,26 +137,27 @@ static NewtonBody* PhiTop(DemoEntityManager* const scene, const dVector& posit, 
 	matrix.m_posit.m_w = 1.0f;
 
 	DemoMesh* const geometry = new DemoMesh("primitive", scene->GetShaderCache(), ballShape, "smilli.tga", "smilli.tga", "smilli.tga");
-	NewtonBody* const ball = CreateSimpleSolid(scene, geometry, 10.0f, matrix, ballShape, 0);
+	NewtonBody* const phiTop = CreateSimpleSolid(scene, geometry, 10.0f, matrix, ballShape, 0);
 
-	// the PhiTop spisn too fast and gytor trque add to much energy, they require hget simulation rate  
-	NewtonBodySetGyroscopicTorque(ball, 1);
-	NewtonBodySetMassProperties(ball, 10.0f, ballShape);
+	// the PhiTop spins too fast and gyro torque add to much energy, they require higher simulation rate  
+	NewtonBodySetGyroscopicTorque(phiTop, 1);
+	NewtonBodySetMassProperties(phiTop, 10.0f, ballShape);
+	NewtonBodySetForceAndTorqueCallback(phiTop, PhiTopClampOmega);
 
 	dFloat m, Ixx, Iyy, Izz;
-	NewtonBodyGetMass(ball, &m, &Ixx, &Iyy, &Izz);
+	NewtonBodyGetMass(phiTop, &m, &Ixx, &Iyy, &Izz);
 
 	dVector angVelocity(0.0f, omega, 0.0f, 0.0f);
-	NewtonBodySetOmega(ball, &angVelocity[0]);
+	NewtonBodySetOmega(phiTop, &angVelocity[0]);
 
 	dVector damp(0.0f);
-	NewtonBodySetLinearDamping(ball, 0.0f);
-	NewtonBodySetAngularDamping(ball, &damp[0]);
+	NewtonBodySetLinearDamping(phiTop, 0.0f);
+	NewtonBodySetAngularDamping(phiTop, &damp[0]);
 
 	geometry->Release();
 	NewtonDestroyCollision(ballShape);
 
-	return ball;
+	return phiTop;
 }
 
 static NewtonBody* RattleBack(DemoEntityManager* const scene, const dVector& posit, dFloat omega, dFloat radio)
@@ -234,6 +250,7 @@ static NewtonBody* CreateFlyWheel (DemoEntityManager* const scene, const dVector
 
 static void CreateBicycleWheel(DemoEntityManager* const scene, const dVector& posit, dFloat speed, dFloat radius, dFloat lenght, dFloat tiltAnsgle)
 {
+	speed *= -1.0f;
 	NewtonBody* const flyWheel = CreateFlyWheel(scene, posit, speed, radius, lenght);
 
 	dMatrix matrix(dGetIdentityMatrix());
@@ -317,10 +334,10 @@ void GyroscopyPrecession(DemoEntityManager* const scene)
 	// should spins very slowly, with a tilt angle of 30 degrees
 	CreateBicycleWheel(scene, dVector(0.0f, 3.0f, -8.0f, 1.0f), 100.0f, 0.6f, 0.3f, 30.0f);
 	
-	// should spins slowly, tweice preccesing speed.
+	// should spins slowly, twice precession speed.
 	CreateBicycleWheel(scene, dVector(0.0f, 3.0f, -6.0f, 1.0f), 50.0f, 0.6f, 0.3f, 0.0f);
 
-	// spin twice as fast, slow preccesion 
+	// spin twice as fast, slow precession 
 	CreateBicycleWheel(scene, dVector(0.0f, 3.0f, -4.0f, 1.0f), 100.0f, 0.6f, 0.3f, 0.0f);
 
 	// should just flops
@@ -331,16 +348,14 @@ void GyroscopyPrecession(DemoEntityManager* const scene)
 	FrisbeePreccesion(scene, dVector(0.0f, 3.0f, -10.0f, 1.0f), 10.0f, 1.0f, 15.0f);
 
 	// intermediate Axis Theorem
-	DzhanibekovEffect(scene, dVector(0.0f, 3.0f,  0.0f, 1.0f), dVector (0.01f, 0.01f, 20.0f), 0.25f, 2.0f);
-	DzhanibekovEffect(scene, dVector(0.0f, 3.0f,  2.0f, 1.0f), dVector (0.01f, 20.0f, 0.01f), 0.25f, 2.0f);
-	DzhanibekovEffect(scene, dVector(0.0f, 3.0f,  4.0f, 1.0f), dVector (20.0f, 0.01f, 0.01f), 0.25f, 2.0f);
+	DzhanibekovEffect(scene, dVector(0.0f, 3.0f,  0.0f, 1.0f), dVector (0.01f, 0.01f, 10.0f), 0.25f, 2.0f);
+	DzhanibekovEffect(scene, dVector(0.0f, 3.0f,  2.0f, 1.0f), dVector (0.01f, 0.01f,-15.0f), 0.25f, 2.0f);
 
-	//the effect only happens is there a residual angular velocity on the other two axis
-	// for perfectly axis aligned velocity the the body is on unstable equilibrium and should not flip.
-	DzhanibekovEffect(scene, dVector(3.0f, 3.0f,  6.0f, 1.0f), dVector (0.0f, 0.0f, 15.0f), 0.25f, 2.0f);
-
-	// test a different angular velocity
-	DzhanibekovEffect(scene, dVector(3.0f, 3.0f,  8.0f, 1.0f), dVector (0.01f, 0.01f, 15.0f), 0.25f, 2.0f);
+	//the effect only happens is there is a residual angular velocity on the other two axis
+	//for perfectly axis aligned velocity the body is in unstable equilibrium and should not flip.
+	DzhanibekovEffect(scene, dVector(0.0f, 3.0f,  4.0f, 1.0f), dVector (0.01f, 10.0f, 0.01f), 0.25f, 2.0f);
+	DzhanibekovEffect(scene, dVector(0.0f, 3.0f,  6.0f, 1.0f), dVector (10.0f, 0.01f, 0.01f), 0.25f, 2.0f);
+	DzhanibekovEffect(scene, dVector(0.0f, 3.0f,  8.0f, 1.0f), dVector (0.0f, 0.0f, 10.0f), 0.25f, 2.0f);
 
 	// interesting and strange effect generated by and skew inertia
 	RattleBack(scene, dVector(-2.0f, 0.5f, - 3.0, 1.0f), 0.0f, 1.0f);
@@ -349,6 +364,7 @@ void GyroscopyPrecession(DemoEntityManager* const scene)
 
 	// place a toy tops
 	const int topsCount = 4;
+	//const int topsCount = 1;
 	const dFloat spacing = 3.0f;
 	for (int i = 0; i < topsCount; i++) {
 		for (int j = 0; j < topsCount; j++) {
@@ -364,6 +380,3 @@ void GyroscopyPrecession(DemoEntityManager* const scene)
 	dVector origin(-10.0f, 2.0f, -5.0f, 0.0f);
 	scene->SetCameraMatrix(rot, origin);
 }
-
-
-

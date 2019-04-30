@@ -86,7 +86,7 @@ DG_INLINE void dgMovingAABB (dgVector& p0, dgVector& p1, const dgVector& veloc, 
 
 	// estimate the maximum effect of the angular velocity and enlarge that box by that value (use 45 degrees as max angle not 90)
 	dgAssert (omega.m_w == dgFloat32 (0.0f));
-	dgFloat32 maxAngle = dgMin (dgSqrt (omega.DotProduct(omega).GetScalar() * timestep * timestep), dgFloat32 (45.0f * dgDEG2RAD));
+	dgFloat32 maxAngle = dgMin (dgSqrt (omega.DotProduct(omega).GetScalar() * timestep * timestep), dgFloat32 (45.0f * dgDegreeToRad));
 
 	dgFloat32 angularTravel = (maxRadius - minRadius) * maxAngle;
 	dgVector angularStep (angularTravel, angularTravel, angularTravel, dgFloat32 (0.0f));
@@ -258,9 +258,9 @@ class dgFastAABBInfo: public dgObb
 	DG_INLINE dgFastAABBInfo(const dgVector& p0, const dgVector& p1)
 		:dgObb(dgGetIdentityMatrix(), dgVector::m_half * (p1 - p0))
 		,m_absDir(dgGetIdentityMatrix())
+		,m_separationDistance(dgFloat32(1.0e10f))
 		,m_p0(p0)
 		,m_p1(p1)
-		,m_separationDistance(dgFloat32(1.0e10f))
 	{
 		m_posit = ((dgVector::m_half * (p1 + p0)) & dgVector::m_triplexMask) | dgVector::m_wOne;
 	}
@@ -387,9 +387,9 @@ class dgFastAABBInfo: public dgObb
 
 	protected:
 	dgMatrix m_absDir;
+	mutable dgVector m_separationDistance;
 	dgVector m_p0;
 	dgVector m_p1;
-	mutable dgFloat32 m_separationDistance;
 
 	friend class dgAABBPolygonSoup;
 	friend class dgCollisionUserMesh;

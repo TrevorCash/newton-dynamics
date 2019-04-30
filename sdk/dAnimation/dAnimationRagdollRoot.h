@@ -9,21 +9,24 @@
 * freely
 */
 
-#ifndef __DEMO_ENTITY_LISTENER_H__
-#define __DEMO_ENTITY_LISTENER_H__
 
-#include "toolbox_stdafx.h"
-#include "dCustomListener.h"
+#ifndef __D_ANIMATION_RAGDOLL_ROOT_H__
+#define __D_ANIMATION_RAGDOLL_ROOT_H__
 
-class DemoEntityListener: public dCustomParallelListener
+#include "dAnimationStdAfx.h"
+#include "dAnimationJointRoot.h"
+
+class dAnimationRagdollRoot: public dAnimationJointRoot
 {
 	public:
-	DemoEntityListener(DemoEntityManager* const scene);
-	~DemoEntityListener();
+	dAnimationRagdollRoot(NewtonBody* const body, const dMatrix& bindMarix);
+	virtual ~dAnimationRagdollRoot();
 
-	private:
-	virtual void PreUpdate (dFloat timestep, int threadID);
-	virtual void PostUpdate (dFloat timestep, int threadID);
+	dVector CalculateCenterOfMass() const;
+
+	virtual void PreUpdate(dFloat timestep);
 };
 
-#endif
+
+#endif 
+

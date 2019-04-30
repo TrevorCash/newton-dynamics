@@ -15,6 +15,7 @@
 #include "dAnimationStdAfx.h"
 
 class dAnimationJoint;
+class dAnimationJointRoot;
 class dAnimationModelManager;
 
 class dAnimationJointChildren: public dList<dAnimationJoint*>
@@ -27,10 +28,14 @@ class dAnimationBody: public dComplementaritySolver::dBodyState
 	dAnimationBody ()
 		:dComplementaritySolver::dBodyState()
 		,m_owner(NULL)
+		,m_index(-1)
 	{
 	}
 
+	const int GetIndex() const {dAssert (m_index >= 0); return m_index;}
+
 	dAnimationJoint* m_owner;
+	int m_index;
 };
 
 class dAnimationContraint: public dComplementaritySolver::dBilateralJoint
@@ -51,11 +56,17 @@ class dAnimationJoint: public dCustomAlloc
 	dAnimationJoint* GetParent() const;
 	const dMatrix& GetBindMatrix() const;
 
+	virtual dAnimationJoint* GetAsLeaf();
+	virtual dAnimationJointRoot* GetAsRoot();
+
+	dAnimationJointRoot* GetRoot() const;
+
 	void* GetUserData() const;
 	void SetUserData(void* const data);
 	
 	dAnimationJointChildren& GetChildren();
 	const dAnimationJointChildren& GetChildren() const;
+	const dAnimationJointChildren::dListNode* GetNode() const;
 
 	NewtonBody* GetBody() const;
 	dCustomJoint* GetJoint() const;
@@ -63,11 +74,11 @@ class dAnimationJoint: public dCustomAlloc
 	dAnimationContraint* GetProxyJoint();
 
 	void CopyRigidBodyMassToStates();
+
 	protected:
-	int GetIndex() const;
-	void SetIndex(int index);
 	void CopyRigidBodyMassToStatesLow();
 	virtual void RigidBodyToStates();
+	virtual void UpdateJointAcceleration();
 	virtual void ApplyExternalForce(dFloat timestep);
 
 	dAnimationBody m_proxyBody;
@@ -77,22 +88,11 @@ class dAnimationJoint: public dCustomAlloc
 	dCustomJoint* m_joint;
 	dAnimationJoint* m_parent;
 	dAnimationContraint* m_proxyJoint;
+	dAnimationJointChildren::dListNode* m_node;
 	dAnimationJointChildren m_children;
-	int m_index;
 
 	friend class dAnimationJointSolver;
 };
-
-
-inline int dAnimationJoint::GetIndex() const
-{
-	return m_index;
-}
-
-inline void dAnimationJoint::SetIndex(int index)
-{
-	m_index = index;
-}
 
 inline dAnimationJoint* dAnimationJoint::GetParent() const
 {
@@ -144,7 +144,29 @@ inline dAnimationJointChildren& dAnimationJoint::GetChildren()
 	return m_children; 
 }
 
+inline const dAnimationJointChildren::dListNode* dAnimationJoint::GetNode() const
+{
+	return m_node;
+}
 
+inline dAnimationJointRoot* dAnimationJoint::GetAsRoot()
+{ 
+	return NULL; 
+}
+
+inline dAnimationJoint* dAnimationJoint::GetAsLeaf()
+{ 
+	return !m_children.GetCount() ? this : NULL; 
+}
+
+inline dAnimationJointRoot* dAnimationJoint::GetRoot() const
+{
+	const dAnimationJoint* root = this;
+	while (root->GetParent()) {
+		root = root->GetParent();
+	}
+	return (dAnimationJointRoot*)root;
+}
 
 #endif
 

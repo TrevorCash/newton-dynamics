@@ -22,11 +22,11 @@ dAnimationJoint::dAnimationJoint(NewtonBody* const body, const dMatrix& bindMari
 	,m_joint(NULL)
 	,m_parent(parent)
 	,m_proxyJoint(NULL)
+	,m_node(NULL)
 	,m_children()
-	,m_index(-1)
 {
 	if (m_parent) {
-		m_parent->m_children.Append(this);
+		m_node = m_parent->m_children.Append(this);
 	}
 	m_proxyBody.m_owner = this;
 
@@ -107,5 +107,13 @@ void dAnimationJoint::ApplyExternalForce(dFloat timestep)
 {
 	for (dAnimationJointChildren::dListNode* node = m_children.GetFirst(); node; node = node->GetNext()) {
 		node->GetInfo()->ApplyExternalForce(timestep);
+	}
+}
+
+
+void dAnimationJoint::UpdateJointAcceleration()
+{
+	for (dAnimationJointChildren::dListNode* node = m_children.GetFirst(); node; node = node->GetNext()) {
+		node->GetInfo()->UpdateJointAcceleration();
 	}
 }

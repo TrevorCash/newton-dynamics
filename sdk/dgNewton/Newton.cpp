@@ -5477,8 +5477,6 @@ void NewtonContactJointRemoveContact(const NewtonJoint* const contactJoint, void
 
 		dgAssert (joint->GetBody0());
 		dgAssert (joint->GetBody1());
-		//dgBody* const body = joint->GetBody0() ? joint->GetBody0() : joint->GetBody1();
-		//dgWorld* const world = body->GetWorld();
 		dgWorld* const world = joint->GetBody0()->GetWorld();
 		world->GlobalLock();
 		joint->Remove(node);
@@ -6328,8 +6326,8 @@ void NewtonBallSetConeLimits(const NewtonJoint* const ball, const dFloat* pin, d
 
 	maxConeAngle = dgAbs (maxConeAngle);
 	maxTwistAngle = dgAbs (maxTwistAngle);
-	joint->SetConeLimitState ((maxConeAngle > dgDEG2RAD) ? true : false); 
-	joint->SetTwistLimitState ((maxTwistAngle > dgDEG2RAD) ? true : false);
+	joint->SetConeLimitState ((maxConeAngle > dgDegreeToRad) ? true : false); 
+	joint->SetTwistLimitState ((maxTwistAngle > dgDegreeToRad) ? true : false);
 	joint->SetLatealLimitState (false); 
 	joint->SetLimits (coneAxis, -maxConeAngle, maxConeAngle, maxTwistAngle, lateral, 0.0f, 0.0f);
 }
@@ -7854,6 +7852,13 @@ void NewtonMeshApplyTransform (const NewtonMesh* const mesh, const dFloat* const
 	meshEffect->ApplyTransform(dgMatrix (matrix));
 }
 
+void NewtonMeshFlipWinding(const NewtonMesh* const mesh)
+{
+	TRACE_FUNCTION(__FUNCTION__);
+	dgMeshEffect* const meshEffect = (dgMeshEffect*)mesh;
+	meshEffect->FlipWinding();
+}
+
 void NewtonMeshCalculateOOBB(const NewtonMesh* const mesh, dFloat* const matrix, dFloat* const x, dFloat* const y, dFloat* const z)
 {
 	TRACE_FUNCTION(__FUNCTION__);
@@ -8324,7 +8329,7 @@ NewtonMesh* NewtonMeshCreateFirstSingleSegment (const NewtonMesh* const mesh)
 	effectMesh->BeginConectedSurface();
 	if (effectMesh->GetConectedSurface (segment)) {
 		dgMeshEffect* const solid = new (effectMesh->GetAllocator()) dgMeshEffect(segment, *((dgMeshEffect*)mesh));
-	return (NewtonMesh*)solid;
+		return (NewtonMesh*)solid;
 	} else {
 		return NULL;
 	}

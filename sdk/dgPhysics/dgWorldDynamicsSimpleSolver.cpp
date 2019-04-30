@@ -335,6 +335,7 @@ void dgWorldDynamicUpdate::CalculateClusterContacts(dgBodyCluster* const cluster
 
 void dgWorldDynamicUpdate::IntegrateExternalForce(const dgBodyCluster* const cluster, dgFloat32 timestep, dgInt32 threadID) const
 {
+	D_TRACKTIME();
 	dgWorld* const world = (dgWorld*) this;
 	dgBodyInfo* const bodyArray = &world->m_bodiesMemory[cluster->m_bodyStart];
 
@@ -342,7 +343,7 @@ void dgWorldDynamicUpdate::IntegrateExternalForce(const dgBodyCluster* const clu
 	const dgInt32 bodyCount = cluster->m_bodyCount;
 	for (dgInt32 i = 1; i < bodyCount; i ++) {
 		dgDynamicBody* const body = (dgDynamicBody*) bodyArray[i].m_body;
-		body->m_gyroTorque = body->m_omega.CrossProduct(body->CalculateAngularMomentum());
+		body->UpdateGyroData();
 		body->AddDampingAcceleration(timestep);
 		body->IntegrateOpenLoopExternalForce(timestep);
 	}
@@ -490,7 +491,7 @@ dgFloat32 dgWorldDynamicUpdate::CalculateJointForce(const dgJointInfo* const joi
 			a = a.MulAdd(row->m_JMinv.m_jacobianM0.m_angular, angularM0);
 			a = a.MulAdd(row->m_JMinv.m_jacobianM1.m_linear, linearM1);
 			a = a.MulAdd(row->m_JMinv.m_jacobianM1.m_angular, angularM1);
-			a = dgVector(rhs->m_coordenateAccel + rhs->m_gyroAccel - rhs->m_force * rhs->m_diagDamp) - a.AddHorizontal();
+			a = dgVector(rhs->m_coordenateAccel - rhs->m_force * rhs->m_diagDamp) - a.AddHorizontal();
 
 			dgVector f(rhs->m_force + rhs->m_invJinvMJt * a.GetScalar());
 			dgAssert(rhs->m_normalForceIndex >= -1);
@@ -531,7 +532,7 @@ dgFloat32 dgWorldDynamicUpdate::CalculateJointForce(const dgJointInfo* const joi
 				a = a.MulAdd(row->m_JMinv.m_jacobianM0.m_angular, angularM0);
 				a = a.MulAdd(row->m_JMinv.m_jacobianM1.m_linear, linearM1);
 				a = a.MulAdd(row->m_JMinv.m_jacobianM1.m_angular, angularM1);
-				a = dgVector(rhs->m_coordenateAccel + rhs->m_gyroAccel - rhs->m_force * rhs->m_diagDamp) - a.AddHorizontal();
+				a = dgVector(rhs->m_coordenateAccel - rhs->m_force * rhs->m_diagDamp) - a.AddHorizontal();
 
 				dgVector f(rhs->m_force + rhs->m_invJinvMJt * a.GetScalar());
 				dgAssert(rhs->m_normalForceIndex >= -1);
@@ -575,62 +576,31 @@ dgFloat32 dgWorldDynamicUpdate::CalculateJointForce(const dgJointInfo* const joi
 	return accNorm.GetScalar();
 }
 
+
 dgJacobian dgWorldDynamicUpdate::IntegrateForceAndToque(dgDynamicBody* const body, const dgVector& force, const dgVector& torque, const dgVector& timestep) const
 {
 	dgJacobian velocStep;
-	
 	if (body->m_gyroTorqueOn) {
 		dgVector dtHalf(timestep * dgVector::m_half);
 		dgMatrix matrix(body->m_gyroRotation, dgVector::m_wOne);
+
 		dgVector localOmega(matrix.UnrotateVector(body->m_omega));
 		dgVector localTorque(matrix.UnrotateVector(torque));
 
-		// and solving for alpha we get the angular acceleration at t + dt
-		// calculate gradient at a full time step
-		dgVector gradientStep(localTorque * timestep);
-
 		// derivative at half time step. (similar to midpoint Euler so that it does not loses too much energy)
 		dgVector dw(localOmega * dtHalf);
-
 		dgVector inertia(body->m_mass);
-		dgFloat32 jacobianMatrix[3][3];
 
-		jacobianMatrix[0][0] = inertia[0];
-		jacobianMatrix[0][1] = (inertia[2] - inertia[1]) * dw[2];
-		jacobianMatrix[0][2] = (inertia[2] - inertia[1]) * dw[1];
+		dgMatrix jacobianMatrix(
+			dgVector(inertia[0], (inertia[2] - inertia[1]) * dw[2], (inertia[2] - inertia[1]) * dw[1], dgFloat32(0.0f)),
+			dgVector((inertia[0] - inertia[2]) * dw[2], inertia[1], (inertia[0] - inertia[2]) * dw[0], dgFloat32(1.0f)),
+			dgVector((inertia[1] - inertia[0]) * dw[1], (inertia[1] - inertia[0]) * dw[0], inertia[2], dgFloat32(1.0f)),
+			dgVector::m_wOne);
 
-		jacobianMatrix[1][0] = (inertia[0] - inertia[2]) * dw[2];
-		jacobianMatrix[1][1] = inertia[1];
-		jacobianMatrix[1][2] = (inertia[0] - inertia[2]) * dw[0];
-
-		jacobianMatrix[2][0] = (inertia[1] - inertia[0]) * dw[1];
-		jacobianMatrix[2][1] = (inertia[1] - inertia[0]) * dw[0];
-		jacobianMatrix[2][2] = inertia[2];
-
-		dgAssert(jacobianMatrix[0][0] > dgFloat32(0.0f));
-		dgFloat32 den = dgFloat32(1.0f) / jacobianMatrix[0][0];
-		dgFloat32 scale = jacobianMatrix[1][0] * den;
-		jacobianMatrix[1][0] -= jacobianMatrix[0][0] * scale;
-		jacobianMatrix[1][1] -= jacobianMatrix[0][1] * scale;
-		jacobianMatrix[1][2] -= jacobianMatrix[0][2] * scale;
-		gradientStep[1] -= gradientStep[0] * scale;
-
-		scale = jacobianMatrix[2][0] * den;
-		jacobianMatrix[2][0] -= jacobianMatrix[0][0] * scale;
-		jacobianMatrix[2][1] -= jacobianMatrix[0][1] * scale;
-		jacobianMatrix[2][2] -= jacobianMatrix[0][2] * scale;
-		gradientStep[2] -= gradientStep[0] * scale;
-
-		dgAssert(jacobianMatrix[1][1] > dgFloat32(0.0f));
-		scale = jacobianMatrix[2][1] / jacobianMatrix[1][1];
-		jacobianMatrix[2][1] -= jacobianMatrix[1][1] * scale;
-		jacobianMatrix[2][2] -= jacobianMatrix[1][2] * scale;
-		gradientStep[2] -= gradientStep[1] * scale;
-
-		dgAssert(jacobianMatrix[2][2] > dgFloat32(0.0f));
-		gradientStep[2] = gradientStep[2] / jacobianMatrix[2][2];
-		gradientStep[1] = (gradientStep[1] - jacobianMatrix[1][2] * gradientStep[2]) / jacobianMatrix[1][1];
-		gradientStep[0] = (gradientStep[0] - jacobianMatrix[0][1] * gradientStep[1] - jacobianMatrix[0][2] * gradientStep[2]) / jacobianMatrix[0][0];
+		// and solving for alpha we get the angular acceleration at t + dt
+		// calculate gradient at a full time step
+		//dgVector gradientStep(localTorque * timestep);
+		dgVector gradientStep (jacobianMatrix.SolveByGaussianElimination(localTorque * timestep));
 
 		dgVector omega(matrix.RotateVector(localOmega + gradientStep));
 		dgAssert(omega.m_w == dgFloat32(0.0f));
@@ -644,24 +614,29 @@ dgJacobian dgWorldDynamicUpdate::IntegrateForceAndToque(dgDynamicBody* const bod
 		body->m_gyroRotation = body->m_gyroRotation * deltaRotation;
 		dgAssert((body->m_gyroRotation.DotProduct(body->m_gyroRotation) - dgFloat32(1.0f)) < dgFloat32(1.0e-5f));
 
-		// calculate new gyro torque
 		matrix = dgMatrix(body->m_gyroRotation, dgVector::m_wOne);
 		localOmega = matrix.UnrotateVector(omega);
-		dgVector angularMomentum(inertia * localOmega);
-		body->m_gyroTorque = matrix.RotateVector(localOmega.CrossProduct(angularMomentum));
+		//dgVector angularMomentum(inertia * localOmega);
+		//body->m_gyroTorque = matrix.RotateVector(localOmega.CrossProduct(angularMomentum));
+		//body->m_gyroAlpha = body->m_invWorldInertiaMatrix.RotateVector(body->m_gyroTorque);
+		dgVector localGyroTorque(localOmega.CrossProduct(inertia * localOmega));
+		body->m_gyroTorque = matrix.RotateVector(localGyroTorque);
+		body->m_gyroAlpha = matrix.RotateVector(localGyroTorque * body->m_invMass);
 
 		velocStep.m_angular = matrix.RotateVector(gradientStep);
 	} else {
-		dgVector externTorque(torque);
-		velocStep.m_angular = body->m_invWorldInertiaMatrix.RotateVector(externTorque) * timestep;
+		velocStep.m_angular = body->m_invWorldInertiaMatrix.RotateVector(torque - body->m_gyroTorque) * timestep;
+//		velocStep.m_angular = velocStep.m_angular * dgVector::m_half;
 	}
 
 	velocStep.m_linear = force.Scale(body->m_invMass.m_w) * timestep;
 	return velocStep;
 }
 
+
 void dgWorldDynamicUpdate::CalculateClusterReactionForces(const dgBodyCluster* const cluster, dgInt32 threadID, dgFloat32 timestep) const
 {
+	D_TRACKTIME();
 	dgWorld* const world = (dgWorld*) this;
 	const dgInt32 bodyCount = cluster->m_bodyCount;
 	const dgInt32 jointCount = cluster->m_jointCount;
@@ -705,6 +680,7 @@ void dgWorldDynamicUpdate::CalculateClusterReactionForces(const dgBodyCluster* c
 	}
 
 	const dgInt32 passes = world->m_solverIterations;
+	const dgFloat32 maxAccNorm = DG_SOLVER_MAX_ERROR * DG_SOLVER_MAX_ERROR;
 	for (dgInt32 step = 0; step < derivativesEvaluationsRK4; step++) {
 
 		for (dgInt32 i = 0; i < jointCount; i++) {
@@ -716,39 +692,23 @@ void dgWorldDynamicUpdate::CalculateClusterReactionForces(const dgBodyCluster* c
 			joindDesc.m_leftHandSide = &leftHandSide[pairStart];
 			joindDesc.m_rightHandSide = &rightHandSide[pairStart];
 			constraint->JointAccelerations(&joindDesc);
-			
-			const dgVector& gyroTorque0 = constraint->m_body0->m_gyroTorque;
-			const dgVector& gyroTorque1 = constraint->m_body1->m_gyroTorque;
-
-			dgAssert(constraint->m_body0->m_gyroTorqueOn || (gyroTorque0.DotProduct(gyroTorque0).GetScalar() == dgFloat32(0.0f)));
-			dgAssert(constraint->m_body1->m_gyroTorqueOn || (gyroTorque1.DotProduct(gyroTorque1).GetScalar() == dgFloat32(0.0f)));
-			for (dgInt32 j = 0; j < jointInfo->m_pairCount; j++) {
-				dgRightHandSide* const rhs = &rightHandSide[pairStart + j];
-				const dgLeftHandSide* const row = &leftHandSide[pairStart + j];
-
-				dgVector gyroaccel(row->m_JMinv.m_jacobianM0.m_angular * gyroTorque0 + row->m_JMinv.m_jacobianM1.m_angular * gyroTorque1);
-				rhs->m_gyroAccel = gyroaccel.AddHorizontal().GetScalar();
-			}
 		}
 		joindDesc.m_firstPassCoefFlag = dgFloat32(1.0f);
-
-		dgFloat32 maxAccNorm = DG_SOLVER_MAX_ERROR * DG_SOLVER_MAX_ERROR;
+	
 		dgFloat32 accNorm = maxAccNorm * dgFloat32(2.0f);
-
 		for (dgInt32 i = 0; (i < passes) && (accNorm > maxAccNorm); i++) {
 			accNorm = dgFloat32(0.0f);
 			for (dgInt32 j = 0; j < jointCount; j++) {
 				dgJointInfo* const jointInfo = &constraintArray[j];
-				if (!jointInfo->m_joint->IsSkeleton()) 
-				{
+				if (!jointInfo->m_joint->IsSkeleton()) {
 					//dgFloat32 accel2 = CalculateJointForce_3_13(jointInfo, bodyArray, internalForces, leftHandSide);
 					dgFloat32 accel2 = CalculateJointForce(jointInfo, bodyArray, internalForces, leftHandSide, rightHandSide);
 					accNorm += accel2;
 				}
 			}
-			for (dgInt32 j = 0; j < skeletonCount; j++) {
-				skeletonArray[j]->CalculateJointForce(constraintArray, bodyArray, internalForces);
-			}
+		}
+		for (dgInt32 j = 0; j < skeletonCount; j++) {
+			skeletonArray[j]->CalculateJointForce(constraintArray, bodyArray, internalForces);
 		}
 
 		if (timestepRK != dgFloat32(0.0f)) {
@@ -757,9 +717,11 @@ void dgWorldDynamicUpdate::CalculateClusterReactionForces(const dgBodyCluster* c
 				dgDynamicBody* const body = (dgDynamicBody*)bodyArray[i].m_body;
 				dgAssert(body->m_index == i);
 				if (body->IsRTTIType(dgBody::m_dynamicBodyRTTI)) {
-					const dgVector force(internalForces[i].m_linear + body->m_externalForce);
-					const dgVector torque(internalForces[i].m_angular + body->m_externalTorque - body->m_gyroTorque);
-					dgJacobian velocStep(IntegrateForceAndToque(body, force, torque, timestep4));
+					const dgJacobian& forceAndTorque = internalForces[i];
+					const dgVector force(body->m_externalForce + forceAndTorque.m_linear);
+					const dgVector torque(body->m_externalTorque + forceAndTorque.m_angular);
+
+					dgJacobian velocStep(body->IntegrateForceAndToque(force, torque, timestep4));
 					if (!body->m_resting) {
 						body->m_veloc += velocStep.m_linear;
 						body->m_omega += velocStep.m_angular;
@@ -805,8 +767,9 @@ void dgWorldDynamicUpdate::CalculateClusterReactionForces(const dgBodyCluster* c
 			hasJointFeeback |= (constraint->m_updaFeedbackCallback ? 1 : 0);
 		}
 
+		const dgFloat32 zeroAceel = (jointCount >= 16) ? DG_SOLVER_MAX_ERROR : DG_SOLVER_MAX_ERROR * dgFloat32 (0.25f);
 		const dgVector invTime(invTimestep);
-		const dgVector maxAccNorm2(DG_SOLVER_MAX_ERROR * DG_SOLVER_MAX_ERROR);
+		const dgVector maxAccNorm2(zeroAceel * zeroAceel);
 
 		for (dgInt32 i = 1; i < bodyCount; i++) {
 			dgBody* const body = bodyArray[i].m_body;
