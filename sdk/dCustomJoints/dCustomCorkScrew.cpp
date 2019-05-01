@@ -120,7 +120,7 @@ void dCustomCorkScrew::SubmitConstraintLimits(const dMatrix& matrix0, const dMat
 
 		const dFloat invtimestep = 1.0f / timestep;
 		const dFloat speed = 0.5f * (m_minAngle - m_curJointAngle.GetAngle()) * invtimestep;
-		const dFloat stopAccel = NewtonUserJointCalculateRowZeroAccelaration(m_joint) + speed * invtimestep;
+		const dFloat stopAccel = NewtonUserJointCalculateRowZeroAcceleration(m_joint) + speed * invtimestep;
 		NewtonUserJointSetRowAcceleration(m_joint, stopAccel);
 	} else if (angle > m_maxAngle) {
 		NewtonUserJointAddAngularRow(m_joint, 0.0f, &matrix1.m_front[0]);
@@ -129,7 +129,7 @@ void dCustomCorkScrew::SubmitConstraintLimits(const dMatrix& matrix0, const dMat
 
 		const dFloat invtimestep = 1.0f / timestep;
 		const dFloat speed = 0.5f * (m_maxAngle - m_curJointAngle.GetAngle()) * invtimestep;
-		const dFloat stopAccel = NewtonUserJointCalculateRowZeroAccelaration(m_joint) + speed * invtimestep;
+		const dFloat stopAccel = NewtonUserJointCalculateRowZeroAcceleration(m_joint) + speed * invtimestep;
 		NewtonUserJointSetRowAcceleration(m_joint, stopAccel);
 
 	} else if (m_angularFriction != 0.0f) {
@@ -152,7 +152,7 @@ void dCustomCorkScrew::SubmitConstraintLimitSpringDamper(const dMatrix& matrix0,
 		const dFloat invtimestep = 1.0f / timestep;
 		const dFloat speed = 0.5f * (m_minAngle - m_curJointAngle.GetAngle()) * invtimestep;
 		const dFloat springAccel = NewtonCalculateSpringDamperAcceleration(timestep, m_angularSpring, m_curJointAngle.GetAngle(), m_angularDamper, m_angularOmega);
-		const dFloat stopAccel = NewtonUserJointCalculateRowZeroAccelaration(m_joint) + speed * invtimestep + springAccel;
+		const dFloat stopAccel = NewtonUserJointCalculateRowZeroAcceleration(m_joint) + speed * invtimestep + springAccel;
 		NewtonUserJointSetRowAcceleration(m_joint, stopAccel);
 
 	} else if (angle > m_maxAngle) {
@@ -163,7 +163,7 @@ void dCustomCorkScrew::SubmitConstraintLimitSpringDamper(const dMatrix& matrix0,
 		const dFloat invtimestep = 1.0f / timestep;
 		const dFloat speed = 0.5f * (m_maxAngle - m_curJointAngle.GetAngle()) * invtimestep;
 		const dFloat springAccel = NewtonCalculateSpringDamperAcceleration(timestep, m_angularSpring, m_curJointAngle.GetAngle(), m_angularDamper, m_angularOmega);
-		const dFloat stopAccel = NewtonUserJointCalculateRowZeroAccelaration(m_joint) + speed * invtimestep + springAccel;
+		const dFloat stopAccel = NewtonUserJointCalculateRowZeroAcceleration(m_joint) + speed * invtimestep + springAccel;
 		NewtonUserJointSetRowAcceleration(m_joint, stopAccel);
 
 	} else {
@@ -171,24 +171,27 @@ void dCustomCorkScrew::SubmitConstraintLimitSpringDamper(const dMatrix& matrix0,
 	}
 }
 
-
 void dCustomCorkScrew::SubmitAngularRow(const dMatrix& matrix0, const dMatrix& matrix1, dFloat timestep)
 {
-	dMatrix localMatrix(matrix0 * matrix1.Inverse());
-	dVector euler0;
-	dVector euler1;
-	localMatrix.GetEulerAngles(euler0, euler1, m_pitchRollYaw);
-
-	dVector rollPin(dSin(euler0[1]), dFloat(0.0f), dCos(euler0[1]), dFloat(0.0f));
-	rollPin = matrix1.RotateVector(rollPin);
-
-	NewtonUserJointAddAngularRow(m_joint, -euler0[1], &matrix1[1][0]);
+	const dFloat angleError = GetMaxAngleError();
+	dFloat angle0 = CalculateAngle(matrix0.m_front, matrix1.m_front, matrix1.m_up);
+	NewtonUserJointAddAngularRow(m_joint, angle0, &matrix1.m_up[0]);
 	NewtonUserJointSetRowStiffness(m_joint, m_stiffness);
-	NewtonUserJointAddAngularRow(m_joint, -euler0[2], &rollPin[0]);
+	if (dAbs(angle0) > angleError) {
+		const dFloat alpha = NewtonUserJointCalculateRowZeroAcceleration(m_joint) + dFloat(0.25f) * angle0 / (timestep * timestep);
+		NewtonUserJointSetRowAcceleration(m_joint, alpha);
+	}
+
+	dFloat angle1 = CalculateAngle(matrix0.m_front, matrix1.m_front, matrix1.m_right);
+	NewtonUserJointAddAngularRow(m_joint, angle1, &matrix1.m_right[0]);
 	NewtonUserJointSetRowStiffness(m_joint, m_stiffness);
+	if (dAbs(angle1) > angleError) {
+		const dFloat alpha = NewtonUserJointCalculateRowZeroAcceleration(m_joint) + dFloat(0.25f) * angle1 / (timestep * timestep);
+		NewtonUserJointSetRowAcceleration(m_joint, alpha);
+	}
 
 	// the joint angle can be determined by getting the angle between any two non parallel vectors
-	m_curJointAngle.Update(euler0.m_x);
+	m_curJointAngle.Update(-CalculateAngle(matrix0.m_up, matrix1.m_up, matrix1.m_front));
 
 	// save the current joint Omega
 	dVector omega0(0.0f);
@@ -257,5 +260,3 @@ void dCustomCorkScrew::Debug(dDebugDisplay* const debugDisplay) const
 		}
 	}
 }
-
-

@@ -182,7 +182,7 @@ void dCustomDoubleHinge::SubmitConstraintLimits(const dMatrix& matrix0, const dM
 
 		const dFloat invtimestep = 1.0f / timestep;
 		const dFloat speed = 0.5f * (m_minAngle1 - m_curJointAngle1.GetAngle()) * invtimestep;
-		const dFloat stopAccel = NewtonUserJointCalculateRowZeroAccelaration(m_joint) + speed * invtimestep;
+		const dFloat stopAccel = NewtonUserJointCalculateRowZeroAcceleration(m_joint) + speed * invtimestep;
 		NewtonUserJointSetRowAcceleration(m_joint, stopAccel);
 	} else if (angle > m_maxAngle1) {
 		NewtonUserJointAddAngularRow(m_joint, 0.0f, &matrix1.m_up[0]);
@@ -191,7 +191,7 @@ void dCustomDoubleHinge::SubmitConstraintLimits(const dMatrix& matrix0, const dM
 
 		const dFloat invtimestep = 1.0f / timestep;
 		const dFloat speed = 0.5f * (m_maxAngle1 - m_curJointAngle1.GetAngle()) * invtimestep;
-		const dFloat stopAccel = NewtonUserJointCalculateRowZeroAccelaration(m_joint) + speed * invtimestep;
+		const dFloat stopAccel = NewtonUserJointCalculateRowZeroAcceleration(m_joint) + speed * invtimestep;
 		NewtonUserJointSetRowAcceleration(m_joint, stopAccel);
 
 	} else if (m_friction != 0.0f) {
@@ -214,7 +214,7 @@ void dCustomDoubleHinge::SubmitConstraintLimitSpringDamper(const dMatrix& matrix
 		const dFloat invtimestep = 1.0f / timestep;
 		const dFloat speed = 0.5f * (m_minAngle1 - m_curJointAngle1.GetAngle()) * invtimestep;
 		const dFloat springAccel = NewtonCalculateSpringDamperAcceleration(timestep, m_spring1, m_curJointAngle1.GetAngle(), m_damper1, m_jointOmega1);
-		const dFloat stopAccel = NewtonUserJointCalculateRowZeroAccelaration(m_joint) + speed * invtimestep + springAccel;
+		const dFloat stopAccel = NewtonUserJointCalculateRowZeroAcceleration(m_joint) + speed * invtimestep + springAccel;
 		NewtonUserJointSetRowAcceleration(m_joint, stopAccel);
 
 	} else if (angle > m_maxAngle1) {
@@ -225,7 +225,7 @@ void dCustomDoubleHinge::SubmitConstraintLimitSpringDamper(const dMatrix& matrix
 		const dFloat invtimestep = 1.0f / timestep;
 		const dFloat speed = 0.5f * (m_maxAngle1 - m_curJointAngle1.GetAngle()) * invtimestep;
 		const dFloat springAccel = NewtonCalculateSpringDamperAcceleration(timestep, m_spring1, m_curJointAngle1.GetAngle(), m_damper1, m_jointOmega1);
-		const dFloat stopAccel = NewtonUserJointCalculateRowZeroAccelaration(m_joint) + speed * invtimestep + springAccel;
+		const dFloat stopAccel = NewtonUserJointCalculateRowZeroAcceleration(m_joint) + speed * invtimestep + springAccel;
 		NewtonUserJointSetRowAcceleration(m_joint, stopAccel);
 
 	} else {
@@ -233,8 +233,7 @@ void dCustomDoubleHinge::SubmitConstraintLimitSpringDamper(const dMatrix& matrix
 	}
 }
 
-
-void dCustomDoubleHinge::SubmitAngularRow(const dMatrix& matrix0, const dMatrix& matrix1, const dVector& eulers, dFloat timestep)
+void dCustomDoubleHinge::SubmitAngularRow(const dMatrix& matrix0, const dMatrix& matrix1, dFloat timestep)
 {
 	// save the current joint Omega
 	dVector omega0(0.0f);
@@ -243,26 +242,24 @@ void dCustomDoubleHinge::SubmitAngularRow(const dMatrix& matrix0, const dMatrix&
 	if (m_body1) {
 		NewtonBodyGetOmega(m_body1, &omega1[0]);
 	}
-	dVector relOmega(omega0 - omega1);
-	m_curJointAngle1.Update(eulers.m_y);
-	m_jointOmega1 = relOmega.DotProduct3(matrix1.m_up);
 
-	//const dVector frontDir((matrix0.m_front - matrix1.m_up.Scale(matrix0.m_front.DotProduct3(matrix1.m_up))).Normalize());
-	//const dVector sideDir(frontDir.CrossProduct(matrix1.m_up));
-	//const dFloat angle = CalculateAngle(matrix0.m_front, frontDir, sideDir);
-	//NewtonUserJointAddAngularRow(m_joint, angle, &sideDir[0]);
-	//NewtonUserJointSetRowStiffness(m_joint, m_stiffness);
+	m_jointOmega1 = matrix1.m_up.DotProduct3(omega0 - omega1);
+	m_curJointAngle1.Update(-CalculateAngle(matrix0.m_front, matrix1.m_front, matrix1.m_up));
 
-	const dFloat angle = -eulers.m_z;
-	dMatrix rollMatrix(dYawMatrix(eulers.m_y) * matrix1);
-	NewtonUserJointAddAngularRow(m_joint, angle, &rollMatrix.m_right[0]);
+	const dVector frontDir((matrix0.m_front - matrix1.m_up.Scale(matrix0.m_front.DotProduct3(matrix1.m_up))).Normalize());
+	const dVector sideDir(frontDir.CrossProduct(matrix1.m_up));
+	const dFloat angle = CalculateAngle(matrix0.m_front, frontDir, sideDir);
+	NewtonUserJointAddAngularRow(m_joint, angle, &sideDir[0]);
 	NewtonUserJointSetRowStiffness(m_joint, m_stiffness);
 #if 1
 	// not happy with this method because it is a penalty system, 
-	// but is hard the integrator to maintain the angle at zero exactly.
-	const dFloat alphaRollError = NewtonUserJointCalculateRowZeroAccelaration(m_joint) + angle /(timestep * timestep);
+	// but is hard for an first order integrator to prevent the side angle from drifting, 
+	// even an implicit one with expanding the Jacobian partial derivatives a step in the future.
+	const dFloat alphaRollError = NewtonUserJointCalculateRowZeroAcceleration(m_joint) + 0.5f * angle /(timestep * timestep);
 	NewtonUserJointSetRowAcceleration(m_joint, alphaRollError);
 #endif
+
+//dTrace (("%f\n", angle * dRadToDegree));
 
 	if (m_options.m_option3) {
 		if (m_options.m_option4) {
