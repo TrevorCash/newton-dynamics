@@ -154,6 +154,12 @@ add_dependencies (dCustomJoints dMath dContainers)
 add_dependencies (dNewton newton dMath dContainers dCustomJoints)
 add_dependencies (dVehicle newton dMath dContainers dCustomJoints)
 
+if (NEWTON_BUILD_SANDBOX_DEMOS)
+  add_subdirectory(applications/demosSandbox)
+  
+     if(UNIX)
+        find_package(glfw3 REQUIRED)
+
         if(NOT_OpenAL_FOUND)
             message(WARNING "OpenAl headers were not found. Disable NEWTON_BUILD_SANDBOX_DEMOS or install OpenAl")
         else(NOT_OpenAL_FOUND)
