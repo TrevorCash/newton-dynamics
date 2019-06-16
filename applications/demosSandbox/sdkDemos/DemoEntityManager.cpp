@@ -399,6 +399,20 @@ DemoEntityManager::DemoEntityManager ()
 	
 	dMatrixTimeVector(2, &A[0][0], x, b);
 	dSolveDantzigLCP(2, &A[0][0], x, b, l, h);
+
+	int xxx = 0;
+	const int xxxxxx = 450;
+	dDownHeap<int, unsigned> xxxxx (xxxxxx + 2);
+	for (int i = 0; i < xxxxxx; i ++){
+		xxxxx.Push (xxx, i);
+	}
+
+	for (int i = 0; i < 10000; i ++){
+		int index = dRand() % xxxxxx;
+		int key = xxxxx.Value(index);
+		xxxxx.Remove (index);
+		xxxxx.Push (xxx, key);
+	}
 */
 }
 

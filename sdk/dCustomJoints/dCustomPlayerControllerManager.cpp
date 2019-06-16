@@ -78,13 +78,14 @@ dCustomPlayerController* dCustomPlayerControllerManager::CreateController(const 
 	NewtonCollision* const shape = NewtonBodyGetCollision(body);
 	NewtonBodySetMassProperties(body, mass, shape);
 
-	// make the body collidable with other dynamics bodies, by default
+	// make the body collide with other dynamics bodies, by default
 	NewtonBodySetCollidable(body, 1);
 	NewtonDestroyCollision(bodyCapsule);
 
 	dCustomPlayerController& controller = m_playerList.Append()->GetInfo();
 
-	controller.m_localFrame = localAxis;
+	shapeMatrix.m_posit = dVector (0.0f, 0.0f, 0.0f, 1.0f);
+	controller.m_localFrame = shapeMatrix;
 	controller.m_mass = mass;
 	controller.m_invMass = 1.0f / mass;
 	controller.m_manager = this;
@@ -105,6 +106,23 @@ dVector dCustomPlayerController::GetVelocity() const
 void dCustomPlayerController::SetVelocity(const dVector& veloc) 
 { 
 	NewtonBodySetVelocity(m_kinematicBody, &veloc[0]);
+}
+
+
+void dCustomPlayerController::SetFrame(const dMatrix& frame)
+{
+	dAssert (frame.TestOrthogonal());
+	m_localFrame = frame;
+	m_localFrame.m_posit = dVector (0.0f, 0.0f, 0.0f, 1.0f);
+
+	NewtonCollision* const capsule = NewtonBodyGetCollision(m_kinematicBody);
+
+	dMatrix oldMatrix;
+	dMatrix newMatrix(m_localFrame);
+	NewtonCollisionGetMatrix(capsule, &oldMatrix[0][0]);
+
+	newMatrix.m_posit = oldMatrix.m_posit;
+	NewtonCollisionSetMatrix(capsule, &newMatrix[0][0]);
 }
 
 unsigned dCustomPlayerController::PrefilterCallback(const NewtonBody* const body, const NewtonCollision* const collision, void* const userData)
@@ -267,7 +285,7 @@ dVector dCustomPlayerController::CalculateImpulse(
 		}
 	}
 
-	dGaussSeidelLcpSor(rows, D_MAX_ROWS, &massMatrix[0][0], impulseMag, rhs, normalIndex, low, high, dFloat(1.0e-2f), 32, dFloat(1.1f));
+	dGaussSeidelLcpSor(rows, D_MAX_ROWS, &massMatrix[0][0], impulseMag, rhs, normalIndex, low, high, dFloat(1.0e-6f), 32, dFloat(1.1f));
 
 	dVector netImpulse(0.0f);
 	for (int i = 0; i < rows; i++) {
@@ -394,7 +412,6 @@ void dCustomPlayerController::ResolveCollision()
 	NewtonBodyGetCentreOfMass(m_kinematicBody, &com[0]);
 	NewtonBodyGetInvInertiaMatrix(m_kinematicBody, &invInertia[0][0]);
 
-//	const dMatrix localFrame (dPitchMatrix(m_headingAngle) * m_localFrame * matrix);
 	const dMatrix localFrame (m_localFrame * matrix);
 
 	com = matrix.TransformVector(com);
@@ -418,7 +435,7 @@ void dCustomPlayerController::ResolveCollision()
 		dAssert (rowCount < (D_MAX_ROWS - 3));
 
 		//dFloat updir = localFrame.m_front.DotProduct3(normal);
-		dFloat friction = m_manager->ContactFriction(this, point, normal, contact.m_hitBody);
+		dFloat friction = m_manager->ContactFriction(this, point, normal, int (contact.m_contactID), contact.m_hitBody);
 		if (friction > 0.0f)
 		{
 			// add lateral traction friction

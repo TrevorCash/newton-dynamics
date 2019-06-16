@@ -45,9 +45,6 @@ class dCustomPlayerController
 		,m_kinematicBody(NULL)
 		,m_manager(NULL)
 	{
-		//m_forwardSpeed = 1.0f;
-		//m_lateralSpeed = 1.0f;
-		//m_headingAngle = 0.0f * dDegreeToRad;
 	}
 
 	~dCustomPlayerController () 
@@ -61,9 +58,6 @@ class dCustomPlayerController
 
 	const dFloat GetMass() const { return m_mass;}
 
-	dFloat GetFriction() const { return m_friction;}
-	void SetFriction(dFloat friction) {m_friction = dClamp (friction, dFloat (0.0f), dFloat (3.0f));}
-
 	const dVector& GetImpulse() { return m_impulse; }
 	void SetImpulse(const dVector& impulse) { m_impulse = impulse;}
 
@@ -75,6 +69,9 @@ class dCustomPlayerController
 
 	dFloat GetHeadingAngle() const { return m_headingAngle; }
 	void SetHeadingAngle(dFloat angle) {m_headingAngle = dClamp (angle, dFloat (-dPi), dFloat (dPi));}
+
+	dMatrix GetFrame() const { return m_localFrame; }
+	CUSTOM_JOINTS_API void SetFrame(const dMatrix& frame);
 
 	CUSTOM_JOINTS_API dVector GetVelocity() const;
 	CUSTOM_JOINTS_API void SetVelocity(const dVector& veloc);
@@ -115,7 +112,7 @@ class dCustomPlayerControllerManager: public dCustomParallelListener
 
 	virtual void ApplyMove(dCustomPlayerController* const controller, dFloat timestep) = 0;
 	virtual bool ProccessContact(dCustomPlayerController* const controller, const dVector& position, const dVector& normal, const NewtonBody* const otherbody) const { return true; }
-	virtual dFloat ContactFriction(dCustomPlayerController* const controller, const dVector& position, const dVector& normal, const NewtonBody* const otherbody) const { return controller->GetFriction(); }
+	virtual dFloat ContactFriction(dCustomPlayerController* const controller, const dVector& position, const dVector& normal, int contactId, const NewtonBody* const otherbody) const { return controller->m_friction; }
 
 	protected:
 	void PostUpdate(dFloat timestep) {}

@@ -26,25 +26,14 @@
 
 class dgMemoryAllocator;
 
-void* dgApi dgMalloc (size_t size, dgMemoryAllocator* const allocator);
-void  dgApi dgFree (void* const ptr);
-
-void* dgApi dgMallocStack (size_t size);
-void* dgApi dgMallocAligned (size_t size, dgInt32 alignmentInBytes);
-void  dgApi dgFreeStack (void* const ptr);
-
-typedef void* (dgApi *dgMemAlloc) (dgUnsigned32 size);
-typedef void (dgApi *dgMemFree) (void* const ptr, dgUnsigned32 size);
-
-
-#define DG_CLASS_ALLOCATOR_NEW(allocator)			DG_INLINE void *operator new (size_t size, dgMemoryAllocator* const allocator) { return dgMalloc(size, allocator);}
-#define DG_CLASS_ALLOCATOR_NEW_ARRAY(allocator)		DG_INLINE void *operator new[] (size_t size, dgMemoryAllocator* const allocator) { return dgMalloc(size, allocator);}
-#define DG_CLASS_ALLOCATOR_DELETE(allocator)		DG_INLINE void operator delete (void* const ptr, dgMemoryAllocator* const allocator) { dgFree(ptr); }
-#define DG_CLASS_ALLOCATOR_DELETE_ARRAY(allocator)	DG_INLINE void operator delete[] (void* const ptr, dgMemoryAllocator* const allocator) { dgFree(ptr); }
-#define DG_CLASS_ALLOCATOR_NEW_DUMMY				DG_INLINE void *operator new (size_t size) { dgAssert (0); return dgMalloc(size, NULL);}
-#define DG_CLASS_ALLOCATOR_NEW_ARRAY_DUMMY			DG_INLINE void *operator new[] (size_t size) { dgAssert (0); return dgMalloc(size, NULL);}
-#define DG_CLASS_ALLOCATOR_DELETE_DUMMY				DG_INLINE void operator delete (void* const ptr) { dgFree(ptr); }
-#define DG_CLASS_ALLOCATOR_DELETE_ARRAY_DUMMY		DG_INLINE void operator delete[] (void* const ptr) { dgFree(ptr); }
+#define DG_CLASS_ALLOCATOR_NEW(allocator)			DG_INLINE void* operator new (size_t size, dgMemoryAllocator* const allocator) { return dgMalloc(size, allocator);}
+#define DG_CLASS_ALLOCATOR_NEW_ARRAY(allocator)		DG_INLINE void* operator new[] (size_t size, dgMemoryAllocator* const allocator) { return dgMalloc(size, allocator);}
+#define DG_CLASS_ALLOCATOR_DELETE(allocator)		DG_INLINE void  operator delete (void* const ptr, dgMemoryAllocator* const allocator) { dgFree(ptr); }
+#define DG_CLASS_ALLOCATOR_DELETE_ARRAY(allocator)	DG_INLINE void  operator delete[] (void* const ptr, dgMemoryAllocator* const allocator) { dgFree(ptr); }
+#define DG_CLASS_ALLOCATOR_NEW_DUMMY				DG_INLINE void* operator new (size_t size) { dgAssert (0); return dgMalloc(size, NULL);}
+#define DG_CLASS_ALLOCATOR_NEW_ARRAY_DUMMY			DG_INLINE void* operator new[] (size_t size) { dgAssert (0); return dgMalloc(size, NULL);}
+#define DG_CLASS_ALLOCATOR_DELETE_DUMMY				DG_INLINE void  operator delete (void* const ptr) { dgFree(ptr); }
+#define DG_CLASS_ALLOCATOR_DELETE_ARRAY_DUMMY		DG_INLINE void  operator delete[] (void* const ptr) { dgFree(ptr); }
 
 
 #define DG_CLASS_ALLOCATOR(allocator)				\
@@ -56,6 +45,22 @@ typedef void (dgApi *dgMemFree) (void* const ptr, dgUnsigned32 size);
 	DG_CLASS_ALLOCATOR_NEW_ARRAY_DUMMY				\
 	DG_CLASS_ALLOCATOR_DELETE_DUMMY					\
 	DG_CLASS_ALLOCATOR_DELETE_ARRAY_DUMMY
+
+typedef void* (dgApi *dgMemAlloc) (dgUnsigned32 size);
+typedef void (dgApi *dgMemFree) (void* const ptr, dgUnsigned32 size);
+
+#define DG_OLD_ALLOCATOR
+
+#ifdef DG_OLD_ALLOCATOR
+
+void* dgApi dgMalloc (size_t size, dgMemoryAllocator* const allocator);
+void  dgApi dgFree (void* const ptr);
+
+void* dgApi dgMallocStack (size_t size);
+void* dgApi dgMallocAligned (size_t size, dgInt32 alignmentInBytes);
+void  dgApi dgFreeStack (void* const ptr);
+
+
 
 class dgMemoryAllocator
 {
@@ -166,6 +171,174 @@ class dgStackMemoryAllocator: public dgMemoryAllocator
 	dgInt32 m_index;
 	dgInt32 m_size;
 };
+
+#else
+
+
+class dgMemoryAllocatorBase
+{
+	public:
+	dgMemoryAllocatorBase() {}
+	virtual ~dgMemoryAllocatorBase() {}
+
+	virtual void* Malloc(dgInt32 size) = 0;
+	virtual void Free(void* const ptr) = 0;
+};
+
+class dgGlobalAllocator: public dgMemoryAllocatorBase
+{
+	public:
+	dgGlobalAllocator()
+		:dgMemoryAllocatorBase()
+		,m_free(__free__)
+		,m_malloc(__malloc__)
+		,m_memoryUsed(0)
+	{
+	}
+
+	~dgGlobalAllocator() 
+	{
+	}
+
+	void SetAllocatorsCallback(dgMemAlloc malloc, dgMemFree free);
+
+	static dgMemoryAllocatorBase& GetGlobalAllocator();
+	dgInt32 GetMemoryUsed() const { return m_memoryUsed; }
+
+	private:
+	static void* dgApi __malloc__(dgUnsigned32 size);
+	static void dgApi __free__(void* const ptr, dgUnsigned32 size);
+	
+	void* Malloc(dgInt32 size);
+	void Free(void* const ptr);
+
+	dgMemFree m_free;
+	dgMemAlloc m_malloc;
+	dgInt32 m_memoryUsed;
+};
+
+
+class dgMemoryAllocator: public dgMemoryAllocatorBase
+{
+	public:
+	#define DG_MEMORY_GRANULARITY_BITS	6	
+	#define DG_MEMORY_GRANULARITY		(1 << DG_MEMORY_GRANULARITY_BITS)	
+	#define DG_MEMORY_BEAMS_COUNT		10
+//	#define DG_MEMORY_BEAMS_COUNT		1
+
+	class dgMemoryPage;
+	class dgMemoryHeader
+	{
+		public:
+		dgMemoryAllocatorBase* m_allocator;
+		union {
+			void* m_ptr;
+			dgMemoryPage* m_page;
+		};
+		dgInt32 m_size;
+		dgInt32 m_paddedSize;
+	};
+
+	class dgMemoryGranularity
+	{
+		public:
+		union
+		{
+			dgMemoryGranularity* m_next;
+			char m_padd1[DG_MEMORY_GRANULARITY];
+		};
+	};
+
+	class dgMemoryPage
+	{
+		public:
+		dgMemoryPage(dgInt32 size, dgMemoryPage* const root, dgMemoryAllocator* const allocator);
+		~dgMemoryPage();
+		void *operator new (size_t size);
+		void operator delete (void* const ptr);
+
+		void* Malloc(dgInt32 size);
+		void Free(void* const ptr);
+
+		char m_buffer[1024 * 64];
+		dgMemoryPage* m_next;
+		dgMemoryPage* m_prev;
+		dgMemoryGranularity* m_freeList;
+
+		dgInt32 m_count;
+		dgInt32 m_capacity;
+	};
+
+	class dgMemoryBeam
+	{
+		public:
+		dgMemoryBeam();
+		~dgMemoryBeam();
+		void Init(dgInt32 size, dgMemoryAllocator* const allocator);
+
+		void* Malloc(dgInt32 size);
+		void Free(void* const ptr);
+
+		dgMemoryPage* m_firstPage;
+		dgMemoryAllocator* m_allocator;
+		dgInt32 m_beamSize;
+	};
+
+	dgMemoryAllocator();
+	virtual ~dgMemoryAllocator();
+
+	virtual void* Malloc(dgInt32 size);
+	virtual void Free(void* const ptr);
+	virtual dgInt32 GetSize (void* const ptr);
+
+	void* MallocLow(dgInt32 size, dgInt32 aligment=DG_MEMORY_GRANULARITY)
+	{
+		return Malloc(size);
+	}
+
+	void FreeLow(void* const ptr)
+	{
+		Free (ptr);
+	}
+
+	static dgInt32 GetGlobalMemoryUsed();
+	static void SetGlobalAllocators(dgMemAlloc alloc, dgMemFree free);
+
+	void *operator new (size_t size);
+	void operator delete (void* const ptr);
+
+	private:
+	dgMemoryBeam* FindBeam(dgInt32 size);
+
+	dgMemoryBeam m_beams[DG_MEMORY_BEAMS_COUNT];
+};
+
+
+DG_INLINE void* dgMalloc(size_t size, dgMemoryAllocatorBase* const allocator)
+{
+	void* const ptr = allocator->Malloc(dgInt32(size));
+	return ptr;
+}
+
+DG_INLINE void dgFree(void* const ptr)
+{
+	dgMemoryAllocator::dgMemoryHeader* const info = ((dgMemoryAllocator::dgMemoryHeader*)ptr) - 1;
+	dgAssert(info->m_allocator);
+	info->m_allocator->Free(ptr);
+}
+
+DG_INLINE void* dgMallocStack(size_t size)
+{
+	return dgMalloc(size, (dgGlobalAllocator*) &dgGlobalAllocator::GetGlobalAllocator());
+}
+
+DG_INLINE void dgFreeStack(void* const ptr)
+{
+	dgFree(ptr);
+}
+
+
+#endif
 
 #endif
 

@@ -92,6 +92,9 @@ class BasicPlayerControllerManager: public dCustomPlayerControllerManager
 		// make a play controller with default values.
 		dCustomPlayerController* const controller = CreateController(location, localAxis, mass, radius, height, height / 3.0f);
 
+		// Test Local Matrix manipulations
+		//controller->SetFrame(dRollMatrix(60.0f * dDegreeToRad) * controller->GetFrame());
+
 		// get body from player, and set some parameter
 		NewtonBody* const body = controller->GetBody();
 
@@ -112,10 +115,6 @@ class BasicPlayerControllerManager: public dCustomPlayerControllerManager
 
 		// save player model with the controller
 		controller->SetUserData(playerEntity);
-
-		// set higher that 1.0f friction
-		controller->SetFriction(2.0f);
-		//controller->SetFriction(1.0f);
 
 		return controller;
 	}
@@ -175,13 +174,32 @@ class BasicPlayerControllerManager: public dCustomPlayerControllerManager
 		return true;
 	}
 
-	dFloat ContactFriction(dCustomPlayerController* const controller, const dVector& position, const dVector& normal, const NewtonBody* const otherbody) const
+	dFloat ContactFriction(dCustomPlayerController* const controller, const dVector& position, const dVector& normal, int contactId, const NewtonBody* const otherbody) const
 	{ 
-		// clip steep slope contacts
 		if (normal.m_y < 0.9f) {
+			// steep slope are friction less
 			return 0.0f;
 		} else {
-			return controller->GetFriction(); 
+			//NewtonCollision* const collision = NewtonBodyGetCollision(otherbody);
+			//int type = NewtonCollisionGetType (collision);
+			//if ((type == SERIALIZE_ID_TREE) || (type == SERIALIZE_ID_TREE)) {
+			//} else {
+			switch (contactId)
+			{
+				case 1:
+					// this the brick wall
+					return 0.5f;
+				case 2:
+					// this the wood floor
+					return 1.0f;
+				case 3:
+					// this the cement floor
+					return 2.0f;
+					//return 0.2f;
+				default: 
+					// this is everything else
+					return 1.0f;
+			}
 		}
 	}
 	
@@ -189,8 +207,8 @@ class BasicPlayerControllerManager: public dCustomPlayerControllerManager
 	virtual void ApplyMove (dCustomPlayerController* const controller, dFloat timestep)
 	{
 		// calculate the gravity contribution to the velocity
-		dVector gravityImpulse(0.0f, DEMO_GRAVITY * controller->GetMass() * timestep, 0.0f, 0.0f);
-		dVector totalImpulse (controller->GetImpulse() + gravityImpulse);
+		dVector gravity(controller->GetFrame().RotateVector(dVector(DEMO_GRAVITY, 0.0f, 0.0f, 0.0f)));
+		dVector totalImpulse(controller->GetImpulse() + gravity.Scale (controller->GetMass() * timestep));
 		controller->SetImpulse(totalImpulse);
 
 		// apply play movement
@@ -235,7 +253,7 @@ void BasicPlayerController (DemoEntityManager* const scene)
 	dMatrix shapeOffsetMatrix (dGetIdentityMatrix());
 //	AddPrimitiveArray(scene, 100.0f, location.m_posit, dVector (2.0f, 2.0f, 2.0f, 0.0f), count, count, 5.0f, _BOX_PRIMITIVE, defaultMaterialID, shapeOffsetMatrix, 10.0f);
 
-	location.m_posit.m_x += 5.0f;
+	location.m_posit.m_x -= 10.0f;
 	AddPrimitiveArray(scene, 100.0f, location.m_posit, dVector (2.0f, 0.5f, 2.0f, 0.0f), count, count, 5.0f, _BOX_PRIMITIVE, defaultMaterialID, shapeOffsetMatrix, 10.0f);
 
 	dVector origin (-10.0f, 2.0f, 0.0f, 0.0f);
