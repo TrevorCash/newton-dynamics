@@ -281,7 +281,7 @@ void dgBodyMasterList::RemoveContact(dgContact* const contact)
 	m_constraintCount --;
 	dgAssert(((dgInt32)m_constraintCount) >= 0);
 	dgAssert(contact->GetId() == dgConstraint::m_contactConstraint);
-	dgAssert(!contact->m_maxDOF);
+	//dgAssert(!contact->m_maxDOF);
 
 	dgBody* const body0 = contact->m_body0;
 	dgBody* const body1 = contact->m_body1;
