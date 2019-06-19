@@ -33,7 +33,7 @@
 #define MAX_PHYSICS_SUB_STEPS		2
 #define PROJECTILE_INITIAL_SPEED	20.0f
 
-//#define DEFAULT_SCENE	0		// using NewtonMesh tool
+#define DEFAULT_SCENE	0		// using NewtonMesh tool
 //#define DEFAULT_SCENE	1		// coefficients of friction
 //#define DEFAULT_SCENE	2		// coefficients of restitution
 //#define DEFAULT_SCENE	3		// gyroscope precession
@@ -42,7 +42,7 @@
 //#define DEFAULT_SCENE	6		// kinematic bodies
 //#define DEFAULT_SCENE	7		// Object Placement
 //#define DEFAULT_SCENE	8		// primitive convex cast 
-#define DEFAULT_SCENE	9		// box stacks
+//#define DEFAULT_SCENE	9		// box stacks
 //#define DEFAULT_SCENE	10		// simple level mesh collision
 //#define DEFAULT_SCENE	11		// optimized level mesh collision
 //#define DEFAULT_SCENE	12		// height field Collision
@@ -1306,17 +1306,17 @@ int DemoEntityManager::Print (const dVector& color, const char *fmt, ... ) const
 
 void DemoEntityManager::OnCreateContact(const NewtonWorld* const world, NewtonJoint* const contact)
 {
-	DemoEntityManager* const scene = (DemoEntityManager*) NewtonWorldGetUserData(world);
-	dCustomScopeLock lock(&scene->m_contactLock);
-	NewtonJointSetUserData(contact, scene->m_contactList.Append(contact));
+//	DemoEntityManager* const scene = (DemoEntityManager*) NewtonWorldGetUserData(world);
+//	dCustomScopeLock lock(&scene->m_contactLock);
+//	NewtonJointSetUserData(contact, scene->m_contactList.Append(contact));
 }
 
 void DemoEntityManager::OnDestroyContact(const NewtonWorld* const world, NewtonJoint* const contact)
 {
-	DemoEntityManager* const scene = (DemoEntityManager*)NewtonWorldGetUserData(world);
-	dList<NewtonJoint*>::dListNode* const cooky = (dList<NewtonJoint*>::dListNode*)NewtonJointGetUserData(contact);
-	dCustomScopeLock lock(&scene->m_contactLock);
-	scene->m_contactList.Remove(cooky);
+//	DemoEntityManager* const scene = (DemoEntityManager*)NewtonWorldGetUserData(world);
+//	dList<NewtonJoint*>::dListNode* const cooky = (dList<NewtonJoint*>::dListNode*)NewtonJointGetUserData(contact);
+//	dCustomScopeLock lock(&scene->m_contactLock);
+//	scene->m_contactList.Remove(cooky);
 }
 
 

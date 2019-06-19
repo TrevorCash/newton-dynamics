@@ -26,8 +26,10 @@
 
 
 #ifdef DG_OLD_ALLOCATOR
-dgInt32 dgMemoryAllocator::m_lock = 0;
-#define DG_MEMORY_LOCK() dgScopeSpinPause lock (&dgMemoryAllocator::m_lock);
+dgInt32 dgMemoryAllocator::m_lock0 = 0;
+dgInt32 dgMemoryAllocator::m_lock1 = 0;
+#define DG_MEMORY_LOCK() dgScopeSpinPause lock (&dgMemoryAllocator::m_lock0);
+#define DG_MEMORY_LOCK_LOW() dgScopeSpinPause lock (&dgMemoryAllocator::m_lock1);
 
 class dgMemoryAllocator::dgMemoryBin
 {
@@ -178,6 +180,7 @@ void dgMemoryAllocator::SetAllocatorsCallback (dgMemAlloc memAlloc, dgMemFree me
 
 void *dgMemoryAllocator::MallocLow (dgInt32 workingSize, dgInt32 alignment)
 {
+	DG_MEMORY_LOCK_LOW();
 	alignment = dgMax (alignment, DG_MEMORY_GRANULARITY);
 	dgAssert (((-alignment) & (alignment - 1)) == 0);
 	dgInt32 size = workingSize + alignment * 2;
@@ -200,6 +203,7 @@ void *dgMemoryAllocator::MallocLow (dgInt32 workingSize, dgInt32 alignment)
 
 void dgMemoryAllocator::FreeLow (void* const retPtr)
 {
+	DG_MEMORY_LOCK_LOW();
 	dgMemoryInfo* const info = ((dgMemoryInfo*) (retPtr)) - 1;
 	dgAssert (info->m_allocator == this);
 
@@ -226,6 +230,7 @@ void *dgMemoryAllocator::Malloc (dgInt32 memsize)
 	if (entry >= DG_MEMORY_BIN_ENTRIES) {
 		ptr = MallocLow (size);
 	} else {
+		DG_MEMORY_LOCK();
 		if (!m_memoryDirectory[entry].m_cache) {
 			dgMemoryBin* const bin = (dgMemoryBin*) MallocLow (sizeof (dgMemoryBin));
 
@@ -288,8 +293,9 @@ void dgMemoryAllocator::Free (void* const retPtr)
 	if (entry >= DG_MEMORY_BIN_ENTRIES) {
 		FreeLow (retPtr);
 	} else {
+		DG_MEMORY_LOCK();
 		dgMemoryCacheEntry* const cashe = (dgMemoryCacheEntry*) (((char*)retPtr) - DG_MEMORY_GRANULARITY) ;
-
+		
 		dgMemoryCacheEntry* const tmpCashe = m_memoryDirectory[entry].m_cache;
 		if (tmpCashe) {
 			dgAssert (!tmpCashe->m_prev);
@@ -369,14 +375,12 @@ dgInt32 dgMemoryAllocator::GetGlobalMemoryUsed ()
 // but because of many complaint I changed it to use malloc and free
 void* dgApi dgMallocStack (size_t size)
 {
-	DG_MEMORY_LOCK();
 	void * const ptr = dgGlobalAllocator::GetGlobalAllocator().MallocLow (dgInt32 (size));
 	return ptr;
 }
 
 void* dgApi dgMallocAligned (size_t size, dgInt32 align)
 {
-	DG_MEMORY_LOCK();
 	void * const ptr = dgGlobalAllocator::GetGlobalAllocator().MallocLow (dgInt32 (size), align);
 	return ptr;
 }
@@ -387,7 +391,6 @@ void* dgApi dgMallocAligned (size_t size, dgInt32 align)
 // but because of many complaint I changed it to use malloc and free
 void  dgApi dgFreeStack (void* const ptr)
 {
-	DG_MEMORY_LOCK();
 	dgGlobalAllocator::GetGlobalAllocator().FreeLow (ptr);
 }
 
@@ -397,7 +400,6 @@ void* dgApi dgMalloc (size_t size, dgMemoryAllocator* const allocator)
 	void* ptr = NULL;
 	dgAssert (allocator);
 
-	DG_MEMORY_LOCK();
 	if (size) {
 		ptr = allocator->Malloc (dgInt32 (size));
 	}
@@ -408,7 +410,6 @@ void* dgApi dgMalloc (size_t size, dgMemoryAllocator* const allocator)
 void dgApi dgFree (void* const ptr)
 {
 	if (ptr) {
-		DG_MEMORY_LOCK();
 		dgMemoryAllocator::dgMemoryInfo* const info = ((dgMemoryAllocator::dgMemoryInfo*) ptr) - 1;
 		dgAssert (info->m_allocator);
 		info->m_allocator->Free (ptr);
@@ -470,6 +471,8 @@ dgMemoryAllocatorBase& dgGlobalAllocator::GetGlobalAllocator()
 dgMemoryAllocator::dgMemoryPage::dgMemoryPage(dgInt32 size, dgMemoryPage* const root, dgMemoryAllocator* const allocator)
 	:m_next(root)
 	,m_prev(NULL)
+	,m_fullPageNext(NULL)
+	,m_fullPagePrev(NULL)
 	,m_freeList (NULL)
 	,m_count(0)
 	,m_capacity(0)
@@ -543,7 +546,10 @@ void dgMemoryAllocator::dgMemoryPage::Free(void* const ptr)
 
 dgMemoryAllocator::dgMemoryBeam::dgMemoryBeam()
 	:m_firstPage(NULL)
+	,m_fullPage(NULL)
 	,m_beamSize(0)
+	,m_inUsedCount(0)
+	,m_fullPageCount(0)
 {
 }
 
@@ -558,6 +564,17 @@ dgMemoryAllocator::dgMemoryBeam::~dgMemoryBeam()
 		delete firstPage;
 	}
 
+	while (m_fullPage) {
+		dgAssert(0);
+		if (m_fullPage->m_fullPageNext) {
+			m_fullPage->m_fullPageNext->m_fullPagePrev = NULL;
+		}
+		dgMemoryPage* const fullPage = m_fullPage;
+		m_fullPage = m_fullPage->m_fullPageNext;
+		delete fullPage;
+	}
+
+	m_fullPage = NULL;
 	m_firstPage = NULL;
 }
 
@@ -566,21 +583,48 @@ void* dgMemoryAllocator::dgMemoryBeam::Malloc(dgInt32 size)
 	dgAssert (size <= m_beamSize);
 	if (!m_firstPage) {
 		m_firstPage = new dgMemoryPage (m_beamSize, m_firstPage, m_allocator);
+		m_inUsedCount ++;
 	}
 
+	dgAssert (m_firstPage->m_count);
+	//if (m_firstPage->m_count == 0) {
+	//	m_firstPage = new dgMemoryPage (m_beamSize, m_firstPage, m_allocator);
+	//}
+
+	void* ptr = m_firstPage->Malloc(size);
 	if (m_firstPage->m_count == 0) {
-		m_firstPage = new dgMemoryPage (m_beamSize, m_firstPage, m_allocator);
+		dgMemoryPage* const page = m_firstPage;
+
+		m_inUsedCount --;
+		m_fullPageCount ++;
+
+		m_firstPage = page->m_next;
+		if (m_firstPage) {
+			m_firstPage->m_prev = NULL;
+		}
+		page->m_next = NULL;
+		page->m_prev = NULL;
+
+		dgAssert(!page->m_fullPageNext);
+		dgAssert(!page->m_fullPagePrev);
+		page->m_fullPageNext = m_fullPage;
+		if (m_fullPage) {
+			m_fullPage->m_fullPagePrev = page;
+		}
+		m_fullPage = page;
 	}
-	return m_firstPage->Malloc (size);
+	return ptr;
 }
 
 void dgMemoryAllocator::dgMemoryBeam::Free(void* const ptr)
 {
 	dgMemoryHeader* const info = ((dgMemoryHeader*)ptr) - 1;
 	dgMemoryPage* const page = info->m_page;
+
 	page->Free(ptr);
 	dgAssert (page->m_count <= page->m_capacity);
 	if (page->m_count == page->m_capacity) {
+		m_inUsedCount --;
 		if (page == m_firstPage) {
 			m_firstPage = m_firstPage->m_next;
 		}
@@ -593,6 +637,44 @@ void dgMemoryAllocator::dgMemoryBeam::Free(void* const ptr)
 		page->m_next = NULL;
 		page->m_prev = NULL;
 		delete page;
+	} else if (page->m_count == 1) {
+
+		m_inUsedCount++;
+		m_fullPageCount--;
+
+		if (page == m_fullPage) {
+			m_fullPage = m_fullPage->m_fullPageNext;
+		}
+		if (page->m_fullPageNext) {
+			page->m_fullPageNext->m_fullPagePrev = page->m_fullPagePrev;
+		}
+		if (page->m_fullPagePrev) {
+			page->m_fullPagePrev->m_fullPageNext = page->m_fullPageNext;
+		}
+		page->m_fullPagePrev = NULL;
+		page->m_fullPageNext = NULL;
+
+		dgAssert(!page->m_next);
+		dgAssert(!page->m_prev);
+		page->m_next = m_firstPage;
+		if (m_firstPage) {
+			m_firstPage->m_prev = page;
+		}
+		m_firstPage = page;
+
+//	} else if (page->m_prev) {
+//		dgInt32 key = page->GetSortKey();
+//		dgMemoryPage* prevPage = page->m_prev;
+//		while (prevPage && prevPage->GetSortKey() < key)
+//		{
+//			prevPage = prevPage->m_prev;
+//		}
+//
+//		if (prevPage) {
+//			dgAssert(0);
+//		} else {
+//			dgAssert(0);
+//		}
 	}
 }
 
@@ -604,9 +686,25 @@ void dgMemoryAllocator::dgMemoryBeam::Init(dgInt32 size, dgMemoryAllocator* cons
 
 dgMemoryAllocator::dgMemoryAllocator()
 {
-	for (dgInt32 i = 0; i < DG_MEMORY_BEAMS_COUNT; i++) {
-		dgInt32 size = ((dgInt32 (sizeof (dgMemoryGranularity) * (dgPow(dgFloat32(1.6f), i + 2) - dgPow(dgFloat32(1.6f), i + 1))) + sizeof(dgMemoryGranularity) - 1) & -dgInt32 (sizeof(dgMemoryGranularity))) - sizeof (dgMemoryHeader);
-		m_beams[i].Init (size, this);
+//	for (dgInt32 i = 0; i < DG_MEMORY_BEAMS_COUNT; i++) {
+//		dgInt32 size = ((dgInt32 (sizeof (dgMemoryGranularity) * (dgPow(dgFloat32(1.6f), i + 2) - dgPow(dgFloat32(1.6f), i + 1))) + sizeof(dgMemoryGranularity) - 1) & -dgInt32 (sizeof(dgMemoryGranularity))) - sizeof (dgMemoryHeader);
+//		m_beams[i].Init (size, this);
+//	}
+
+	dgInt32 index = 0;
+	dgInt32 size0 = 0;
+	dgFloat32 base = dgFloat32(1.3f);
+	dgFloat32 exp = dgFloat32 (0.0f);
+	while (index < DG_MEMORY_BEAMS_COUNT) {
+		dgFloat32 x0 = dgPow(base, exp);
+		dgFloat32 x1 = dgPow(base, exp + dgFloat32(1.0f));
+		dgInt32 size = ((dgInt32(sizeof(dgMemoryGranularity) * (x1 - x0) + sizeof(dgMemoryGranularity) - 1)) & -dgInt32(sizeof(dgMemoryGranularity))) - sizeof(dgMemoryHeader);
+		exp += dgFloat32(1.0f);
+		if (size > size0) {
+			size0 = size;
+			m_beams[index].Init(size, this);
+			index++;
+		}
 	}
 }
 
@@ -669,7 +767,8 @@ void dgMemoryAllocator::Free(void* const ptr)
 
 dgMemoryAllocator::dgMemoryBeam* dgMemoryAllocator::FindBeam(dgInt32 size)
 {
-	for (dgInt32 i = 0; i < DG_MEMORY_BEAMS_COUNT; i++) {
+	dgInt32 i = m_beams[DG_MEMORY_BEAMS_COUNT / 2].m_beamSize >= size ? 0 : DG_MEMORY_BEAMS_COUNT / 2;
+	for (; i < DG_MEMORY_BEAMS_COUNT; i++) {
 		if (m_beams[i].m_beamSize >= size) {
 			return &m_beams[i];
 		}

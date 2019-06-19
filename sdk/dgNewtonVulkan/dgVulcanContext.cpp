@@ -217,7 +217,7 @@ void dgVulkanContext::vkFreeFunction(void* pUserData, void* pMemory)
 	if (pMemory) {
 		dgMemoryAllocator* const allocator = (dgMemoryAllocator*)pUserData;
 		dgVulkanContext::m_totalMemory -= allocator->GetSize(pMemory);
-		allocator->FreeLow(pMemory);
+		allocator->Free(pMemory);
 	}
 }
 
