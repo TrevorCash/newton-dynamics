@@ -137,9 +137,9 @@ class dgSoaFloat
 		return dgSoaFloat(m_low | A.m_low, m_high | A.m_high);
 	}
 
-	DG_INLINE dgSoaFloat AndNot(const dgSoaFloat& A) const
+	DG_INLINE dgSoaFloat operator& (const dgSoaFloat& A) const
 	{
-		return dgSoaFloat(m_low.AndNot(A.m_low), m_high.AndNot(A.m_high));
+		return dgSoaFloat(m_low & A.m_low, m_high & A.m_high);
 	}
 
 	DG_INLINE dgSoaFloat GetMin(const dgSoaFloat& A) const

@@ -116,9 +116,9 @@ class dgSoaFloat
 		return dgSoaFloat(_mm256_or_pd(m_low, A.m_low), _mm256_or_pd(m_high, A.m_high));
 	}
 
-	DG_INLINE dgSoaFloat AndNot (const dgSoaFloat& A) const
+	DG_INLINE dgSoaFloat operator& (const dgSoaFloat& A) const
 	{
-		return dgSoaFloat(_mm256_andnot_pd(A.m_low, m_low), _mm256_andnot_pd(A.m_high, m_high));
+		return dgSoaFloat(_mm256_and_pd(m_low, A.m_low), _mm256_and_pd(m_high, A.m_high));
 	}
 
 	DG_INLINE dgSoaFloat GetMin(const dgSoaFloat& A) const
@@ -246,9 +246,9 @@ class dgSoaFloat
 		return _mm256_or_ps (m_type, A.m_type);
 	}
 
-	DG_INLINE dgSoaFloat AndNot (const dgSoaFloat& A) const
+	DG_INLINE dgSoaFloat operator& (const dgSoaFloat& A) const
 	{
-		return  _mm256_andnot_ps (A.m_type, m_type);
+		return _mm256_and_ps(m_type, A.m_type);
 	}
 
 	DG_INLINE dgSoaFloat GetMin(const dgSoaFloat& A) const

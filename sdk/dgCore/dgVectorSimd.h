@@ -359,9 +359,16 @@ class dgVector
 		return _mm_xor_ps (m_type, data.m_type);	
 	}
 
-	DG_INLINE dgVector AndNot (const dgVector& data) const
+	DG_INLINE dgVector AndNot(const dgVector& data) const
 	{
-		return _mm_andnot_ps (data.m_type, m_type);	
+		return _mm_andnot_ps(data.m_type, m_type);
+	}
+
+	DG_INLINE dgVector Select(const dgVector& data, const dgVector& mask) const
+	{
+		// (((b ^ a) & mask)^a)
+		//return  _mm_or_ps (_mm_and_ps (mask.m_type, data.m_type), _mm_andnot_ps(mask.m_type, m_type));
+		return  _mm_xor_ps(m_type, _mm_and_ps (mask.m_type, _mm_xor_ps(m_type, data.m_type)));
 	}
 
 	DG_INLINE dgInt32 GetSignMask() const
@@ -438,6 +445,7 @@ class dgVector
 	static dgVector m_yMask;
 	static dgVector m_zMask;
 	static dgVector m_wMask;
+	static dgVector m_epsilon;
 	static dgVector m_signMask;
 	static dgVector m_triplexMask;
 } DG_GCC_VECTOR_ALIGMENT;
@@ -486,7 +494,6 @@ class dgBigVector
 #ifdef _NEWTON_USE_DOUBLE
 	DG_INLINE dgBigVector (const dgFloat32* const ptr)
 		:m_typeLow(_mm_loadu_pd(ptr))
-//		,m_typeHigh(_mm_set_pd(ptr[3], ptr[2]))
 		,m_typeHigh(_mm_loadu_pd(&ptr[2]))
 	{
 	}
@@ -501,7 +508,6 @@ class dgBigVector
 
 	DG_INLINE dgBigVector(const dgFloat64* const ptr)
 		:m_typeLow(_mm_loadu_pd(ptr))
-		//,m_typeHigh(_mm_set_pd(dgFloat64(0.0f), ptr[2]))
 		,m_typeHigh(_mm_loadu_pd(&ptr[2]))
 	{
 	}
@@ -735,6 +741,14 @@ class dgBigVector
 		return dgBigVector(_mm_andnot_pd(data.m_typeLow, m_typeLow), _mm_andnot_pd(data.m_typeHigh, m_typeHigh));
 	}
 
+	DG_INLINE dgBigVector Select(const dgBigVector& data, const dgBigVector& mask) const
+	{
+		// (((b ^ a) & mask)^a)
+		//return  _mm_or_ps (_mm_and_ps (mask.m_type, data.m_type), _mm_andnot_ps(mask.m_type, m_type));
+		return  dgBigVector(_mm_xor_pd(m_typeLow, _mm_and_pd(mask.m_typeLow, _mm_xor_pd(m_typeLow, data.m_typeLow))),
+							_mm_xor_pd(m_typeHigh, _mm_and_pd(mask.m_typeHigh, _mm_xor_pd(m_typeHigh, data.m_typeHigh))));
+	}
+
 	DG_INLINE dgBigVector ShiftTripleRight() const
 	{
 		return dgBigVector(_mm_shuffle_pd(m_typeHigh, m_typeLow, PERMUT_MASK_DOUBLE(0, 0)), _mm_shuffle_pd(m_typeLow, m_typeHigh, PERMUT_MASK_DOUBLE(1, 1)));
@@ -872,6 +886,7 @@ class dgBigVector
 	static dgBigVector m_yMask;
 	static dgBigVector m_zMask;
 	static dgBigVector m_wMask;
+	static dgBigVector m_epsilon;
 	static dgBigVector m_signMask;
 	static dgBigVector m_triplexMask;
 } DG_GCC_VECTOR_ALIGMENT;

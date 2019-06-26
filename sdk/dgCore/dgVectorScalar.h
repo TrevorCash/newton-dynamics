@@ -397,6 +397,12 @@ class dgVector
 		return dgVector (a[0] & ~b[0], a[1] & ~b[1], a[2] & ~b[2], a[3] & ~b[3]); 
 	}
 
+	DG_INLINE dgVector Select (const dgVector& data, const dgVector& mask) const
+	{
+		// (((b ^ a) & mask)^a)
+		return  (*this) ^ (mask & (data ^ (*this)));
+	}
+
 	DG_INLINE dgInt32 GetSignMask() const
 	{
 		const dgInt32* const a = (dgInt32*)&m_x;
@@ -460,6 +466,7 @@ class dgVector
 	static dgVector m_yMask;
 	static dgVector m_zMask;
 	static dgVector m_wMask;
+	static dgVector m_epsilon;
 	static dgVector m_signMask;
 	static dgVector m_triplexMask;
 } DG_GCC_VECTOR_ALIGMENT;
@@ -821,6 +828,12 @@ class dgBigVector
 		return dgBigVector (a[0] & ~b[0], a[1] & ~b[1], a[2] & ~b[2], a[3] & ~b[3]); 
 	}
 
+	DG_INLINE dgBigVector Select(const dgBigVector& data, const dgBigVector& mask) const
+	{
+		// (((b ^ a) & mask)^a)
+		return  (*this) ^ (mask & (data ^ (*this)));
+	}
+
 	DG_INLINE dgInt32 GetSignMask() const
 	{
 		const dgInt64* const a = (dgInt64*)&m_x;
@@ -887,6 +900,7 @@ class dgBigVector
 	static dgBigVector m_yMask;
 	static dgBigVector m_zMask;
 	static dgBigVector m_wMask;
+	static dgBigVector m_epsilon;
 	static dgBigVector m_signMask;
 	static dgBigVector m_triplexMask;
 } DG_GCC_VECTOR_ALIGMENT;

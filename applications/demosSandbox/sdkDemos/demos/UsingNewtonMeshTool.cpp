@@ -251,7 +251,7 @@ static void DebugJernejLMesh (DemoEntityManager* const scene)
 }
 
 
-class TestTriggerManager : public dCustomTriggerManager
+class TestTriggerManager: public dCustomTriggerManager
 {
 	public:
 	TestTriggerManager(NewtonWorld* const world)
@@ -304,17 +304,17 @@ class TestTriggerManager : public dCustomTriggerManager
 
 	virtual void OnEnter(const dCustomTriggerController* const trigger, NewtonBody* const visitor) const
 	{
-		dTrace(("enter trigger\n"));
+		//dTrace(("enter trigger\n"));
 	}
 
 	virtual void OnExit(const dCustomTriggerController* const trigger, NewtonBody* const visitor) const
 	{
-		dTrace(("exit trigger\n\n"));
+		//dTrace(("exit trigger\n\n"));
 	}
 
 	virtual void WhileIn(const dCustomTriggerController* const trigger, NewtonBody* const visitor) const
 	{
-		dTrace(("in trigger\n"));
+		//dTrace(("in trigger\n"));
 	}
 
 	virtual void OnDebug(dCustomJoint::dDebugDisplay* const debugContext, const dCustomTriggerController* const trigger, const NewtonBody* const visitor) const
@@ -349,9 +349,7 @@ void UsingNewtonMeshTool (DemoEntityManager* const scene)
 	triggerManager->CreateTestTrigger(triggerLocation, poolBox);
 	NewtonDestroyCollision(poolBox);
 
-
-
-//DebugJernejLMesh (scene);
+	//DebugJernejLMesh (scene);
 
 	dQuaternion rot;
 	dVector origin(-10.0f, 5.0f, 0.0f, 0.0f);
