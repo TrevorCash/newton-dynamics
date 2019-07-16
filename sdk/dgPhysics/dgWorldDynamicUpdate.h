@@ -27,14 +27,18 @@
 #include "dgWorldDynamicsParallelSolver.h"
 
 
-#define	DG_BODY_LRU_STEP				2	
-#define	DG_MAX_SKELETON_JOINT_COUNT		256
-#define DG_MAX_CONTINUE_COLLISON_STEPS	8
-#define	DG_SMALL_ISLAND_COUNT			2
+#define	DG_BODY_LRU_STEP					2	
+#define	DG_MAX_SKELETON_JOINT_COUNT			256
+#define DG_MAX_CONTINUE_COLLISON_STEPS		8
+#define	DG_SMALL_ISLAND_COUNT				2
 
-#define	DG_FREEZZING_VELOCITY_DRAG		dgFloat32 (0.9f)
-#define	DG_PSD_DAMP_TOL					dgFloat32 (1.0e-3f)
-#define	DG_SOLVER_MAX_ERROR				(DG_FREEZE_MAG * dgFloat32 (0.5f))
+#define	DG_FREEZZING_VELOCITY_DRAG			dgFloat32 (0.9f)
+#define	DG_PSD_DAMP_TOL						dgFloat32 (1.0e-3f)
+#define	DG_SOLVER_MAX_ERROR					(DG_FREEZE_MAG * dgFloat32 (0.5f))
+
+#define DG_CCD_EXTRA_CONTACT_COUNT			(8 * 3)
+#define DG_PARALLEL_JOINT_COUNT_CUT_OFF		(64)
+//#define DG_PARALLEL_JOINT_COUNT_CUT_OFF	(2)
 
 
 // the solver is a RK order 4, but instead of weighting the intermediate derivative by the usual 1/6, 1/3, 1/3, 1/6 coefficients
@@ -96,7 +100,6 @@ class dgJointInfo
 	dgFloat32 m_preconditioner1;
 };
 
-
 class dgBodyJacobianPair
 {
 	public:
@@ -116,6 +119,18 @@ class dgBodyCluster
 	dgInt16 m_hasSoftBodies;
 	dgInt16 m_isContinueCollision;
 };
+
+class dgJointImpulseInfo
+{
+	public:
+	dgContact* m_joint;
+	dgInt32 m_m0;
+	dgInt32 m_m1;
+	dgInt32 m_pairStart;
+	dgInt32 m_pairCount;
+	dgInt32 m_rhsStart;
+};
+
 
 template<class T>
 class dgQueue
@@ -248,7 +263,7 @@ class dgWorldDynamicUpdate
 
 	void IntegrateInslandParallel(dgParallelClusterArray* const clusters, dgInt32 threadID);
 	void CalculateReactionForcesParallel(const dgBodyCluster* const clusters, dgInt32 clustersCount, dgFloat32 timestep);
-		
+
 	dgFloat32 CalculateJointForce(const dgJointInfo* const jointInfo, const dgBodyInfo* const bodyArray, dgJacobian* const internalForces, const dgLeftHandSide* const matrixRow, dgRightHandSide* const rightHandSide) const;
 	dgFloat32 CalculateJointForce_3_13(const dgJointInfo* const jointInfo, const dgBodyInfo* const bodyArray, dgJacobian* const internalForces, const dgLeftHandSide* const matrixRow, dgRightHandSide* const rightHandSide) const;
 	dgJacobian IntegrateForceAndToque(dgDynamicBody* const body, const dgVector& force, const dgVector& torque, const dgVector& timestep) const ;
@@ -256,6 +271,11 @@ class dgWorldDynamicUpdate
 	void IntegrateExternalForce(const dgBodyCluster* const cluster, dgFloat32 timestep, dgInt32 threadID) const;
 	void IntegrateVelocity (const dgBodyCluster* const cluster, dgFloat32 accelTolerance, dgFloat32 timestep, dgInt32 threadID) const;
 	void CalculateClusterContacts (dgBodyCluster* const cluster, dgFloat32 timestep, dgInt32 currLru, dgInt32 threadID) const;
+
+	void CalculateImpulseVeloc(dgJointImpulseInfo* const jointInfo, const dgLeftHandSide* const leftHandSide, const dgRightHandSide* const rightHandSide, dgFloat32* const contactVeloc) const;
+	void ResolveImpulse(const dgJointInfo* const constraintArray, const dgLeftHandSide* const leftHandSide, dgRightHandSide* const rightHandSide, dgDownHeap<dgContact*, dgFloat32>& impactJoints) const;
+	dgFloat32 CalculateJointImpulse(const dgJointImpulseInfo* const jointInfo, const dgBodyInfo* const bodyArray, dgJacobian* const internalForces, const dgLeftHandSide* const matrixRow, const dgRightHandSide* const rightHandSide, dgFloat32* const relVel, dgFloat32* const outImpulse) const;
+
 	
 	dgInt32 m_bodies;
 	dgInt32 m_joints;
