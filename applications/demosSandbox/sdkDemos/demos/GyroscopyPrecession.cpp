@@ -195,7 +195,6 @@ static NewtonBody* RattleBack(DemoEntityManager* const scene, const dVector& pos
 	return ball;
 }
 
-
 static NewtonBody* CreateFlyWheel (DemoEntityManager* const scene, const dVector& posit, dFloat speed, dFloat radius, dFloat lenght)
 {
 	NewtonWorld* const world = scene->GetNewton();
@@ -247,7 +246,6 @@ static NewtonBody* CreateFlyWheel (DemoEntityManager* const scene, const dVector
 	return wheelBody;
 }
 
-
 static void CreateBicycleWheel(DemoEntityManager* const scene, const dVector& posit, dFloat speed, dFloat radius, dFloat lenght, dFloat tiltAnsgle)
 {
 	speed *= -1.0f;
@@ -298,7 +296,6 @@ static void PrecessingTop(DemoEntityManager* const scene, const dVector& posit)
 	NewtonDestroyCollision(cone);
 }
 
-
 static void TippeTop(DemoEntityManager* const scene, const dVector& posit, dVector omega, dFloat radius, dFloat lenght)
 {
 	NewtonBody* const top = CreateFlyWheel(scene, posit, 100.0f, 0.5f, 0.3f);
@@ -318,6 +315,46 @@ static void TippeTop(DemoEntityManager* const scene, const dVector& posit, dVect
 	NewtonBodySetOmega(top, &omega[0]);
 }
 
+static void TestGyroContacts(DemoEntityManager* const scene, const dVector& posit, int enableGyro)
+{
+	NewtonWorld* const world = scene->GetNewton();
+
+	NewtonCollision* const shape = NewtonCreateBox(world, .125f, 0.125f, 0.5f, 0, NULL);
+
+	dMatrix matrix(dGetIdentityMatrix());
+	matrix.m_posit = posit;
+	matrix.m_posit.m_w = 1.0f;
+	DemoMesh* const geometry = new DemoMesh("primitive", scene->GetShaderCache(), shape, "wood_1.tga", "wood_1.tga", "wood_1.tga");
+
+	NewtonBody* const bar0 = CreateSimpleSolid(scene, geometry, 10.0f, matrix, shape, 0);
+	NewtonBodySetGyroscopicTorque(bar0, enableGyro);
+	NewtonBodySetMassProperties(bar0, 10.0f, shape);
+
+	dMatrix matrix1 (dPitchMatrix (90.0f * dDegreeToRad) * matrix);
+	matrix1.m_posit.m_z += 0.25f + 0.125f * 0.5f;
+	matrix1.m_posit.m_y -= (0.25f - 0.125f * 0.5f);
+	NewtonBody* const bar1 = CreateSimpleSolid(scene, geometry, 10.0f, matrix1, shape, 0);
+	NewtonBodySetGyroscopicTorque(bar1, enableGyro);
+	NewtonBodySetMassProperties(bar1, 10.0f, shape);
+	dMatrix pivotMatrix1(matrix);
+	pivotMatrix1.m_posit.m_y += 0.25f;
+	new dCustomSixdof(pivotMatrix1, bar0, bar1);
+
+	dMatrix matrix2(dPitchMatrix(90.0f * dDegreeToRad) * matrix);
+	matrix2.m_posit.m_z -= 0.25f + 0.125f * 0.5f;
+	matrix2.m_posit.m_y -= (0.25f - 0.125f * 0.5f);
+	NewtonBody* const bar2 = CreateSimpleSolid(scene, geometry, 10.0f, matrix2, shape, 0);
+	NewtonBodySetGyroscopicTorque(bar2, enableGyro);
+	NewtonBodySetMassProperties(bar2, 10.0f, shape);
+	dMatrix pivotMatrix2(matrix);
+	pivotMatrix2.m_posit.m_y -= 0.25f;
+	new dCustomSixdof(pivotMatrix2, bar0, bar2);
+
+
+	geometry->Release();
+	NewtonDestroyCollision(shape);
+}
+
 
 void GyroscopyPrecession(DemoEntityManager* const scene)
 {
@@ -329,48 +366,51 @@ void GyroscopyPrecession(DemoEntityManager* const scene)
 	NewtonWorld* const world = scene->GetNewton();
 	int defaultMaterialID = NewtonMaterialGetDefaultGroupID(world);
 	NewtonMaterialSetDefaultFriction(world, defaultMaterialID, defaultMaterialID, 1.0f, 1.0f);
-	NewtonMaterialSetDefaultElasticity(world, defaultMaterialID, defaultMaterialID, 0.1f);
+	NewtonMaterialSetDefaultElasticity(world, defaultMaterialID, defaultMaterialID, 0.6f);
 
 	// should spins very slowly, with a tilt angle of 30 degrees
-	CreateBicycleWheel(scene, dVector(0.0f, 3.0f, -8.0f, 1.0f), 100.0f, 0.6f, 0.3f, 30.0f);
-	
-	// should spins slowly, twice precession speed.
-	CreateBicycleWheel(scene, dVector(0.0f, 3.0f, -6.0f, 1.0f), 50.0f, 0.6f, 0.3f, 0.0f);
+//	CreateBicycleWheel(scene, dVector(0.0f, 3.0f, -8.0f, 1.0f), 100.0f, 0.6f, 0.3f, 30.0f);
+//	
+//	// should spins slowly, twice precession speed.
+//	CreateBicycleWheel(scene, dVector(0.0f, 3.0f, -6.0f, 1.0f), 50.0f, 0.6f, 0.3f, 0.0f);
+//
+//	// spin twice as fast, slow precession 
+//	CreateBicycleWheel(scene, dVector(0.0f, 3.0f, -4.0f, 1.0f), 100.0f, 0.6f, 0.3f, 0.0f);
+//
+//	// should just flops
+//	CreateBicycleWheel(scene, dVector(0.0f, 3.0f, -2.0f, 1.0f), 0.0f, 0.6f, 0.3f, 0.0f);
+//
+//	// a thin disk should precess with an angular velocity twice the spin rate, 
+//	// this is also known as the Frisbee theorem
+//	FrisbeePreccesion(scene, dVector(0.0f, 3.0f, -10.0f, 1.0f), 10.0f, 1.0f, 15.0f);
+//
+//	// intermediate Axis Theorem
+//	DzhanibekovEffect(scene, dVector(0.0f, 3.0f,  0.0f, 1.0f), dVector (0.01f, 0.01f, 10.0f), 0.25f, 2.0f);
+//	DzhanibekovEffect(scene, dVector(0.0f, 3.0f,  2.0f, 1.0f), dVector (0.01f, 0.01f,-15.0f), 0.25f, 2.0f);
+//
+//	//the effect only happens is there is a residual angular velocity on the other two axis
+//	//for perfectly axis aligned velocity the body is in unstable equilibrium and should not flip.
+//	DzhanibekovEffect(scene, dVector(0.0f, 3.0f,  4.0f, 1.0f), dVector (0.01f, 10.0f, 0.01f), 0.25f, 2.0f);
+//	DzhanibekovEffect(scene, dVector(0.0f, 3.0f,  6.0f, 1.0f), dVector (10.0f, 0.01f, 0.01f), 0.25f, 2.0f);
+//	DzhanibekovEffect(scene, dVector(0.0f, 3.0f,  8.0f, 1.0f), dVector (0.0f, 0.0f, 10.0f), 0.25f, 2.0f);
+//
+//	// interesting and strange effect generated by and skew inertia
+//	RattleBack(scene, dVector(-2.0f, 0.5f, - 3.0, 1.0f), 0.0f, 1.0f);
+//	RattleBack(scene, dVector(-2.0f, 0.5f, - 6.0, 1.0f), 2.0f, 1.0f);
+//	RattleBack(scene, dVector(-2.0f, 0.5f, - 9.0, 1.0f), -2.0f, 1.0f);
 
-	// spin twice as fast, slow precession 
-	CreateBicycleWheel(scene, dVector(0.0f, 3.0f, -4.0f, 1.0f), 100.0f, 0.6f, 0.3f, 0.0f);
-
-	// should just flops
-	CreateBicycleWheel(scene, dVector(0.0f, 3.0f, -2.0f, 1.0f), 0.0f, 0.6f, 0.3f, 0.0f);
-
-	// a thin disk should precess with an angular velocity twice the spin rate, 
-	// this is also known as the Frisbee theorem
-	FrisbeePreccesion(scene, dVector(0.0f, 3.0f, -10.0f, 1.0f), 10.0f, 1.0f, 15.0f);
-
-	// intermediate Axis Theorem
-	DzhanibekovEffect(scene, dVector(0.0f, 3.0f,  0.0f, 1.0f), dVector (0.01f, 0.01f, 10.0f), 0.25f, 2.0f);
-	DzhanibekovEffect(scene, dVector(0.0f, 3.0f,  2.0f, 1.0f), dVector (0.01f, 0.01f,-15.0f), 0.25f, 2.0f);
-
-	//the effect only happens is there is a residual angular velocity on the other two axis
-	//for perfectly axis aligned velocity the body is in unstable equilibrium and should not flip.
-	DzhanibekovEffect(scene, dVector(0.0f, 3.0f,  4.0f, 1.0f), dVector (0.01f, 10.0f, 0.01f), 0.25f, 2.0f);
-	DzhanibekovEffect(scene, dVector(0.0f, 3.0f,  6.0f, 1.0f), dVector (10.0f, 0.01f, 0.01f), 0.25f, 2.0f);
-	DzhanibekovEffect(scene, dVector(0.0f, 3.0f,  8.0f, 1.0f), dVector (0.0f, 0.0f, 10.0f), 0.25f, 2.0f);
-
-	// interesting and strange effect generated by and skew inertia
-	RattleBack(scene, dVector(-2.0f, 0.5f, - 3.0, 1.0f), 0.0f, 1.0f);
-	RattleBack(scene, dVector(-2.0f, 0.5f, - 6.0, 1.0f), 2.0f, 1.0f);
-	RattleBack(scene, dVector(-2.0f, 0.5f, - 9.0, 1.0f), -2.0f, 1.0f);
+	TestGyroContacts(scene, dVector(-4.0f, 1.5f, -5.0, 1.0f), 1);
+	TestGyroContacts(scene, dVector(-4.0f, 1.5f, -2.0, 1.0f), 0);
 
 	// place a toy tops
-	const int topsCount = 4;
-	//const int topsCount = 1;
+	int topsCount = 4;
+topsCount = 1;
 	const dFloat spacing = 3.0f;
 	for (int i = 0; i < topsCount; i++) {
 		for (int j = 0; j < topsCount; j++) {
-			PrecessingTop(scene, dVector(spacing * j, 0.5f, -spacing * i - spacing, 1.0f));
+//			PrecessingTop(scene, dVector(spacing * j, 0.5f, -spacing * i - spacing, 1.0f));
 		}
-		PhiTop(scene, dVector(30.0f, 0.4f, -spacing * i - spacing, 1.0f), i * 5.0f + 10.0f, 1.0f);
+		//PhiTop(scene, dVector(30.0f, 0.4f, -spacing * i - spacing, 1.0f), i * 5.0f + 10.0f, 1.0f);
 		//TippeTop(scene, dVector(-6.0f, 0.3f, -spacing * i - spacing, 1.0f), 0.0f, 0.0f, 0.0f);
 	}
 
