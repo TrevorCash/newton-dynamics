@@ -293,7 +293,7 @@ dgVector dgMatrix::SolveByGaussianElimination(const dgVector &v) const
 					pivot = pivot1;
 				}
 			}
-			dgAssert(pivot > dgFloat32(1.0e-6f));
+			//dgAssert(pivot > dgFloat32(1.0e-6f));
 			if (permute != i) {
 				dgSwap(ret[i], ret[permute]);
 				dgSwap(tmp[i], tmp[permute]);
