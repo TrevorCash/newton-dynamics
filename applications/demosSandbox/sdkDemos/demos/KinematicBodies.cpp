@@ -1,4 +1,4 @@
-/* Copyright (c) <2003-2016> <Newton Game Dynamics>
+/* Copyright (c) <2003-2019> <Newton Game Dynamics>
 * 
 * This software is provided 'as-is', without any express or implied
 * warranty. In no event will the authors be held liable for any damages
@@ -165,6 +165,8 @@ class KinematiocListener: public dCustomListener
 		DemoEntityManager* const scene = (DemoEntityManager*) NewtonWorldGetUserData(world);
 
 		NewtonCollision* const box = NewtonCreateBox(world, 5.0f, 0.25f, 4.0f, 0, NULL);
+		//dMatrix aligment(dRollMatrix(90.0f * dDegreeToRad));
+		//NewtonCollision* const box = NewtonCreateCylinder(world, 15.5f, 15.5f, 0.5f, 0, &aligment[0][0]);
 		NewtonBody* const body = NewtonCreateKinematicBody(world, box, &location[0][0]);
 
 		NewtonBodySetTransformCallback(body, DemoEntity::TransformCallback);
@@ -223,6 +225,7 @@ void KinematicBodies (DemoEntityManager* const scene)
 	AddPrimitiveArray(scene, 1.0f, location.m_posit, size, countx, countz, 6.0f, _BOX_PRIMITIVE, 0, shapeOffsetMatrix);
 
 	dQuaternion rot;
+	origin.m_x -= 10.0f;
 	scene->SetCameraMatrix(rot, origin);
 
 //	ExportScene (scene->GetNewton(), "test1.ngd");

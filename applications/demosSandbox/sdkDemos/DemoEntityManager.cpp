@@ -1,4 +1,4 @@
-/* Copyright (c) <2003-2016> <Newton Game Dynamics>
+/* Copyright (c) <2003-2019> <Newton Game Dynamics>
 * 
 * This software is provided 'as-is', without any express or implied
 * warranty. In no event will the authors be held liable for any damages
@@ -36,7 +36,7 @@
 //#define DEFAULT_SCENE	0		// using NewtonMesh tool
 //#define DEFAULT_SCENE	1		// coefficients of friction
 //#define DEFAULT_SCENE	2		// coefficients of restitution
-#define DEFAULT_SCENE	3		// newton cradle
+//#define DEFAULT_SCENE	3		// newton cradle
 //#define DEFAULT_SCENE	4		// gyroscope precession
 //#define DEFAULT_SCENE	5		// closest distance
 //#define DEFAULT_SCENE	6		// primitive collision
@@ -66,7 +66,7 @@
 //#define DEFAULT_SCENE	30		// standard joints
 //#define DEFAULT_SCENE	31		// servo joints
 //#define DEFAULT_SCENE	32		// articulated joints
-//#define DEFAULT_SCENE	33		// six axis manipulator
+#define DEFAULT_SCENE	33		// six axis manipulator
 //#define DEFAULT_SCENE	34		// hexapod Robot
 //#define DEFAULT_SCENE	35		// basic rag doll
 //#define DEFAULT_SCENE	36		// kinematic rag doll

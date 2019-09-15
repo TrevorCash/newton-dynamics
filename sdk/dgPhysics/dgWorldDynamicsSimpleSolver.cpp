@@ -1,4 +1,4 @@
-/* Copyright (c) <2003-2016> <Julio Jerez, Newton Game Dynamics>
+/* Copyright (c) <2003-2019> <Julio Jerez, Newton Game Dynamics>
 * 
 * This software is provided 'as-is', without any express or implied
 * warranty. In no event will the authors be held liable for any damages
@@ -354,7 +354,7 @@ void dgWorldDynamicUpdate::ResolveImpulse(const dgJointInfo* const constraintArr
 						dgBodyMasterListCell* const cell = &jointNode->GetInfo();
 						dgConstraint* const constraint = cell->m_joint;
 
-						if ((constraint->m_index != lru) && constraint->IsActive() && (constraint->GetId() == dgConstraint::m_contactConstraint)) {
+						if ((dgInt32 (constraint->m_index) != lru) && constraint->IsActive() && (constraint->GetId() == dgConstraint::m_contactConstraint)) {
 							dgAssert (0);
 						}
 					}

@@ -1,4 +1,4 @@
-/* Copyright (c) <2003-2016> <Julio Jerez, Newton Game Dynamics>
+/* Copyright (c) <2003-2019> <Julio Jerez, Newton Game Dynamics>
 * 
 * This software is provided 'as-is', without any express or implied
 * warranty. In no event will the authors be held liable for any damages
@@ -266,7 +266,6 @@ dgWorld::dgWorld(dgMemoryAllocator* const allocator)
 	
 	m_defualtBodyGroupID = CreateBodyGroupID();
 	m_genericLRUMark = 0;
-	m_delayDelateLock = 0;
 	m_clusterLRU = 0;
 
 	m_useParallelSolver = 1;
@@ -346,6 +345,12 @@ dgWorld::~dgWorld()
 	m_pointCollision->Release();
 	DestroyBody (m_sentinelBody);
 
+	dgDeadBodies& bodyList = *this;
+	dgDeadJoints& jointList = *this;
+
+	jointList.DestroyJoints(*this);
+	bodyList.DestroyBodies(*this);
+
 	delete m_broadPhase;
 }
 
@@ -380,6 +385,12 @@ void dgWorld::DestroyAllBodies()
 		node = node->GetNext();
 		DestroyBody(body);
 	}
+
+	dgDeadBodies& bodyList = *this;
+	dgDeadJoints& jointList = *this;
+
+	jointList.DestroyJoints(*this);
+	bodyList.DestroyBodies(*this);
 
 	dgAssert(me.GetFirst()->GetInfo().GetCount() == 0);
 	dgAssert(dgBodyCollisionList::GetCount() == 0);
@@ -550,24 +561,12 @@ void dgWorld::DestroyBody(dgBody* const body)
 	for (dgListenerList::dgListNode* node = m_listeners.GetLast(); node; node = node->GetPrev()) {
 		dgListener& listener = node->GetInfo();
 		if (listener.m_onBodyDestroy) {
-			listener.m_onBodyDestroy (this, node, body);
+			listener.m_onBodyDestroy(this, node, body);
 		}
 	}
 
-	if (body->m_destructor) {
-		body->m_destructor (*body);
-	}
-	
-	if (m_disableBodies.Find(body)) {
-		m_disableBodies.Remove(body);
-	} else {
-		m_broadPhase->Remove (body);
-		dgBodyMasterList::RemoveBody (body);
-	}
-
-	dgAssert (body->m_collision);
-	body->m_collision->Release();
-	delete body;
+	dgDeadBodies& deadBodyList = *this;
+	deadBodyList.DestroyBody(body);
 }
 
 void dgWorld::DestroyConstraint(dgConstraint* const constraint)
@@ -972,9 +971,7 @@ void dgWorld::RunStep ()
 
 	dgFloat32 step = m_savetimestep / m_numberOfSubsteps;
 	for (dgUnsigned32 i = 0; i < m_numberOfSubsteps; i ++) {
-		dgInterlockedExchange(&m_delayDelateLock, 1);
 		StepDynamics (step);
-		dgInterlockedExchange(&m_delayDelateLock, 0);
 
 		dgDeadBodies& bodyList = *this;
 		dgDeadJoints& jointList = *this;
@@ -1139,24 +1136,21 @@ void dgWorld::DestroyInverseDynamics(dgInverseDynamics* const inverseDynamics)
 	delete inverseDynamics;
 }
 
+dgDeadJoints::dgDeadJoints(dgMemoryAllocator* const allocator)
+	:dgTree<dgConstraint*, void* >(allocator)
+	,m_lock(0)
+{
+}
+
 void dgDeadJoints::DestroyJoint(dgConstraint* const joint)
 {
-	dgSpinLock (&m_lock);
-
-	dgWorld& me = *((dgWorld*)this);
-	if (me.m_delayDelateLock) {
-		// the engine is busy in the previous update, deferred the deletion
-		Insert (joint, joint);
-	} else {
-		me.DestroyConstraint (joint);
-	}
-
-	dgSpinUnlock(&m_lock);
+	dgScopeSpinLock lock(&m_lock);
+	Insert (joint, joint);
 }
 
 void dgDeadJoints::DestroyJoints(dgWorld& world)
 {
-	dgSpinLock (&m_lock);
+	dgScopeSpinLock lock(&m_lock);
 	Iterator iter (*this);
 	for (iter.Begin(); iter; iter++) {
 		dgTreeNode* const node = iter.GetNode();
@@ -1164,38 +1158,61 @@ void dgDeadJoints::DestroyJoints(dgWorld& world)
 		world.DestroyConstraint (joint);
 	}
 	RemoveAll ();
-	dgSpinUnlock(&m_lock);
 }
 
+dgDeadBodies::dgDeadBodies(dgMemoryAllocator* const allocator)
+	:dgTree<dgBody*, void*>(allocator)
+	,m_lock(0)
+{
+}
 
 void dgDeadBodies::DestroyBody(dgBody* const body)
 {
-	dgAssert (0);
-	dgSpinLock (&m_lock);
-
-	dgWorld& me = *((dgWorld*)this);
-	if (me.m_delayDelateLock) {
-		// the engine is busy in the previous update, deferred the deletion
-		Insert (body, body);
-	} else {
-		me.DestroyBody(body);
-	}
-	dgSpinUnlock(&m_lock);
+	dgScopeSpinLock lock(&m_lock);
+	Insert (body, body);
 }
-
 
 void dgDeadBodies::DestroyBodies(dgWorld& world)
 {
-	dgSpinLock (&m_lock);
+	dgScopeSpinLock lock(&m_lock);
+	if (GetCount()) {
+		Iterator iter(*this);
+		for (iter.Begin(); iter; iter++) {
+			dgTreeNode* const bodyNode = iter.GetNode();
+			dgBody* const body = bodyNode->GetInfo();
 
-	Iterator iter (*this);
-	for (iter.Begin(); iter; iter++) {
-		dgTreeNode* const node = iter.GetNode();
-		dgBody* const body = node->GetInfo();
-		world.DestroyBody(body);
+			for (dgBodyMasterListRow::dgListNode* node = body->GetMasterList()->GetInfo().GetFirst(); node; node = node->GetNext()) {
+				dgConstraint* const joint = node->GetInfo().m_joint;
+				dgAssert(joint);
+				if (joint && (joint->GetId() == dgConstraint::m_contactConstraint)) {
+					dgContact* const contactJoint = (dgContact*)joint;
+					contactJoint->m_killContact = 1;
+				}
+			}
+		}
+
+		world.m_broadPhase->DeleteDeadContact();
+		for (iter.Begin(); iter; iter++) {
+			dgTreeNode* const bodyNode = iter.GetNode();
+			dgBody* const body = bodyNode->GetInfo();
+
+			if (body->m_destructor) {
+				body->m_destructor(*body);
+			}
+
+			if (world.m_disableBodies.Find(body)) {
+				world.m_disableBodies.Remove(body);
+			} else {
+				world.m_broadPhase->Remove(body);
+				world.dgBodyMasterList::RemoveBody(body);
+			}
+
+			dgAssert(body->m_collision);
+			body->m_collision->Release();
+			delete body;
+		}
+		RemoveAll();
 	}
-	RemoveAll ();
-	dgSpinUnlock(&m_lock);
 }
 
 void dgWorld::UpdateBroadphase(dgFloat32 timestep)

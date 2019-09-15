@@ -1,4 +1,4 @@
-/* Copyright (c) <2003-2016> <Julio Jerez, Newton Game Dynamics>
+/* Copyright (c) <2003-2019> <Julio Jerez, Newton Game Dynamics>
 * 
 * This software is provided 'as-is', without any express or implied
 * warranty. In no event will the authors be held liable for any damages
@@ -315,7 +315,8 @@ class dgBody
 	friend class dgWorld;
 	friend class dgSolver;
 	friend class dgContact;
-	friend class dgConstraint;	
+	friend class dgConstraint;
+	friend class dgDeadBodies;
 	friend class dgBroadPhase;
 	friend class dgCollisionBVH;
 	friend class dgBroadPhaseNode;

@@ -1,4 +1,4 @@
-/* Copyright (c) <2003-2016> <Newton Game Dynamics>
+/* Copyright (c) <2003-2019> <Newton Game Dynamics>
 * 
 * This software is provided 'as-is', without any express or implied
 * warranty. In no event will the authors be held liable for any damages
@@ -27,16 +27,18 @@ struct dArmRobotConfig
 	dFloat m_maxLimit;
 };
 
-static dArmRobotConfig armRobotConfig[] =
-{
-	{ "bone_base", 210.0f, -1000.0f, 1000.0f},
-	{ "bone_base1", 200.0f, -1000.0f, 1000.0f},
-	{ "bone_arm0", 180.0f, -45.0f, 135.0f},
-	{ "bone_arm1", 160.0f, -90.0f, 35.0f},
-	{ "effector_arm", 1000.0f, 0.0f, 0.0f}
-};
 
 #if 0
+
+static dArmRobotConfig armRobotConfig[] =
+{
+	{ "bone_base", 210.0f, -1000.0f, 1000.0f },
+	{ "bone_base1", 200.0f, -1000.0f, 1000.0f },
+	{ "bone_arm0", 180.0f, -45.0f, 135.0f },
+	{ "bone_arm1", 160.0f, -90.0f, 35.0f },
+	{ "effector_arm", 1000.0f, 0.0f, 0.0f }
+};
+
 class dSixAxisController: public dCustomControllerBase
 {
 	public:
@@ -191,7 +193,7 @@ class dSixAxisController: public dCustomControllerBase
 		return body;
 	}
 
-	void MakeKukaRobot(DemoEntityManager* const scene, DemoEntity* const model)
+	void MakeSixAxisRobot(DemoEntityManager* const scene, DemoEntity* const model)
 	{
 		m_kinematicSolver = NewtonCreateInverseDynamics(scene->GetNewton());
 
@@ -383,14 +385,19 @@ class dSixAxisManager: public dCustomControllerManager<dSixAxisController>
 		return (dSixAxisController*)dCustomControllerManager<dSixAxisController>::CreateController();
 	}
 
-	dSixAxisController* MakeKukaRobot(DemoEntityManager* const scene, const dMatrix& origin)
+	dSixAxisController* MakeSixAxisRobot(DemoEntityManager* const scene, const dMatrix& origin)
 	{
-		DemoEntity* const model = DemoEntity::LoadNGD_mesh("robotArm.ngd", scene->GetNewton());
+		DemoEntity* const model = DemoEntity::LoadNGD_mesh("robotArm.ngd", scene->GetNewton(), scene->GetShaderCache());
+
 		scene->Append(model);
 		model->ResetMatrix(*scene, origin);
 
+DemoEntity* const model1 = DemoEntity::LoadNGD_mesh("robot2.ngd", scene->GetNewton(), scene->GetShaderCache());
+scene->Append(model1);
+model1->ResetMatrix(*scene, origin);
+
 		dSixAxisController* const controller = (dSixAxisController*)CreateController();
-		controller->MakeKukaRobot(scene, model);
+		controller->MakeSixAxisRobot(scene, model);
 		m_currentController = controller;
 		return controller;
 	}
@@ -411,44 +418,378 @@ class dSixAxisManager: public dCustomControllerManager<dSixAxisController>
 	dFloat32 m_gripper_pitch;
 };
 
-
-void SixAxisManipulators(DemoEntityManager* const scene)
-{
-	// load the sky box
-	scene->CreateSkyBox();
-	CreateLevelMesh (scene, "flatPlane.ngd", true);
-	dSixAxisManager* const robotManager = new dSixAxisManager(scene);
-
-	dMatrix origin(dYawMatrix(0.0f * dDegreeToRad));
-	dMatrix origin1(dYawMatrix(180.0f * dDegreeToRad));
-	origin.m_posit.m_z = -1.0f;
-	origin1.m_posit.m_z =  1.0f;
-
-	int count = 10;
-count = 1;
-origin = dGetIdentityMatrix();
-origin.m_posit.m_x = 2.0f;
-	for (int i = 0; i < count; i ++) {
-		robotManager->MakeKukaRobot (scene, origin);
-//		robotManager->MakeKukaRobot (scene, origin1);
-		origin.m_posit.m_x += 1.0f;
-		origin1.m_posit.m_x += 1.0f;
-	}
-	
-	origin.m_posit = dVector (-3.0f, 0.5f, 0.0f, 1.0f);
-origin.m_posit = dVector(-2.0f, 0.5f, 0.0f, 1.0f);
-	scene->SetCameraMatrix(dGetIdentityMatrix(), origin.m_posit);
-}
-
 #else
 
 
+class dRobotJointDefinition
+{
+	public:
+	struct dJointLimit
+	{
+		dFloat m_minTwistAngle;
+		dFloat m_maxTwistAngle;
+		dFloat m_coneAngle;
+	};
+
+	struct dFrameMatrix
+	{
+		dFloat m_pitch;
+		dFloat m_yaw;
+		dFloat m_roll;
+	};
+
+	char m_boneName[32];
+	dFloat m_friction;
+	dJointLimit m_jointLimits;
+	dFrameMatrix m_frameBasics;
+	dAnimationRagdollJoint::dRagdollMotorType m_type;
+};
+
+
+static dRobotJointDefinition robot2Definition[] =
+{
+	{ "bone_base000" },
+
+	{ "bone_base001", 100.0f,{ -15.0f, 15.0f, 30.0f },{ 0.0f, 90.0f, 0.0f }, dAnimationRagdollJoint::m_threeDof },
+//	{ "bone_righCalf", 100.0f,{ -15.0f, 15.0f, 30.0f },{ 0.0f, 0.0f, 90.0f }, dAnimationRagdollJoint::m_oneDof },
+//	{ "bone_rightAnkle", 100.0f,{ -15.0f, 15.0f, 30.0f },{ 0.0f, 0.0f, 90.0f }, dAnimationRagdollJoint::m_zeroDof },
+//	{ "bone_rightFoot", 100.0f,{ -15.0f, 15.0f, 30.0f },{ 0.0f, -90.0f, 0.0f }, dAnimationRagdollJoint::m_twoDof },
+
+//	{ "bone_leftLeg", 100.0f,{ -15.0f, 15.0f, 30.0f },{ 0.0f, 90.0f, 0.0f }, dAnimationRagdollJoint::m_threeDof },
+//	{ "bone_leftCalf", 100.0f,{ -15.0f, 15.0f, 30.0f },{ 0.0f, 0.0f, 90.0f }, dAnimationRagdollJoint::m_oneDof },
+//	{ "bone_leftAnkle", 100.0f,{ -15.0f, 15.0f, 30.0f },{ 0.0f, 0.0f, 90.0f }, dAnimationRagdollJoint::m_zeroDof },
+//	{ "bone_leftFoot", 100.0f,{ -15.0f, 15.0f, 30.0f },{ 0.0f, -90.0f, 0.0f }, dAnimationRagdollJoint::m_twoDof },
+};
+
 #if 0
-class dSixAxisManager: public dAnimIDManager
+class dSixAxisRobot: public dAnimationRagdollRoot
+{
+	public:
+	dSixAxisRobot(NewtonBody* const body, const dMatrix& bindMarix)
+		:dAnimationRagdollRoot(body, bindMarix)
+//		,m_hipEffector(NULL)
+//		,m_leftFootEffector__(NULL)
+//		,m_rightFootEffector__(NULL)
+	{
+	}
+
+	~dSixAxisRobot()
+	{
+	}
+
+/*
+	void SetHipEffector(dAnimationJoint* const hip)
+	{
+		m_hipEffector = new dKinematicEndEffector(hip);
+		m_loopJoints.Append(m_hipEffector);
+	}
+
+	void SetLeftFootEffector(dAnimationJoint* const joint)
+	{
+		m_leftFootEffector__ = new dKinematicEndEffector(joint);
+		m_loopJoints.Append(m_leftFootEffector__);
+	}
+
+	void SetRightFootEffector(dAnimationJoint* const joint)
+	{
+		m_rightFootEffector__ = new dKinematicEndEffector(joint);
+		m_loopJoints.Append(m_rightFootEffector__);
+	}
+
+	dVector CalculateEffectorOrigin(dAnimationRagDollEffector* const hipEffector) const
+	{
+		return dVector(0.0f);
+	}
+
+	void SelftBalance()
+	{
+	}
+*/
+
+	void PreUpdate(dFloat timestep)
+	{
+//		dAssert(0);
+/*
+		// do most of the control here, so that the is no need do subclass  
+		//dDynamicsRagdoll* const ragDoll = (dDynamicsRagdoll*)model;
+		NewtonBody* const rootBody = GetBody();
+		NewtonBodySetSleepState(rootBody, 0);
+
+		// get pivot 
+		dMatrix rootMatrix;
+		//		dMatrix pivotMatrix;
+		NewtonBodyGetMatrix(GetBody(), &rootMatrix[0][0]);
+
+		dVector com(CalculateCenterOfMass());
+
+		if (m_leftFootEffector__) {
+			dMatrix footMatrix(m_leftFootEffector__->GetMatrix());
+			m_leftFootEffector__->SetTarget(footMatrix);
+		}
+
+		if (m_rightFootEffector__) {
+			dMatrix footMatrix(m_rightFootEffector__->GetMatrix());
+			m_rightFootEffector__->SetTarget(footMatrix);
+		}
+*/
+
+		/*
+		NewtonBodyGetMatrix(ragDoll->m_leftFootEffector->GetBody(), &pivotMatrix[0][0]);
+
+		dVector comRadius (com - pivotMatrix.m_posit);
+		dVector bodyRadius (rootMatrix.m_posit - pivotMatrix.m_posit);
+
+		dFloat r0 = dSqrt(comRadius.DotProduct3(comRadius));
+		dFloat r1 = dSqrt(bodyRadius.DotProduct3(bodyRadius));
+
+		dVector updir (0.0f, 1.0f, 0.0f, 0.0f);
+		dVector p1 (pivotMatrix.m_posit + updir.Scale (r0));
+		dVector targtePosit (rootMatrix.m_posit + (p1 - com).Scale (r1/r0));
+		targtePosit.m_w = 1.0f;
+		*/
+		dMatrix matrix(dPitchMatrix(0.0f * dDegreeToRad) * dYawMatrix(0.0f * dDegreeToRad) * dRollMatrix(0.0f * dDegreeToRad));
+		//com.m_y = rootMatrix.m_posit.m_y;
+		//com.m_w = 1.0f;
+		//matrix.m_posit = rootMatrix.m_posit;
+		//matrix.m_posit = com;
+
+		//matrix.m_posit = rootMatrix.m_posit;
+		//m_hipEffector->SetTarget(matrix);
+
+		//dVector error(matrix.m_posit - rootMatrix.m_posit);
+		//dTrace(("%f %f %f\n", error[0], error[1], error[2]));
+
+	}
+
+//	dAnimationRagDollEffector* m_hipEffector;
+//	dAnimationRagDollEffector* m_leftFootEffector__;
+//	dAnimationRagDollEffector* m_rightFootEffector__;
+};
+
+
+class dSixAxisManager: public dAnimationModelManager
 {
 	public:
 	dSixAxisManager(DemoEntityManager* const scene)
-		:dAnimIDManager(scene->GetNewton())
+		:dAnimationModelManager(scene->GetNewton())
+		//, m_currentRig(NULL)
+	{
+		//scene->Set2DDisplayRenderFunction(RenderHelpMenu, NULL, this);
+	}
+
+	~dSixAxisManager()
+	{
+	}
+
+	virtual void OnUpdateTransform(const dAnimationJoint* const bone, const dMatrix& localMatrix) const
+	{
+		// calculate the local transform for this player body
+		NewtonBody* const body = bone->GetBody();
+		DemoEntity* const ent = (DemoEntity*)NewtonBodyGetUserData(body);
+		DemoEntityManager* const scene = (DemoEntityManager*)NewtonWorldGetUserData(NewtonBodyGetWorld(body));
+
+		dQuaternion rot(localMatrix);
+		ent->SetMatrix(*scene, rot, localMatrix.m_posit);
+	}
+
+	void MakeSixAxisRobot(DemoEntityManager* const scene, const dMatrix& origin)
+	{
+/*
+		DemoEntity* const model = DemoEntity::LoadNGD_mesh("robotArm.ngd", scene->GetNewton(), scene->GetShaderCache());
+
+		scene->Append(model);
+		model->ResetMatrix(*scene, origin);
+
+		DemoEntity* const model1 = DemoEntity::LoadNGD_mesh("robot2.ngd", scene->GetNewton(), scene->GetShaderCache());
+		scene->Append(model1);
+		model1->ResetMatrix(*scene, origin);
+
+		dSixAxisController* const controller = (dSixAxisController*)CreateController();
+		controller->MakeSixAxisRobot(scene, model);
+		m_currentController = controller;
+		return controller;
+*/
+
+		NewtonWorld* const world = GetWorld();
+		dAssert (scene == (DemoEntityManager*)NewtonWorldGetUserData(world));
+
+		DemoEntity* const modelEntity = DemoEntity::LoadNGD_mesh("robot2.ngd", world, scene->GetShaderCache());
+
+		//dMatrix matrix0(modelEntity->GetCurrentMatrix());
+		//matrix0.m_posit = location;
+		modelEntity->ResetMatrix(*scene, origin);
+		scene->Append(modelEntity);
+
+		// add the root childBody
+		NewtonBody* const rootBody = CreateBodyPart(modelEntity);
+		dAssert(rootBody);
+
+		// build the rag doll with rigid bodies connected by joints
+		dSixAxisRobot* const robot = new dSixAxisRobot(rootBody, dGetIdentityMatrix());
+		AddModel(robot);
+		robot->SetCalculateLocalTransforms(true);
+
+		// save the controller as the collision user data, for collision culling
+		NewtonCollisionSetUserData(NewtonBodyGetCollision(rootBody), robot);
+
+		int stackIndex = 0;
+		DemoEntity* childEntities[32];
+		dAnimationJoint* parentBones[32];
+
+		for (DemoEntity* child = modelEntity->GetChild(); child; child = child->GetSibling()) {
+			parentBones[stackIndex] = robot;
+			childEntities[stackIndex] = child;
+			stackIndex++;
+		}
+/*
+		// walk model hierarchic adding all children designed as rigid body bones. 
+		while (stackIndex) {
+			stackIndex--;
+			DemoEntity* const entity = childEntities[stackIndex];
+			const char* const name = entity->GetName().GetStr();
+			dTrace(("%s\n", name));
+			dAnimationJoint* parentNode = parentBones[stackIndex];
+
+			for (int i = 0; i < size; i++) {
+				if (!strcmp(defintion[i].m_boneName, name)) {
+					NewtonBody* const childBody = CreateBodyPart(entity);
+
+					// connect this body part to its parent with a rag doll joint
+					parentNode = CreateChildNode(childBody, parentNode, defintion[i]);
+
+					NewtonCollisionSetUserData(NewtonBodyGetCollision(childBody), parentNode);
+					break;
+				}
+			}
+
+			for (DemoEntity* child = entity->GetChild(); child; child = child->GetSibling()) {
+				parentBones[stackIndex] = parentNode;
+				childEntities[stackIndex] = child;
+				stackIndex++;
+			}
+		}
+
+		SetModelMass(100.0f, robot);
+
+		// transform the entire contraction to its location
+		dMatrix worldMatrix(modelEntity->GetCurrentMatrix() * location);
+		worldMatrix.m_posit = location.m_posit;
+		NewtonBodySetMatrixRecursive(rootBody, &worldMatrix[0][0]);
+
+
+		// attach effectors here
+		for (dAnimationJoint* joint = GetFirstJoint(robot); joint; joint = GetNextJoint(joint)) {
+			if (joint->GetAsRoot()) {
+				dAssert(robot == joint);
+				robot->SetHipEffector(joint);
+			}
+			else if (joint->GetAsLeaf()) {
+				NewtonBody* const body = joint->GetBody();
+				DemoEntity* const entity = (DemoEntity*)NewtonBodyGetUserData(body);
+				if (entity->GetName().Find("left") != -1) {
+					robot->SetLeftFootEffector(joint);
+				}
+				else if (entity->GetName().Find("right") != -1) {
+					robot->SetRightFootEffector(joint);
+				}
+			}
+		}
+
+
+		robot->Finalize();
+*/
+	}
+
+	private:
+
+	static void ClampAngularVelocity(const NewtonBody* body, dFloat timestep, int threadIndex)
+	{
+		dVector omega;
+		NewtonBodyGetOmega(body, &omega[0]);
+		omega.m_w = 0.0f;
+		dFloat mag2 = omega.DotProduct3(omega);
+		if (mag2 > (100.0f * 100.0f)) {
+			omega = omega.Normalize().Scale(100.0f);
+			NewtonBodySetOmega(body, &omega[0]);
+		}
+
+		//PhysicsApplyGravityForce(body, timestep, threadIndex);
+		dFloat Ixx;
+		dFloat Iyy;
+		dFloat Izz;
+		dFloat mass;
+
+		dFloat gravity = -0.0f;
+		NewtonBodyGetMass(body, &mass, &Ixx, &Iyy, &Izz);
+		dVector dir(0.0f, gravity, 0.0f);
+		dVector force(dir.Scale(mass));
+		NewtonBodySetForce(body, &force.m_x);
+	}
+
+	NewtonBody* CreateBodyPart(DemoEntity* const bodyPart)
+	{
+		NewtonWorld* const world = GetWorld();
+		NewtonCollision* const shape = bodyPart->CreateCollisionFromchildren(world);
+		dAssert(shape);
+
+		// calculate the bone matrix
+		dMatrix matrix(bodyPart->CalculateGlobalMatrix());
+
+		// create the rigid body that will make this bone
+		NewtonBody* const bone = NewtonCreateDynamicBody(world, shape, &matrix[0][0]);
+
+		// calculate the moment of inertia and the relative center of mass of the solid
+		//NewtonBodySetMassProperties (bone, definition.m_mass, shape);
+		NewtonBodySetMassProperties(bone, 1.0f, shape);
+
+		// save the user data with the bone body (usually the visual geometry)
+		NewtonBodySetUserData(bone, bodyPart);
+
+		// assign the material for early collision culling
+		//NewtonBodySetMaterialGroupID(bone, m_material);
+
+		// set the bod part force and torque call back to the gravity force, skip the transform callback
+		NewtonBodySetForceAndTorqueCallback (bone, PhysicsApplyGravityForce);
+		//NewtonBodySetForceAndTorqueCallback(bone, ClampAngularVelocity);
+
+		// destroy the collision helper shape 
+		NewtonDestroyCollision(shape);
+		return bone;
+	}
+};
+#endif
+
+
+
+class dSixAxisManager: public dModelManager
+{
+
+	class dJointDefinition
+	{
+		public:
+		struct dJointLimit
+		{
+			dFloat m_minTwistAngle;
+			dFloat m_maxTwistAngle;
+		};
+
+		//struct dFrameMatrix
+		//{
+		//	dFloat m_pitch;
+		//	dFloat m_yaw;
+		//	dFloat m_roll;
+		//};
+
+		char m_boneName[32];
+		//dFloat m_friction;
+		dJointLimit m_jointLimits;
+		//dFrameMatrix m_frameBasics;
+	};
+
+
+	public:
+	dSixAxisManager(DemoEntityManager* const scene)
+		:dModelManager(scene->GetNewton())
 //		,m_currentController(NULL)
 //		,m_azimuth(0.0f)
 //		,m_posit_x(0.0f)
@@ -456,12 +797,13 @@ class dSixAxisManager: public dAnimIDManager
 //		,m_gripper_roll(0.0f)
 //		,m_gripper_pitch(0.0f)
 	{
-//		scene->Set2DDisplayRenderFunction(RenderHelpMenu, NULL, this);
+//			scene->Set2DDisplayRenderFunction(RenderHelpMenu, NULL, this);
 	}
 
 	~dSixAxisManager()
 	{
 	}
+
 /*
 	static void RenderHelpMenu(DemoEntityManager* const scene, void* const context)
 	{
@@ -489,6 +831,23 @@ class dSixAxisManager: public dAnimIDManager
 		return (dSixAxisController*)dCustomControllerManager<dSixAxisController>::CreateController();
 	}
 
+	dSixAxisController* MakeSixAxisRobot(DemoEntityManager* const scene, const dMatrix& origin)
+	{
+		DemoEntity* const model = DemoEntity::LoadNGD_mesh("robotArm.ngd", scene->GetNewton(), scene->GetShaderCache());
+
+		scene->Append(model);
+		model->ResetMatrix(*scene, origin);
+
+		DemoEntity* const model1 = DemoEntity::LoadNGD_mesh("robot2.ngd", scene->GetNewton(), scene->GetShaderCache());
+		scene->Append(model1);
+		model1->ResetMatrix(*scene, origin);
+
+		dSixAxisController* const controller = (dSixAxisController*)CreateController();
+		controller->MakeSixAxisRobot(scene, model);
+		m_currentController = controller;
+		return controller;
+	}
+
 	void OnDebug(dCustomJoint::dDebugDisplay* const debugContext)
 	{
 		for (dListNode* node = GetFirst(); node; node = node->GetNext()) {
@@ -498,150 +857,214 @@ class dSixAxisManager: public dAnimIDManager
 	}
 */
 
-	DemoEntity* FindMesh(const DemoEntity* const bodyPart) const
+	static void ClampAngularVelocity(const NewtonBody* body, dFloat timestep, int threadIndex)
 	{
-		for (DemoEntity* child = bodyPart->GetChild(); child; child = child->GetSibling()) {
-			if (child->GetMesh()) {
-				return child;
-			}
+		dVector omega;
+		NewtonBodyGetOmega(body, &omega[0]);
+		omega.m_w = 0.0f;
+		dFloat mag2 = omega.DotProduct3(omega);
+		if (mag2 > (100.0f * 100.0f)) {
+			omega = omega.Normalize().Scale(100.0f);
+			NewtonBodySetOmega(body, &omega[0]);
 		}
-		dAssert(0);
-		return NULL;
+
+//		PhysicsApplyGravityForce(body, timestep, threadIndex);
 	}
 
-	NewtonCollision* MakeConvexHull(const DemoEntity* const bodyPart) const
+	NewtonBody* CreateBodyPart(DemoEntity* const bodyPart)
 	{
-		dVector points[1024 * 16];
-
-		const DemoEntity* const meshEntity = FindMesh(bodyPart);
-
-		DemoMesh* const mesh = (DemoMesh*)meshEntity->GetMesh();
-		dAssert(mesh->IsType(DemoMesh::GetRttiType()));
-		dAssert(mesh->m_vertexCount && (mesh->m_vertexCount < int(sizeof(points) / sizeof(points[0]))));
-
-		// go over the vertex array and find and collect all vertices's weighted by this bone.
-		const dFloat* const array = mesh->m_vertex;
-		for (int i = 0; i < mesh->m_vertexCount; i++) {
-			points[i][0] = array[i * 3 + 0];
-			points[i][1] = array[i * 3 + 1];
-			points[i][2] = array[i * 3 + 2];
-			points[i][3] = 0.0f;
-		}
-		dMatrix matrix(meshEntity->GetMeshMatrix());
-		matrix = matrix * meshEntity->GetCurrentMatrix();
-		//matrix = matrix * bodyPart->GetParent()->GetCurrentMatrix();
-		matrix.TransformTriplex(&points[0][0], sizeof(dVector), &points[0][0], sizeof(dVector), mesh->m_vertexCount);
-//		return NewtonCreateConvexHull(GetWorld(), mesh->m_vertexCount, &points[0][0], sizeof(dVector), 1.0e-3f, SERVO_VEHICLE_DEFINITION::m_bodyPart, NULL);
-		return NewtonCreateConvexHull(GetWorld(), mesh->m_vertexCount, &points[0][0], sizeof(dVector), 1.0e-3f, 0, NULL);
-	}
-
-	NewtonBody* CreateBodyPart(DemoEntity* const bodyPart, const dArmRobotConfig& definition)
-	{
-		NewtonCollision* const shape = MakeConvexHull(bodyPart);
+		NewtonWorld* const world = GetWorld();
+		NewtonCollision* const shape = bodyPart->CreateCollisionFromchildren(world);
+		dAssert(shape);
 
 		// calculate the bone matrix
 		dMatrix matrix(bodyPart->CalculateGlobalMatrix());
 
-		NewtonWorld* const world = GetWorld();
-
 		// create the rigid body that will make this bone
-		NewtonBody* const body = NewtonCreateDynamicBody(world, shape, &matrix[0][0]);
+		NewtonBody* const bone = NewtonCreateDynamicBody(world, shape, &matrix[0][0]);
+
+		// calculate the moment of inertia and the relative center of mass of the solid
+		//NewtonBodySetMassProperties (bone, definition.m_mass, shape);
+		NewtonBodySetMassProperties(bone, 1.0f, shape);
+
+		// save the user data with the bone body (usually the visual geometry)
+		NewtonBodySetUserData(bone, bodyPart);
+
+		// assign the material for early collision culling
+		//NewtonBodySetMaterialGroupID(bone, m_material);
+		NewtonBodySetMaterialGroupID(bone, 0);
+
+		// set the bod part force and torque call back to the gravity force, skip the transform callback
+		//NewtonBodySetForceAndTorqueCallback (bone, PhysicsApplyGravityForce);
+		NewtonBodySetForceAndTorqueCallback(bone, ClampAngularVelocity);
 
 		// destroy the collision helper shape 
 		NewtonDestroyCollision(shape);
-
-		// get the collision from body
-		NewtonCollision* const collision = NewtonBodyGetCollision(body);
-
-		// calculate the moment of inertia and the relative center of mass of the solid
-		NewtonBodySetMassProperties(body, definition.m_mass, collision);
-//NewtonBodySetMassProperties(body, 0.0f, collision);
-
-		// save the user lifterData with the bone body (usually the visual geometry)
-		NewtonBodySetUserData(body, bodyPart);
-
-		// assign a body part id
-		//NewtonCollisionSetUserID(collision, definition.m_bodyPartID);
-
-		// set the bod part force and torque call back to the gravity force, skip the transform callback
-		NewtonBodySetForceAndTorqueCallback(body, PhysicsApplyGravityForce);
-		return body;
+		return bone;
 	}
 
-	dAnimIDController* MakeKukaRobot(DemoEntityManager* const scene, const dMatrix& origin)
+	void ConnectBodyParts(NewtonBody* const bone, NewtonBody* const parent, const dJointDefinition& definition) const
 	{
-		DemoEntity* const model = DemoEntity::LoadNGD_mesh("robotArm.ngd", scene->GetNewton(), scene->GetShaderCache());
+		dMatrix matrix;
+		NewtonBodyGetMatrix(bone, &matrix[0][0]);
+
+		//dJointDefinition::dFrameMatrix frameAngle(definition.m_frameBasics);
+		//dMatrix pinAndPivotInGlobalSpace(dPitchMatrix(frameAngle.m_pitch * dDegreeToRad) * dYawMatrix(frameAngle.m_yaw * dDegreeToRad) * dRollMatrix(frameAngle.m_roll * dDegreeToRad));
+		//pinAndPivotInGlobalSpace = pinAndPivotInGlobalSpace * matrix;
+
+		dMatrix pinAndPivotInGlobalSpace(dRollMatrix(90.0f * dDegreeToRad) * matrix);
+
+		//dMatrix parentRollMatrix(dGetIdentityMatrix() * pinAndPivotInGlobalSpace);
+		//dJointDefinition::dJointLimit jointLimits(definition.m_jointLimits);
+		//dCustomBallAndSocket* const joint = new dCustomBallAndSocket(pinAndPivotInGlobalSpace, parentRollMatrix, bone, parent);
+		//dFloat friction = definition.m_friction * 0.25f;
+		//joint->EnableCone(true);
+		//joint->SetConeFriction(friction);
+		//joint->SetConeLimits(jointLimits.m_coneAngle * dDegreeToRad);
+		//joint->EnableTwist(true);
+		//joint->SetTwistFriction(friction);
+		//joint->SetTwistLimits(jointLimits.m_minTwistAngle * dDegreeToRad, jointLimits.m_maxTwistAngle * dDegreeToRad);
+
+		dCustomHinge* const joint = new dCustomHinge(pinAndPivotInGlobalSpace, bone, parent);
+		if (definition.m_jointLimits.m_maxTwistAngle < 360.0f) {
+			joint->EnableLimits(true);
+			joint->SetLimits(definition.m_jointLimits.m_minTwistAngle * dDegreeToRad, definition.m_jointLimits.m_maxTwistAngle * dDegreeToRad);
+		}
+	}
+
+	void SetModelMass(dFloat mass, int bodyCount, NewtonBody** const bodyArray) const
+	{
+		dFloat volume = 0.0f;
+		for (int i = 0; i < bodyCount; i++) {
+			volume += NewtonConvexCollisionCalculateVolume(NewtonBodyGetCollision(bodyArray[i]));
+		}
+		dFloat density = mass / volume;
+
+		for (int i = 0; i < bodyCount; i++) {
+			dFloat Ixx;
+			dFloat Iyy;
+			dFloat Izz;
+
+			NewtonBody* const body = bodyArray[i];
+			NewtonBodyGetMass(body, &mass, &Ixx, &Iyy, &Izz);
+			dFloat scale = density * NewtonConvexCollisionCalculateVolume(NewtonBodyGetCollision(body));
+			mass *= scale;
+			Ixx *= scale;
+			Iyy *= scale;
+			Izz *= scale;
+			NewtonBodySetMassMatrix(body, mass, Ixx, Iyy, Izz);
+		}
+	}
+
+	void MakeSixAxisRobot(DemoEntityManager* const scene, const dMatrix& origin)
+	{
+		static dJointDefinition jointsDefinition[] =
+		{
+			{ "bone_base001" , {-1000.0f, 1000.0f } },
+			{ "bone_base002" , {-120.0f, 45.0f } },
+			{ "bone_base003" , {-120.0f, 15.0f } },
+			{ "bone_base004" , {-1000.0f, 1000.0f } },
+			{ "bone_base005" , {-225.0f, 45.0f } },
+			{ "bone_base006" , {-1000.0f, 1000.0f } },
+		};
+
+
+		DemoEntity* const model = DemoEntity::LoadNGD_mesh("robot1.ngd", scene->GetNewton(), scene->GetShaderCache());
 		scene->Append(model);
 		model->ResetMatrix(*scene, origin);
 
-		NewtonBody* const rootBody = CreateBodyPart(model, armRobotConfig[0]);
-		NewtonBodySetMassMatrix(rootBody, 0.0f, 0.0f, 0.0f, 0.0f);
-dAssert(0);
-return NULL;
-/*
-		dAnimIDController* const rig = CreateCharacterRig (rootBody);
+		// create the root body, do not set the transform call back 
+		NewtonBody* const rootBody = CreateBodyPart(model);
+
+		// make a kinematic controlled model.
+		dModelRootNode* const root = new dModelRootNode(rootBody, dGetIdentityMatrix());
+
+		// the the model to calculate the local transformation
+		root->SetTranformMode(true);
+
+		// add the model to the manager
+		AddRoot(root);
+
+		// save the controller as the collision user data, for collision culling
+		//NewtonCollisionSetUserData(NewtonBodyGetCollision(rootBone), controller);
 
 		int stackIndex = 0;
 		DemoEntity* childEntities[32];
-		dAnimIDRigJoint* parentBones[32];
+		dModelNode* parentBones[32];
 		for (DemoEntity* child = model->GetChild(); child; child = child->GetSibling()) {
-			parentBones[stackIndex] = rig;
+			parentBones[stackIndex] = root;
 			childEntities[stackIndex] = child;
 			stackIndex++;
 		}
 
-		const int partCount = sizeof(armRobotConfig) / sizeof(armRobotConfig[0]);
+		int bodyCount = 1;
+		NewtonBody* bodyArray[1024];
+		bodyArray[0] = rootBody;
+
+		// walk model hierarchic adding all children designed as rigid body bones. 
+		const int definitionCount = sizeof(jointsDefinition) / sizeof(jointsDefinition[0]);
 		while (stackIndex) {
 			stackIndex--;
 			DemoEntity* const entity = childEntities[stackIndex];
-			dAnimIDRigJoint* const parentJoint = parentBones[stackIndex];
+			dModelNode* parentBone = parentBones[stackIndex];
 
 			const char* const name = entity->GetName().GetStr();
-			for (int i = 0; i < partCount; i++) {
-				if (!strcmp(armRobotConfig[i].m_partName, name)) {
+			dTrace(("name: %s\n", name));
+			for (int i = 0; i < definitionCount; i++) {
+				if (!strcmp(jointsDefinition[i].m_boneName, name)) {
+					NewtonBody* const childBody = CreateBodyPart(entity);
+					bodyArray[bodyCount] = childBody;
+					bodyCount++;
 
-					if (strstr (name, "bone")) {
-						// add a bone and all it children
-						NewtonBody* const limbBody = CreateBodyPart(entity, armRobotConfig[i]);
-
-						dMatrix matrix;
-						NewtonBodyGetMatrix(limbBody, &matrix[0][0]);
-						dAnimationRigHinge* const limbJoint = new dAnimationRigHinge(matrix, parentJoint, limbBody);
-
-						limbJoint->SetFriction(armRobotConfig[i].m_mass * DEMO_GRAVITY * 50.0f);
-						limbJoint->SetLimits(armRobotConfig[i].m_minLimit * dDegreeToRad, armRobotConfig[i].m_maxLimit * dDegreeToRad);
-
-						for (DemoEntity* child = entity->GetChild(); child; child = child->GetSibling()) {
-							parentBones[stackIndex] = limbJoint;
-							childEntities[stackIndex] = child;
-							stackIndex++;
-						}
-					} else if (strstr(name, "effector")) {
-						// add an end effector (end effector can't have children)
-						dMatrix pivot (entity->CalculateGlobalMatrix());
-						dAnimationRigEffector* const effector = new dAnimationRigEffector(parentJoint->GetAsRigLimb(), pivot);
-						effector->SetLinearSpeed(2.0f);
-						effector->SetMaxLinearFriction(armRobotConfig[i].m_mass * DEMO_GRAVITY * 50.0f);
-					}
+					// connect this body part to its parent with a ragdoll joint
+					NewtonBody* const parentBody = parentBone->GetBody();
+					ConnectBodyParts(childBody, parentBody, jointsDefinition[i]);
+					
+					dMatrix bindMatrix(entity->GetParent()->CalculateGlobalMatrix((DemoEntity*)NewtonBodyGetUserData(parentBody)).Inverse());
+					parentBone = new dModelNode(childBody, bindMatrix, parentBone);
+					//// save the controller as the collision user data, for collision culling
+					//NewtonCollisionSetUserData(NewtonBodyGetCollision(childBody), parentBone);
 					break;
 				}
 			}
+
+			for (DemoEntity* child = entity->GetChild(); child; child = child->GetSibling()) {
+				parentBones[stackIndex] = parentBone;
+				childEntities[stackIndex] = child;
+				stackIndex++;
+			}
 		}
 
-		rig->Finalize();
-		return rig;
+		// set mass distribution by density and volume
+		SetModelMass(500.0f, bodyCount, bodyArray);
+
+		// make root body static
+		NewtonBodySetMassMatrix(rootBody, 0.0f, 0.0f, 0.0f, 0.0f);
+
+/*
+		// set the collision mask
+		// note this container work best with a material call back for setting bit field 
+		//dAssert(0);
+		//controller->SetDefaultSelfCollisionMask();
+
+		// transform the entire contraction to its location
+		dMatrix worldMatrix(rootEntity->GetCurrentMatrix() * location);
+		NewtonBodySetMatrixRecursive(rootBone, &worldMatrix[0][0]);
 */
+
+
 	}
 
-	void OnUpdateTransform (const dAnimIDRigJoint* const bone, const dMatrix& localMatrix) const
+	virtual void OnUpdateTransform(const dModelNode* const bone, const dMatrix& localMatrix) const
 	{
-		DemoEntityManager* const scene = (DemoEntityManager*) NewtonWorldGetUserData(GetWorld());
-		NewtonBody* const newtonBody = bone->GetNewtonBody();
-		DemoEntity* const meshEntity = (DemoEntity*)NewtonBodyGetUserData(newtonBody);
-		
+		NewtonBody* const body = bone->GetBody();
+		DemoEntity* const ent = (DemoEntity*)NewtonBodyGetUserData(body);
+		DemoEntityManager* const scene = (DemoEntityManager*)NewtonWorldGetUserData(NewtonBodyGetWorld(body));
+
 		dQuaternion rot(localMatrix);
-		meshEntity->SetMatrix(*scene, rot, localMatrix.m_posit);
+		ent->SetMatrix(*scene, rot, localMatrix.m_posit);
 	}
+
 
 /*
 	dSixAxisController* m_currentController;
@@ -653,38 +1076,36 @@ return NULL;
 */
 };
 
+
 #endif
+
+
+
 void SixAxisManipulators(DemoEntityManager* const scene)
 {
 	// load the sky box
 	scene->CreateSkyBox();
-	dTrace(("sorry demo %s temporarilly disabled\n", __FUNCTION__));
-	return;
-/*
-
-	CreateLevelMesh(scene, "flatPlane.ngd", true);
+	CreateLevelMesh (scene, "flatPlane.ngd", true);
 	dSixAxisManager* const robotManager = new dSixAxisManager(scene);
 
 	dMatrix origin(dYawMatrix(0.0f * dDegreeToRad));
 	dMatrix origin1(dYawMatrix(180.0f * dDegreeToRad));
 	origin.m_posit.m_z = -1.0f;
-	origin1.m_posit.m_z = 1.0f;
+	origin1.m_posit.m_z =  1.0f;
 
 	int count = 10;
 count = 1;
 origin = dGetIdentityMatrix();
 origin.m_posit.m_x = 2.0f;
-	for (int i = 0; i < count; i++) {
-		robotManager->MakeKukaRobot(scene, origin);
-		//robotManager->MakeKukaRobot (scene, origin1);
+	for (int i = 0; i < count; i ++) {
+		robotManager->MakeSixAxisRobot (scene, origin);
+//		robotManager->MakeSixAxisRobot (scene, origin1);
 		origin.m_posit.m_x += 1.0f;
 		origin1.m_posit.m_x += 1.0f;
 	}
-
-	//	origin.m_posit = dVector (-3.0f, 0.5f, 0.0f, 1.0f);
-	origin.m_posit = dVector(-2.0f, 0.5f, 0.0f, 1.0f);
+	
+	origin.m_posit = dVector (-3.0f, 0.5f, 0.0f, 1.0f);
+origin.m_posit = dVector(-2.0f, 0.5f, 0.0f, 1.0f);
 	scene->SetCameraMatrix(dGetIdentityMatrix(), origin.m_posit);
-*/
 }
 
-#endif

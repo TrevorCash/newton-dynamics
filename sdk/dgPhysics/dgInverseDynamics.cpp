@@ -1,4 +1,4 @@
-/* Copyright (c) <2003-2016> <Julio Jerez, Newton Game Dynamics>
+/* Copyright (c) <2003-2019> <Julio Jerez, Newton Game Dynamics>
 * 
 * This software is provided 'as-is', without any express or implied
 * warranty. In no event will the authors be held liable for any damages
@@ -1098,7 +1098,8 @@ void dgInverseDynamics::CalculateCloseLoopsForces(dgJacobian* const externalForc
 		b[i] -= r;
 	}
 
-	dgSolveDantzigLCP(m_auxiliaryRowCount, massMatrix11, u, b, low, high);
+	//dgSolveDantzigLCP(m_auxiliaryRowCount, massMatrix11, u, b, low, high);
+	dgGaussSeidelLCP(m_auxiliaryRowCount, massMatrix11, u, b, low, high);
 
 	for (dgInt32 i = 0; i < m_auxiliaryRowCount; i++) {
 		const dgFloat32 s = u[i];

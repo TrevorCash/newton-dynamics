@@ -1,4 +1,4 @@
-/* Copyright (c) <2003-2016> <Newton Game Dynamics>
+/* Copyright (c) <2003-2019> <Newton Game Dynamics>
 * 
 * This software is provided 'as-is', without any express or implied
 * warranty. In no event will the authors be held liable for any damages
@@ -52,7 +52,6 @@ class dSkeletonBone: public dList<dSkeletonBone>
 	NewtonBody* m_body;
 	dSkeletonBone* m_parent;
 	void* m_userData; 
-	
 
 	friend class dCustomTransformController;
 };
@@ -98,8 +97,6 @@ class dCustomTransformManager: public dCustomParallelListener
 
 	protected:
 	CUSTOM_JOINTS_API virtual void OnDestroy();
-//	CUSTOM_JOINTS_API virtual void PreUpdate(dFloat timestep);
-//	CUSTOM_JOINTS_API virtual void PostUpdate(dFloat timestep);
 	CUSTOM_JOINTS_API virtual void PreUpdate(dFloat timestep, int threadID);
 	CUSTOM_JOINTS_API virtual void PostUpdate(dFloat timestep, int threadID);
 

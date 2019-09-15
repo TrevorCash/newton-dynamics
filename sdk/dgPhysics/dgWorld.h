@@ -1,4 +1,4 @@
-/* Copyright (c) <2003-2016> <Julio Jerez, Newton Game Dynamics>
+/* Copyright (c) <2003-2019> <Julio Jerez, Newton Game Dynamics>
 * 
 * This software is provided 'as-is', without any express or implied
 * warranty. In no event will the authors be held liable for any damages
@@ -129,12 +129,7 @@ class dgWorldThreadPool: public dgThreadHive
 class dgDeadJoints: public dgTree<dgConstraint*, void* >
 {
 	public: 
-	dgDeadJoints(dgMemoryAllocator* const allocator)
-		:dgTree<dgConstraint*, void* >(allocator)
-		,m_lock(0)
-	{
-	}
-	
+	dgDeadJoints(dgMemoryAllocator* const allocator);
 	void DestroyJoints(dgWorld& world);
 	void DestroyJoint(dgConstraint* const joint);
 	private:
@@ -144,11 +139,7 @@ class dgDeadJoints: public dgTree<dgConstraint*, void* >
 class dgDeadBodies: public dgTree<dgBody*, void* >
 {
 	public: 
-	dgDeadBodies(dgMemoryAllocator* const allocator)
-		:dgTree<dgBody*, void*>(allocator)
-		,m_lock(0)
-	{
-	}
+	dgDeadBodies(dgMemoryAllocator* const allocator);
 	void DestroyBody(dgBody* const body);
 	void DestroyBodies(dgWorld& world);
 
@@ -497,7 +488,6 @@ class dgWorld
 	dgUnsigned32 m_bodiesUniqueID;
 	dgUnsigned32 m_useParallelSolver;
 	dgUnsigned32 m_genericLRUMark;
-	dgInt32 m_delayDelateLock;
 	dgInt32 m_clusterLRU;
 
 	dgFloat32 m_freezeAccel2;

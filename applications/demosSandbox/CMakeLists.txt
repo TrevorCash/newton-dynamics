@@ -8,7 +8,7 @@
 # including commercial applications, and to alter it and redistribute it
 # freely.
 
-cmake_minimum_required(VERSION 3.10.0)
+cmake_minimum_required(VERSION 3.4.0)
 
 set (projectName "demosSandbox")
 message (${projectName})
@@ -23,6 +23,7 @@ include_directories(sdkDemos/toolBox/)
 include_directories(../../sdk/dMath/)
 include_directories(../../sdk/dgCore/)
 include_directories(../../sdk/dScene/)
+include_directories(../../sdk/dModel/)
 include_directories(../../sdk/dNewton/)
 include_directories(../../sdk/dgNewton/)
 include_directories(../../sdk/dVehicle/)
@@ -43,7 +44,7 @@ include_directories(../../sdk/thirdParty/glfw/include/glfw/)
 include_directories(../../sdk/thirdParty/glatter/include/glatter/)
 add_executable(${projectName} ${CPP_SOURCE})
 
-target_link_libraries (${projectName} dNewton dScene dVehicle glfw imgui glatter)
+target_link_libraries (${projectName} dNewton dScene dModel dVehicle glfw imgui glatter)
 if (NEWTON_BUILD_PROFILER)
     target_link_libraries (${projectName} dProfiler)
 endif ()

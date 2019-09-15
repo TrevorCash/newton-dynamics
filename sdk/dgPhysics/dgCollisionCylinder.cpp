@@ -1,4 +1,4 @@
-/* Copyright (c) <2003-2016> <Julio Jerez, Newton Game Dynamics>
+/* Copyright (c) <2003-2019> <Julio Jerez, Newton Game Dynamics>
 * 
 * This software is provided 'as-is', without any express or implied
 * warranty. In no event will the authors be held liable for any damages
@@ -300,12 +300,8 @@ dgInt32 dgCollisionCylinder::CalculatePlaneIntersection (const dgVector& normal,
 		if (normal.m_x < -inclination) {
 			dgMatrix matrix(normal);
 			matrix.m_posit.m_x = origin.m_x;
-			dgVector scale(m_radio0);
-			const int n = sizeof (m_unitCircle) / sizeof (m_unitCircle[0]);
-			for (dgInt32 i = 0; i < n; i++) {
-				contactsOut[i] = matrix.TransformVector(m_unitCircle[i] * scale) & dgVector::m_triplexMask;
-			}
-			count = RectifyConvexSlice(n, normal, contactsOut);
+			count = BuildCylinderCapPoly (m_radio0, matrix, contactsOut);
+			//count = RectifyConvexSlice(n, normal, contactsOut);
 		} else {
 			dgFloat32 magInv = dgRsqrt(normal.m_y * normal.m_y + normal.m_z * normal.m_z);
 			dgFloat32 cosAng = normal.m_y * magInv;
@@ -343,12 +339,8 @@ dgInt32 dgCollisionCylinder::CalculatePlaneIntersection (const dgVector& normal,
 		if (normal.m_x > inclination) {
 			dgMatrix matrix(normal);
 			matrix.m_posit.m_x = origin.m_x;
-			dgVector scale(m_radio1);
-			const int n = sizeof (m_unitCircle) / sizeof (m_unitCircle[0]);
-			for (dgInt32 i = 0; i < n; i++) {
-				contactsOut[i] = matrix.TransformVector(m_unitCircle[i] * scale) & dgVector::m_triplexMask;
-			}
-			count = RectifyConvexSlice(n, normal, contactsOut);
+			count = BuildCylinderCapPoly (m_radio1, matrix, contactsOut);
+			//count = RectifyConvexSlice(n, normal, contactsOut);
 		} else {
 			dgFloat32 magInv = dgRsqrt(normal.m_y * normal.m_y + normal.m_z * normal.m_z);
 			dgFloat32 cosAng = normal.m_y * magInv;
