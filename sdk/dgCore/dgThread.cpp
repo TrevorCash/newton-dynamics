@@ -188,8 +188,6 @@ void dgThread::Wait (dgInt32 count, dgSemaphore* const semArray)
 }
 
 
-
-
 void* dgThread::dgThreadSystemCallback(void* threadData)
 {
 	dgFloatExceptions exception;
@@ -197,10 +195,7 @@ void* dgThread::dgThreadSystemCallback(void* threadData)
 
 	dgThread* const me = (dgThread*) threadData;
 
-
-
 	D_SET_TRACK_NAME(me->m_name);
-
 	me->Execute(me->m_id);
 	dgInterlockedExchange(&me->m_threadRunning, 0);
 

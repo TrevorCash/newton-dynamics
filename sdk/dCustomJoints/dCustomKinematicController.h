@@ -9,8 +9,6 @@
 * freely
 */
 
-
-
 // dCustomKinematicController.h: interface for the dCustomKinematicController class.
 //
 //////////////////////////////////////////////////////////////////////
@@ -21,19 +19,30 @@
 
 #include "dCustomJoint.h"
 
+//#define USE_OLD_KINEMATICS
+
 class dCustomKinematicController: public dCustomJoint
 {
 	public:
+#ifdef USE_OLD_KINEMATICS
 	CUSTOM_JOINTS_API dCustomKinematicController (NewtonBody* const body, const dVector& attachmentPointInGlobalSpace);
 	CUSTOM_JOINTS_API dCustomKinematicController (NewtonBody* const body, const dMatrix& attachmentMatrixInGlobalSpace);
+#else
+	CUSTOM_JOINTS_API dCustomKinematicController(NewtonBody* const body, const dVector& attachmentPointInGlobalSpace, NewtonBody* const refernceBody = NULL);
+	CUSTOM_JOINTS_API dCustomKinematicController(NewtonBody* const body, const dMatrix& attachmentMatrixInGlobalSpace, NewtonBody* const refernceBody = NULL);
+#endif
+
 	CUSTOM_JOINTS_API dCustomKinematicController (NewtonInverseDynamics* const invDynSolver, void* const invDynNode, const dMatrix& attachmentMatrixInGlobalSpace);
 	CUSTOM_JOINTS_API virtual ~dCustomKinematicController();
 
 	CUSTOM_JOINTS_API void SetPickMode (int mode);
 	CUSTOM_JOINTS_API void SetMaxLinearFriction(dFloat force); 
 	CUSTOM_JOINTS_API void SetMaxAngularFriction(dFloat torque); 
+	CUSTOM_JOINTS_API void SetMaxSpeed(dFloat speedInMetersPerSeconds); 
+	CUSTOM_JOINTS_API void SetMaxOmega(dFloat speedInRadiansPerSeconds); 
+
 	CUSTOM_JOINTS_API void SetLimitRotationVelocity(dFloat omegaCap);
-	
+
 	CUSTOM_JOINTS_API void SetTargetPosit (const dVector& posit); 
 	CUSTOM_JOINTS_API void SetTargetRotation (const dQuaternion& rotation); 
 	CUSTOM_JOINTS_API void SetTargetMatrix (const dMatrix& matrix); 
@@ -49,12 +58,16 @@ class dCustomKinematicController: public dCustomJoint
 	CUSTOM_JOINTS_API virtual void Deserialize (NewtonDeserializeCallback callback, void* const userData); 
 	CUSTOM_JOINTS_API virtual void Serialize (NewtonSerializeCallback callback, void* const userData) const;
 
-	void Init (NewtonBody* const body, const dMatrix& matrix);
+	void Init(const dMatrix& matrix);
 
+#ifdef USE_OLD_KINEMATICS
 	dMatrix m_targetMatrix;
+	dFloat m_omegaCap;
+#endif
 	dFloat m_maxLinearFriction;
 	dFloat m_maxAngularFriction;
-	dFloat m_omegaCap;
+	dFloat m_maxSpeed;
+	dFloat m_maxOmega;
 	char m_pickingMode;
 	char m_autoSleepState;
 
