@@ -293,8 +293,8 @@ class dHexapodController: public dCustomControllerBase
 		effectorMatrix.m_posit.m_y -= armSize;
 		dHexapodEffector* const effector = new dHexapodEffector(m_kinematicSolver, armHingeNode, parent, effectorMatrix * matrix);
 		effector->SetAsThreedof();
-		effector->SetMaxLinearFriction(partMass * DEMO_GRAVITY * 10.0f);
-		effector->SetMaxAngularFriction(partMass * DEMO_GRAVITY * 10.0f);
+		effector->SetMaxLinearFriction(partMass * 9.8f * 10.0f);
+		effector->SetMaxAngularFriction(partMass * 9.8f * 10.0f);
 
 		return effector;
 	}
@@ -388,10 +388,10 @@ class dHexapodController: public dCustomControllerBase
 	dAnimationHipController* m_postureModifier; // do not delete 
 };
 
-class dHexapodManager: public dCustomControllerManager<dHexapodController>
+class dHexapodManager_old: public dCustomControllerManager<dHexapodController>
 {
 	public:
-	dHexapodManager(DemoEntityManager* const scene)
+	dHexapodManager_old(DemoEntityManager* const scene)
 		:dCustomControllerManager<dHexapodController>(scene->GetNewton(), "sixAxisManipulator")
 		,m_currentController(NULL)
 		,m_yaw(0.0f)
@@ -404,13 +404,13 @@ class dHexapodManager: public dCustomControllerManager<dHexapodController>
 		scene->Set2DDisplayRenderFunction(RenderHelpMenu, NULL, this);
 	}
 
-	~dHexapodManager()
+	~dHexapodManager_old()
 	{
 	}
 
 	static void RenderHelpMenu(DemoEntityManager* const scene, void* const context)
 	{
-		dHexapodManager* const me = (dHexapodManager*)context;
+		dHexapodManager_old* const me = (dHexapodManager_old*)context;
 
 		dVector color(1.0f, 1.0f, 0.0f, 0.0f);
 		scene->Print(color, "Hexapod controller");
@@ -466,6 +466,454 @@ class dHexapodManager: public dCustomControllerManager<dHexapodController>
 	dFloat32 m_speed;
 };
 
+
+
+
+class dHexapodWalker: public dModelRootNode
+{
+	public:
+	dHexapodWalker(NewtonBody* const rootBody, const dMatrix& bindMatrix)
+		:dModelRootNode(rootBody, bindMatrix)
+		//,m_pivotMatrix(dGetIdentityMatrix())
+		//,m_gripperMatrix(dGetIdentityMatrix())
+		//,m_effector(NULL)
+		//,m_azimuth(0.0f)
+		//,m_posit_x(0.0f)
+		//,m_posit_y(0.0f)
+		//,m_pitch(0.0f)
+		//,m_yaw(0.0f)
+		//,m_roll(0.0f)
+	{
+	}
+
+/*
+	void SetPivotMatrix()
+	{
+		dMatrix baseMatrix;
+		dMatrix pivotMatrix;
+		dModelNode* const referenceNode = GetChildren().GetFirst()->GetInfo().GetData();
+		NewtonBodyGetMatrix(GetBody(), &baseMatrix[0][0]);
+		NewtonBodyGetMatrix(referenceNode->GetBody(), &pivotMatrix[0][0]);
+		m_pivotMatrix = pivotMatrix * baseMatrix.Inverse();
+		m_gripperMatrix = m_effector->GetTargetMatrix() * m_pivotMatrix.Inverse();
+	}
+
+	void UpdateEffectors(dFloat azimuth, dFloat posit_x, dFloat posit_y, dFloat pitch, dFloat yaw, dFloat roll)
+	{
+		m_azimuth = azimuth;
+		m_posit_x = posit_x;
+		m_posit_y = posit_y;
+		m_pitch = pitch;
+		m_yaw = yaw;
+		m_roll = roll;
+
+		dMatrix yawMatrix(dYawMatrix(m_azimuth * dDegreeToRad));
+		dMatrix gripperMatrix(dPitchMatrix(m_pitch * dDegreeToRad) * dYawMatrix(m_yaw * dDegreeToRad) * dRollMatrix(m_roll * dDegreeToRad) * m_gripperMatrix);
+
+		gripperMatrix.m_posit.m_x += m_posit_x;
+		gripperMatrix.m_posit.m_y += m_posit_y;
+		m_effector->SetTargetMatrix(gripperMatrix * yawMatrix * m_pivotMatrix);
+	}
+
+	dMatrix m_pivotMatrix;
+	dMatrix m_gripperMatrix;
+	dCustomKinematicController* m_effector;
+	dFloat m_azimuth;
+	dFloat m_posit_x;
+	dFloat m_posit_y;
+	dFloat m_pitch;
+	dFloat m_yaw;
+	dFloat m_roll;
+*/
+};
+
+
+
+#define HEXAPOD_MASS 500.0f
+
+
+class dModelAnimTreePoseWalkSequence: public dModelAnimTreePose
+{
+	public:
+	dModelAnimTreePoseWalkSequence(dModelRootNode* const model, const dModelKeyFramePose& pose)
+		:dModelAnimTreePose(model, pose)
+		,m_acc(0.0f)
+		,m_amplitud_x(0.35f)
+		,m_amplitud_y(0.1f)
+		,m_period(1.0f)
+		,m_cycle()
+	{
+		m_sequence[0] = 0;
+		m_sequence[3] = 0;
+		m_sequence[4] = 0;
+		m_sequence[1] = 1;
+		m_sequence[2] = 1;
+		m_sequence[5] = 1;
+
+		// make left walk cycle
+		const int size = 11;
+		const int splite = (size - 1) / 2 - 1;
+		dFloat64 knots[size];
+		dBigVector leftControlPoints[size + 2];
+		for (int i = 0; i < size; i++) {
+			knots[i] = dFloat(i) / (size - 1);
+		}
+		memset(leftControlPoints, 0, sizeof (leftControlPoints));
+
+		dFloat x = -m_amplitud_x / 2.0f;
+		dFloat step_x = m_amplitud_x / splite;
+		for (int i = 0; i <= splite; i++) {
+			leftControlPoints[i + 1].m_y = m_amplitud_y * dSin(dPi * dFloat(i) / splite);
+			leftControlPoints[i + 1].m_x = x;
+			x += step_x;
+		}
+
+		x = m_amplitud_x / 2.0f;
+		step_x = -m_amplitud_x / (size - splite - 1);
+		for (int i = splite; i < size; i++) {
+			leftControlPoints[i + 1].m_x = x;
+			x += step_x;
+		}
+		leftControlPoints[0].m_x = leftControlPoints[1].m_x;
+		leftControlPoints[size + 1].m_x = leftControlPoints[size].m_x;
+
+		//cycle.CreateFromKnotVectorAndControlPoints(3, size, knots, leftControlPoints);
+		m_cycle.CreateFromKnotVectorAndControlPoints(1, size, knots, &leftControlPoints[1]);
+	}
+
+	void Evaluate(dFloat timestep)
+	{
+		m_acc = dMod(m_acc + timestep, m_period);
+	}
+
+	virtual void GeneratePose(dModelKeyFramePose& output)
+	{
+		dModelAnimTreePose::GeneratePose(output);
+
+		dFloat param = m_acc / m_period;
+		dBigVector left(m_cycle.CurvePoint(param));
+		dBigVector right(m_cycle.CurvePoint(dMod(param + 0.5f, 1.0f)));
+
+		dFloat high[2];
+		dFloat stride[2];
+		high[0] = dFloat(left.m_y);
+		high[1] = dFloat(right.m_y);
+		stride[0] = dFloat(left.m_x);
+		stride[1] = dFloat(right.m_x);
+
+		int index = 0;
+		for (dModelKeyFramePose::dListNode* node = output.GetFirst(); node; node = node->GetNext()) {
+			dModelKeyFrame& transform = node->GetInfo();
+			transform.m_posit.m_y += high[m_sequence[index]];
+			transform.m_posit.m_x += stride[m_sequence[index]];
+			index++;
+		}
+	}
+
+	dFloat m_acc;
+	dFloat m_period;
+	dFloat m_amplitud_x;
+	dFloat m_amplitud_y;
+	dBezierSpline m_cycle;
+	int m_sequence[6];
+};
+
+class dHexapod: public dModelRootNode
+{
+	public:
+	dHexapod(NewtonBody* const rootBody, const dMatrix& bindMatrix)
+		:dModelRootNode(rootBody, bindMatrix)
+		,m_pose()
+		,m_animtree(NULL)
+		,m_walkIdleBlender(NULL)
+	{
+	}
+
+	~dHexapod()
+	{
+		if (m_animtree) {
+			delete m_animtree;
+		}
+	}
+
+	void ApplyAnimTree ()
+	{
+		m_animtree->GeneratePose(m_pose);
+
+		for (dModelKeyFramePose::dListNode* node = m_pose.GetFirst(); node; node = node->GetNext()) {
+			dModelKeyFrame& transform = node->GetInfo();
+			transform.m_effector->SetTargetMatrix(dMatrix (transform.m_rotation, transform.m_posit));
+		}
+	}
+
+	dModelKeyFramePose m_pose;
+	dModelAnimTree* m_animtree;
+
+	// do no delete !!
+	dModelAnimTreePoseBlender* m_walkIdleBlender;
+};
+
+
+class dHexapodManager: public dModelManager
+{
+	public:
+	dHexapodManager(DemoEntityManager* const scene)
+		:dModelManager(scene->GetNewton())
+		,m_currentController(NULL)
+	{
+		//scene->Set2DDisplayRenderFunction(RenderHelpMenu, NULL, this);
+	}
+
+	~dHexapodManager()
+	{
+	}
+
+	void ScaleIntertia(NewtonBody* const body, dFloat factor) const
+	{
+		dFloat Ixx;
+		dFloat Iyy;
+		dFloat Izz;
+		dFloat mass;
+		NewtonBodyGetMass(body, &mass, &Ixx, &Iyy, &Izz);
+		NewtonBodySetMassMatrix(body, mass, Ixx * factor, Iyy * factor, Izz * factor);
+	}
+
+	void NormalizeMassAndInertia(dHexapod* const model, dFloat modelMass) const
+	{
+		int stack = 1;
+		int bodyCount = 0;
+		NewtonBody* bodyArray[1024];
+		dModelNode* stackBuffer[32];
+
+		stackBuffer[0] = model;
+		while (stack) {
+			stack--;
+			dModelNode* const root = stackBuffer[stack];
+			bodyArray[bodyCount] = root->GetBody();
+			bodyCount++;
+			const dModelChildrenList& children = root->GetChildren();
+			for (dModelChildrenList::dListNode* node = children.GetFirst(); node; node = node->GetNext()) {
+				stackBuffer[stack] = node->GetInfo().GetData();
+				stack++;
+			}
+		}
+
+		dFloat totalMass = 0.0f;
+		for (int i = 0; i < bodyCount; i++) {
+			dFloat Ixx;
+			dFloat Iyy;
+			dFloat Izz;
+			dFloat mass;
+
+			NewtonBody* const body = bodyArray[i];
+			NewtonBodyGetMass(body, &mass, &Ixx, &Iyy, &Izz);
+			totalMass += mass;
+		}
+
+		dFloat massNormalize = modelMass / totalMass;
+		for (int i = 0; i < bodyCount; i++) {
+			dFloat Ixx;
+			dFloat Iyy;
+			dFloat Izz;
+			dFloat mass;
+
+			NewtonBody* const body = bodyArray[i];
+			NewtonBodyGetMass(body, &mass, &Ixx, &Iyy, &Izz);
+
+			mass *= massNormalize;
+			Ixx *= massNormalize;
+			Iyy *= massNormalize;
+			Izz *= massNormalize;
+
+			dFloat minInertia = dMin(Ixx, dMin(Iyy, Izz));
+			if (minInertia < 4.0f) {
+				dFloat maxInertia = dMax(dFloat(10.0f), dMax(Ixx, dMax(Iyy, Izz)));
+				Ixx = maxInertia;
+				Iyy = maxInertia;
+				Izz = maxInertia;
+			}
+
+			NewtonBodySetMassMatrix(body, mass, Ixx, Iyy, Izz);
+		}
+	}
+
+	NewtonBody* CreateBox(DemoEntityManager* const scene, const dMatrix& location, const dVector& size, dFloat mass, dFloat inertiaScale) const
+	{
+		NewtonWorld* const world = scene->GetNewton();
+		int materialID = NewtonMaterialGetDefaultGroupID(world);
+		NewtonCollision* const collision = CreateConvexCollision(world, dGetIdentityMatrix(), size, _BOX_PRIMITIVE, 0);
+		DemoMesh* const geometry = new DemoMesh("primitive", scene->GetShaderCache(), collision, "smilli.tga", "smilli.tga", "smilli.tga");
+		NewtonBody* const body = CreateSimpleSolid(scene, geometry, mass, location, collision, materialID);
+		ScaleIntertia(body, inertiaScale);
+
+		geometry->Release();
+		NewtonDestroyCollision(collision);
+		return body;
+	}
+
+	NewtonBody* CreateCylinder(DemoEntityManager* const scene, const dMatrix& location, dFloat mass, dFloat inertiaScale, dFloat radius, dFloat height) const
+	{
+		NewtonWorld* const world = scene->GetNewton();
+		int materialID = NewtonMaterialGetDefaultGroupID(world);
+		dVector size(radius, height, radius, 0.0f);
+		NewtonCollision* const collision = CreateConvexCollision(world, dGetIdentityMatrix(), size, _CYLINDER_PRIMITIVE, 0);
+		DemoMesh* const geometry = new DemoMesh("primitive", scene->GetShaderCache(), collision, "smilli.tga", "smilli.tga", "smilli.tga");
+
+		NewtonBody* const body = CreateSimpleSolid(scene, geometry, mass, location, collision, materialID);
+		ScaleIntertia(body, inertiaScale);
+
+		geometry->Release();
+		NewtonDestroyCollision(collision);
+		return body;
+	}
+
+	NewtonBody* CreateCapsule(DemoEntityManager* const scene, const dMatrix& location, dFloat mass, dFloat inertiaScale, dFloat radius, dFloat height) const
+	{
+		NewtonWorld* const world = scene->GetNewton();
+		int materialID = NewtonMaterialGetDefaultGroupID(world);
+		dVector size(radius, height, radius, 0.0f);
+		dMatrix align(dYawMatrix(dPi * 0.5f));
+		NewtonCollision* const collision = CreateConvexCollision(world, align, size, _CAPSULE_PRIMITIVE, 0);
+		DemoMesh* const geometry = new DemoMesh("primitive", scene->GetShaderCache(), collision, "smilli.tga", "smilli.tga", "smilli.tga");
+
+		NewtonBody* const body = CreateSimpleSolid(scene, geometry, mass, location, collision, materialID);
+		ScaleIntertia(body, inertiaScale);
+
+		geometry->Release();
+		NewtonDestroyCollision(collision);
+		return body;
+	}
+
+	dCustomKinematicController* AddLeg(DemoEntityManager* const scene, dHexapod* const rootNode, const dMatrix& matrix, dFloat partMass, dFloat limbLenght)
+	{
+		NewtonBody* const parent = rootNode->GetBody();
+
+		dFloat inertiaScale = 4.0f;
+		// make limb base
+		dMatrix baseMatrix(dRollMatrix(dPi * 0.5f));
+		dMatrix cylinderMatrix(baseMatrix * matrix);
+		NewtonBody* const base = CreateCylinder(scene, cylinderMatrix, partMass, inertiaScale, 0.2f, 0.1f);
+		dCustomHinge* const baseHinge = new dCustomHinge (cylinderMatrix, base, parent);
+		baseHinge->EnableLimits(true);
+		baseHinge->SetLimits(-80.0f * dDegreeToRad, -80.0f * dDegreeToRad);
+		dModelNode* const baseHingeNode = new dModelNode(base, dGetIdentityMatrix(), rootNode);
+
+		//make limb forward arm
+		dMatrix forwardArmMatrix(dPitchMatrix(-30.0f * dDegreeToRad));
+		dVector forwardArmSize(limbLenght * 0.25f, limbLenght * 0.25f, limbLenght, 0.0f);
+		forwardArmMatrix.m_posit += forwardArmMatrix.m_right.Scale(forwardArmSize.m_z * 0.5f);
+		NewtonBody* const forwardArm = CreateBox(scene, forwardArmMatrix * matrix, forwardArmSize, partMass, inertiaScale);
+		dMatrix forwardArmPivot(forwardArmMatrix);
+		forwardArmPivot.m_posit -= forwardArmMatrix.m_right.Scale(forwardArmSize.m_z * 0.5f);
+		dCustomHinge* const forwardArmHinge = new dCustomHinge (forwardArmPivot * matrix, forwardArm, base);
+		forwardArmHinge->EnableLimits(true);
+		forwardArmHinge->SetLimits(-80.0f * dDegreeToRad, -80.0f * dDegreeToRad);
+		dModelNode* const forwardArmHingeNode = new dModelNode(forwardArm, dGetIdentityMatrix(), baseHingeNode);
+
+		//make limb forward arm
+		dMatrix armMatrix(dPitchMatrix(-90.0f * dDegreeToRad));
+		dFloat armSize = limbLenght * 1.25f;
+		armMatrix.m_posit += forwardArmMatrix.m_right.Scale(limbLenght);
+		armMatrix.m_posit.m_y -= armSize * 0.5f;
+		NewtonBody* const arm = CreateCapsule(scene, armMatrix * matrix, partMass, inertiaScale, armSize * 0.2f, armSize);
+		dMatrix armPivot(armMatrix);
+		armPivot.m_posit.m_y += armSize * 0.5f;
+		dCustomHinge* const armHinge = new dCustomHinge (armPivot * matrix, arm, forwardArm);
+		armHinge->EnableLimits(true);
+		armHinge->SetLimits(-80.0f * dDegreeToRad, -80.0f * dDegreeToRad);
+		dModelNode* const armHingeNode = new dModelNode(arm, dGetIdentityMatrix(), forwardArmHingeNode);
+		
+
+		dMatrix effectorMatrix(dGetIdentityMatrix());
+		effectorMatrix.m_posit = armPivot.m_posit;
+		effectorMatrix.m_posit.m_y -= armSize;
+		//dHexapodEffector* const effector = new dHexapodEffector(m_kinematicSolver, armHingeNode, parent, effectorMatrix * matrix);
+		dCustomKinematicController* const effector = new dCustomKinematicController(armHingeNode->GetBody(), effectorMatrix * matrix, parent);
+		effector->SetAsLinear();
+		effector->SetSolverModel(1);
+		//effector->SetAsThreedof();
+		effector->SetMaxLinearFriction(HEXAPOD_MASS * 9.8f * 10.0f);
+
+		return effector;
+	}
+
+
+	void MakeHexapod(DemoEntityManager* const scene, const dMatrix& location)
+	{
+		// make the root body
+		dMatrix baseMatrix(dGetIdentityMatrix());
+		baseMatrix.m_posit.m_y += 0.35f;
+		dVector size(1.3f, 0.31f, 0.5f, 0.0f);
+		NewtonBody* const hexaBody = CreateBox(scene, baseMatrix * location, size, 1.0f, 1.0f);
+
+		// make a kinematic controlled model.
+		dHexapod* const hexapod = new dHexapod(hexaBody, dGetIdentityMatrix());
+
+		// add the model to the manager
+		AddRoot(hexapod);
+
+		// add all the hexapod limbs procedurally
+		for (int i = 0; i < 3; i++) {
+			dModelKeyFrame keyFrame;
+
+			// make right legs
+			dMatrix rightLocation(baseMatrix);
+			rightLocation.m_posit += rightLocation.m_right.Scale(size.m_z * 0.65f);
+			rightLocation.m_posit += rightLocation.m_front.Scale(size.m_x * 0.3f - size.m_x * i / 3.0f);
+			keyFrame.m_effector = AddLeg(scene, hexapod, rightLocation * location, 0.1f, 0.3f);
+			dMatrix matrix (keyFrame.m_effector->GetTargetMatrix());
+			keyFrame.m_posit = matrix.m_posit;
+			keyFrame.m_rotation = dQuaternion(matrix);
+			hexapod->m_pose.Append(keyFrame);
+
+			// make left legs
+			dMatrix similarTransform(dGetIdentityMatrix());
+			similarTransform.m_posit.m_x = rightLocation.m_posit.m_x;
+			similarTransform.m_posit.m_y = rightLocation.m_posit.m_y;
+			dMatrix leftLocation(rightLocation * similarTransform.Inverse() * dYawMatrix(dPi) * similarTransform);
+			keyFrame.m_effector = AddLeg(scene, hexapod, leftLocation * location, 0.1f, 0.3f);
+			matrix = keyFrame.m_effector->GetTargetMatrix();
+			keyFrame.m_posit = matrix.m_posit;
+			keyFrame.m_rotation = dQuaternion(matrix);
+			hexapod->m_pose.Append(keyFrame);
+		}
+
+		// normalize the mass of body parts
+ 		NormalizeMassAndInertia(hexapod, HEXAPOD_MASS);
+
+		// create a fix pose frame generator
+		dModelAnimTreePose* const idlePose = new dModelAnimTreePose(hexapod, hexapod->m_pose);
+		dModelAnimTreePose* const walkPoseGenerator = new dModelAnimTreePoseWalkSequence(hexapod, hexapod->m_pose);
+		hexapod->m_walkIdleBlender = new dModelAnimTreePoseBlender(hexapod, idlePose, walkPoseGenerator);
+		//
+		//m_postureModifier = new dAnimationHipController(m_walkIdleBlender);
+		//m_animTreeNode = new dEffectorTreeRoot(hexaBody, m_postureModifier);
+
+		hexapod->m_animtree = hexapod->m_walkIdleBlender;
+		m_currentController = hexapod;
+	}
+
+	virtual void OnDebug(dModelRootNode* const model, dCustomJoint::dDebugDisplay* const debugContext)
+	{
+		dHexapod* const hexapod = (dHexapod*)model;
+		for (dModelKeyFramePose::dListNode* node = hexapod->m_pose.GetFirst(); node; node = node->GetNext()) {
+			const dModelKeyFrame& keyFrame = node->GetInfo();
+			keyFrame.m_effector->Debug(debugContext);
+		}
+	}
+
+	virtual void OnPreUpdate(dModelRootNode* const model, dFloat timestep) const
+	{
+		if (model == m_currentController) {
+			m_currentController->m_animtree->Evaluate(timestep);
+			m_currentController->ApplyAnimTree ();
+		}
+	}
+
+	dHexapod* m_currentController;
+};
+
+
 void Hexapod(DemoEntityManager* const scene)
 {
 	// load the sky box
@@ -476,7 +924,7 @@ void Hexapod(DemoEntityManager* const scene)
 
 	NewtonWorld* const world = scene->GetNewton();
 	int defaultMaterialID = NewtonMaterialGetDefaultGroupID(world);
-	dHexapodManager* const robotManager = new dHexapodManager(scene);
+	dHexapodManager_old* const robotManager_old = new dHexapodManager_old(scene);
 	NewtonMaterialSetDefaultFriction(world, defaultMaterialID, defaultMaterialID, 1.0f, 1.0f);
 	NewtonMaterialSetDefaultElasticity(world, defaultMaterialID, defaultMaterialID, 0.1f);
 
@@ -485,7 +933,7 @@ void Hexapod(DemoEntityManager* const scene)
 	location.m_posit.m_y += 1.0f;
 
 	int count = 5;
-//count = 1;
+count = 1;
 	dMatrix location1(location);
 	dFloat x0 = location.m_posit.m_x;
 	for (int j = 0; j < 1; j++) {
@@ -493,9 +941,18 @@ void Hexapod(DemoEntityManager* const scene)
 		location.m_posit.m_x = x0;
 		for (int i = 0; i < count; i++) {
 			location.m_posit.m_x += 2.0f;
-			//location1.m_posit.m_x += 2.0f;
+			robotManager_old->MakeHexapod(scene, location);
+		}
+	}
+
+	dHexapodManager* const robotManager = new dHexapodManager(scene);
+	location.m_posit.m_z -= 4.0f;
+	for (int j = 0; j < 1; j++) {
+		location.m_posit.m_z += 2.0f;
+		location.m_posit.m_x = x0;
+		for (int i = 0; i < count; i++) {
+			location.m_posit.m_x += 2.0f;
 			robotManager->MakeHexapod(scene, location);
-			//robotManager->MakeHexapod (scene, location1);
 		}
 	}
 

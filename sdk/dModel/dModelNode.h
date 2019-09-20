@@ -29,7 +29,7 @@ class dModelChildrenList: public dList<dPointer<dModelNode>>
 	}
 };
 
-class dModelNode
+class dModelNode: public dCustomAlloc
 {
 	public:
 	dModelNode(NewtonBody* const modelBody, const dMatrix& bindMatrix, dModelNode* const parent);
@@ -41,7 +41,7 @@ class dModelNode
 	void* GetUserData() const { return m_userData; }
 	void SetUserData(void* const data) { m_userData = data; }
 	dModelNode* GetParent() const {return m_parent;}
-	dModelChildrenList& GetChildren() {return m_children____;}
+	dModelChildrenList& GetChildren() {return m_children;}
 
 	dCustomJoint* GetParentJoint() const;
 
@@ -50,7 +50,7 @@ class dModelNode
 	NewtonBody* m_body;
 	dModelNode* m_parent;
 	void* m_userData;
-	dModelChildrenList m_children____;
+	dModelChildrenList m_children;
 
 	friend class dModelManager;
 	friend class dModelRootNode;
