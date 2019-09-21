@@ -67,9 +67,9 @@
 //#define DEFAULT_SCENE	31		// servo joints
 //#define DEFAULT_SCENE	32		// articulated joints
 //#define DEFAULT_SCENE	33		// six axis manipulator
-#define DEFAULT_SCENE	34		// hexapod Robot
+//#define DEFAULT_SCENE	34		// hexapod Robot
 //#define DEFAULT_SCENE	35		// basic rag doll
-//#define DEFAULT_SCENE	36		// kinematic rag doll
+#define DEFAULT_SCENE	36		// kinematic rag doll
 //#define DEFAULT_SCENE	37		// dynamic rag doll
 //#define DEFAULT_SCENE	38		// basic Car
 //#define DEFAULT_SCENE	39		// single body vehicle
@@ -363,9 +363,9 @@ DemoEntityManager::DemoEntityManager ()
 //	m_showRaycastHit = true;
 //	m_showNormalForces = true;
 //	m_showCenterOfMass = false;
-//	m_showJointDebugInfo = true;
+	m_showJointDebugInfo = true;
 	m_showListenersDebugInfo = true;
-//	m_collisionDisplayMode = 2;
+	m_collisionDisplayMode = 2;
 //	m_asynchronousPhysicsUpdate = true;
 	m_solveLargeIslandInParallel = true;
 
@@ -1628,13 +1628,13 @@ void DemoEntityManager::RenderScene()
 
 	if (m_showListenersDebugInfo) {
 		dJointDebugDisplay listenerDebugRender (m_cameraManager->GetCamera()->GetCurrentMatrix());
+		listenerDebugRender.SetScale(0.5f);
 		RenderListenersDebugInfo (m_world, &listenerDebugRender);
 	}
 
 	if (m_showJointDebugInfo) {
 		dJointDebugDisplay jointDebugRender (m_cameraManager->GetCamera()->GetCurrentMatrix());
-		jointDebugRender.SetScale(0.5f);
-		//jointDebugRender.SetScale(0.01f);
+		jointDebugRender.SetScale(1.0f);
 
 		RenderJointsDebugInfo(m_world, &jointDebugRender);
 	}
