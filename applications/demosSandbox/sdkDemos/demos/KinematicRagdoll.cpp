@@ -56,10 +56,10 @@ static dKinematicBoneDefinition tredDefinition[] =
 	{ "bone_rightAnkle", 100.0f, { -15.0f, 15.0f, 30.0f }, { 0.0f, 0.0f, 90.0f }, dAnimationRagdollJoint::m_zeroDof },
 	{ "bone_rightFoot", 100.0f,{ -15.0f, 15.0f, 30.0f },{ 0.0f, -90.0f, 0.0f }, dAnimationRagdollJoint::m_twoDof },
 
-	{ "bone_leftLeg", 100.0f,{ -15.0f, 15.0f, 30.0f },{ 0.0f, 90.0f, 0.0f }, dAnimationRagdollJoint::m_threeDof },
-	{ "bone_leftCalf", 100.0f,{ -15.0f, 15.0f, 30.0f },{ 0.0f, 0.0f, 90.0f }, dAnimationRagdollJoint::m_oneDof },
-	{ "bone_leftAnkle", 100.0f,{ -15.0f, 15.0f, 30.0f },{ 0.0f, 0.0f, 90.0f }, dAnimationRagdollJoint::m_zeroDof },
-	{ "bone_leftFoot", 100.0f,{ -15.0f, 15.0f, 30.0f },{ 0.0f, -90.0f, 0.0f }, dAnimationRagdollJoint::m_twoDof },
+//	{ "bone_leftLeg", 100.0f,{ -15.0f, 15.0f, 30.0f },{ 0.0f, 90.0f, 0.0f }, dAnimationRagdollJoint::m_threeDof },
+//	{ "bone_leftCalf", 100.0f,{ -15.0f, 15.0f, 30.0f },{ 0.0f, 0.0f, 90.0f }, dAnimationRagdollJoint::m_oneDof },
+//	{ "bone_leftAnkle", 100.0f,{ -15.0f, 15.0f, 30.0f },{ 0.0f, 0.0f, 90.0f }, dAnimationRagdollJoint::m_zeroDof },
+//	{ "bone_leftFoot", 100.0f,{ -15.0f, 15.0f, 30.0f },{ 0.0f, -90.0f, 0.0f }, dAnimationRagdollJoint::m_twoDof },
 };
 
 class dKinematicEndEffector: public dAnimationRagDollEffector, public dCustomJoint
@@ -518,6 +518,7 @@ class dKinematicBoneDefinition
 	enum jointType
 	{
 		m_none,
+		m_0dof,
 		m_1dof,
 		m_2dof,
 		m_3dof,
@@ -539,21 +540,21 @@ class dKinematicBoneDefinition
 	};
 
 	char* m_boneName;
-	char* m_parentNoneName;
-	dFloat m_massFraction;
 	jointType m_type;
+	dFloat m_massFraction;
 	dJointLimit m_jointLimits;
 	dFrameMatrix m_frameBasics;
 };
 
 static dKinematicBoneDefinition tredDefinition[] =
 {
-	{ "bone_pelvis", NULL, 1.0f, dKinematicBoneDefinition::m_none },
+	{ "bone_pelvis", dKinematicBoneDefinition::m_none, 1.0f },
 
-	{ "bone_rightLeg", NULL, 0.3f, dKinematicBoneDefinition::m_3dof, {60.0f, 60.0f, 70.0f}, { 0.0f, 90.0f, 0.0f }},
-	{ "bone_righCalf", NULL, 0.3f, dKinematicBoneDefinition::m_1dof, {-80.0f, 30.0f, 0.0f}, { 0.0f, 0.0f, 90.0f }},
-	//{ "bone_rightAnkle", 100.0f, { -15.0f, 15.0f, 30.0f }, { 0.0f, 0.0f, 90.0f }, dAnimationRagdollJoint::m_zeroDof },
-	//{ "bone_rightFoot", 100.0f, { -15.0f, 15.0f, 30.0f }, { 0.0f, -90.0f, 0.0f }, dAnimationRagdollJoint::m_twoDof },
+	{ "bone_rightLeg", dKinematicBoneDefinition::m_3dof, 0.3f, {60.0f, 60.0f, 70.0f}, { 0.0f, 90.0f, 0.0f }},
+	{ "bone_righCalf", dKinematicBoneDefinition::m_1dof, 0.2f, {-80.0f, 30.0f, 0.0f}, { 0.0f, 0.0f, 90.0f }},
+	{ "bone_rightAnkle", dKinematicBoneDefinition::m_0dof, 0.2f, {0.0f, 0.0f, 0.0f}, { 0.0f, 0.0f, 0.0f }},
+	{ "bone_rightFoot", dKinematicBoneDefinition::m_3dof, 0.2f, {0.0f, 0.0f, 30.0f}, { 0.0f, 0.0f, 0.0f }},
+	{ "effector_rightAnkle", dKinematicBoneDefinition::m_effector},
 	
 	//{ "bone_leftLeg", NULL, 0.3f, dKinematicBoneDefinition::m_3dof, { 60.0f, 60.0f, 70.0f }, { 0.0f, 90.0f, 0.0f } },
 	//{ "bone_leftCalf", NULL, 0.3f, dKinematicBoneDefinition::m_1dof, { -80.0f, 30.0f, 0.0f }, { 0.0f, 0.0f, 90.0f } },
@@ -566,21 +567,112 @@ class dModelDescritor
 {
 	public:
 	char* m_filename;
+	dFloat m_mass;
 	dKinematicBoneDefinition* m_skeletonDefinition;
 };
 
-static dModelDescritor tred = {"tred.ngd", tredDefinition};
+static dModelDescritor tred = {"tred.ngd", 500.0f, tredDefinition};
 
+
+class dKinematicRagDollEffector4dof: public dCustomKinematicController
+{
+	public:
+	dKinematicRagDollEffector4dof(dModelNode* const effectorNode, const dMatrix& attachmentMatrixInGlobalSpace, dFloat modelMass)
+		:dCustomKinematicController (effectorNode->GetBody(), attachmentMatrixInGlobalSpace, effectorNode->GetRoot()->GetBody())
+	{
+		SetAsLinear();
+		SetSolverModel(1);
+		SetMaxLinearFriction(modelMass * 9.8f * 10.0f);
+	}
+
+	void SubmitConstraints (dFloat timestep, int threadIndex)
+	{
+		dMatrix matrix0;
+		dMatrix matrix1;
+		CalculateGlobalMatrix(matrix0, matrix1);
+		SubmitLinearConstraints(matrix0, matrix1, timestep);
+	}
+};
 
 class dKinematicRagdoll: public dModelRootNode
 {
 	public:
 	dKinematicRagdoll(NewtonBody* const rootBody)
 		:dModelRootNode(rootBody, dGetIdentityMatrix())
+		,m_pose()
+		,m_animtree(NULL)
 	{
 	}
-};
 
+	~dKinematicRagdoll()
+	{
+		if (m_animtree) {
+			delete m_animtree;
+		}
+	}
+
+	void OnDebug(dCustomJoint::dDebugDisplay* const debugContext)
+	{
+		dFloat scale = debugContext->GetScale();
+		debugContext->SetScale(0.5f);
+		for (dModelKeyFramePose::dListNode* node = m_pose.GetFirst(); node; node = node->GetNext()) {
+			const dModelKeyFrame& keyFrame = node->GetInfo();
+			keyFrame.m_effector->Debug(debugContext);
+		}
+		
+		dMatrix matrix;
+		NewtonBodyGetMatrix(GetBody(), &matrix[0][0]);
+		matrix.m_posit = CalculateCenterOfMass();
+		debugContext->DrawFrame(matrix);
+
+		debugContext->SetScale(scale);
+	}
+
+	dVector CalculateCenterOfMass() const
+	{
+		dMatrix matrix;
+		dVector com(0.0f);
+		dVector localCom;
+		dFloat Ixx;
+		dFloat Iyy;
+		dFloat Izz;
+		dFloat mass;
+		dFloat totalMass = 0.0f;
+
+		int stack = 1;
+		int bodyCount = 0;
+		const dModelNode* stackBuffer[32];
+
+		stackBuffer[0] = this;
+		while (stack) {
+			stack--;
+			const dModelNode* const root = stackBuffer[stack];
+
+			NewtonBody* const body = root->GetBody();
+			NewtonBodyGetMatrix(body, &matrix[0][0]);
+			NewtonBodyGetCentreOfMass(body, &localCom[0]);
+			NewtonBodyGetMass(body, &mass, &Ixx, &Iyy, &Izz);
+
+			totalMass += mass;
+			com += matrix.TransformVector(localCom).Scale(mass);
+
+			bodyCount++;
+			const dModelChildrenList& children = root->GetChildren();
+			for (const dModelChildrenList::dListNode* node = children.GetFirst(); node; node = node->GetNext()) {
+				stackBuffer[stack] = node->GetInfo().GetData();
+				stack++;
+			}
+		}
+
+		com = com.Scale(1.0f / totalMass);
+		com.m_w = 1.0f;
+		return com;
+	}
+
+
+	dModelKeyFramePose m_pose;
+	dModelAnimTree* m_animtree;
+};
 
 class dKinematicRagdollManager: public dModelManager
 {
@@ -601,7 +693,6 @@ class dKinematicRagdollManager: public dModelManager
 	~dKinematicRagdollManager()
 	{
 	}
-
 
 	static void RenderHelpMenu(DemoEntityManager* const scene, void* const context)
 	{
@@ -666,21 +757,10 @@ class dKinematicRagdollManager: public dModelManager
 		return bone;
 	}
 
-/*
-	dCustomKinematicController* ConnectWithEffectoJoint(NewtonBody* const effectorReferenceBody, DemoEntity* const effectorNode, NewtonBody* const body, const dSixAxisJointDefinition& definition)
+	dCustomKinematicController* ConnectEffector(dModelNode* const effectorNode, const dMatrix& effectorMatrix, const dFloat bodyMass)
 	{
-		dMatrix matrix(effectorNode->CalculateGlobalMatrix());
-#ifdef USE_OLD_KINEMATICS
-		dCustomKinematicController* const effector = new dCustomKinematicController (body, matrix);
-#else
-		dCustomKinematicController* const effector = new dCustomKinematicController(body, matrix, effectorReferenceBody);
-#endif
-		effector->SetSolverModel(1);
-		effector->SetMaxLinearFriction(SIZE_ROBOT_MASS * DEMO_GRAVITY * 50.0f);
-		effector->SetMaxAngularFriction(SIZE_ROBOT_MASS * 50.0f);
-		return effector;
+		return new dKinematicRagDollEffector4dof(effectorNode, effectorMatrix, bodyMass);
 	}
-*/
 
 	void ConnectLimb(NewtonBody* const bone, NewtonBody* const parent, const dKinematicBoneDefinition& definition)
 	{
@@ -691,10 +771,16 @@ class dKinematicRagdollManager: public dModelManager
 		dMatrix pinAndPivotInGlobalSpace(dPitchMatrix(frameAngle.m_pitch * dDegreeToRad) * dYawMatrix(frameAngle.m_yaw * dDegreeToRad) * dRollMatrix(frameAngle.m_roll * dDegreeToRad));
 		pinAndPivotInGlobalSpace = pinAndPivotInGlobalSpace * matrix;
 
-		//dMatrix pinAndPivotInGlobalSpace(dRollMatrix(90.0f * dDegreeToRad) * matrix);
-
 		switch (definition.m_type)
 		{
+			case dKinematicBoneDefinition::m_0dof:
+			{
+				dCustomHinge* const joint = new dCustomHinge(pinAndPivotInGlobalSpace, bone, parent);
+				joint->EnableLimits(true);
+				joint->SetLimits(0.0f, 0.0f);
+				break;
+			}
+
 			case dKinematicBoneDefinition::m_1dof:
 			{
 				dCustomHinge* const joint = new dCustomHinge(pinAndPivotInGlobalSpace, bone, parent);
@@ -721,8 +807,6 @@ class dKinematicRagdollManager: public dModelManager
 
 	void NormalizeMassAndInertia(dModelRootNode* const model, dFloat modelMass) const
 	{
-		dAssert (0);
-/*
 		int stack = 1;
 		int bodyCount = 0;
 		NewtonBody* bodyArray[1024];
@@ -778,74 +862,10 @@ class dKinematicRagdollManager: public dModelManager
 
 			NewtonBodySetMassMatrix(body, mass, Ixx, Iyy, Izz);
 		}
-*/
 	}
-
 
 	void CreateKinematicModel(dModelDescritor& descriptor, const dMatrix& location) 
 	{
-		//dKinematicRagdoll* const dynamicRagdoll = new dKinematicRagdoll(rootBody, dGetIdentityMatrix());
-		//AddModel(dynamicRagdoll);
-		//dynamicRagdoll->SetCalculateLocalTransforms(true);
-		//
-		//// save the controller as the collision user data, for collision culling
-		//NewtonCollisionSetUserData(NewtonBodyGetCollision(rootBody), dynamicRagdoll);
-		//
-		//// walk model hierarchic adding all children designed as rigid body bones. 
-		//while (stackIndex) {
-		//	stackIndex--;
-		//	DemoEntity* const entity = childEntities[stackIndex];
-		//	const char* const name = entity->GetName().GetStr();
-		//	dTrace(("%s\n", name));
-		//	dAnimationJoint* parentNode = parentBones[stackIndex];
-		//
-		//	for (int i = 0; i < size; i++) {
-		//		if (!strcmp(defintion[i].m_boneName, name)) {
-		//			NewtonBody* const childBody = CreateBodyPart(entity);
-		//
-		//			// connect this body part to its parent with a rag doll joint
-		//			parentNode = CreateChildNode(childBody, parentNode, defintion[i]);
-		//
-		//			NewtonCollisionSetUserData(NewtonBodyGetCollision(childBody), parentNode);
-		//			break;
-		//		}
-		//	}
-		//
-		//	for (DemoEntity* child = entity->GetChild(); child; child = child->GetSibling()) {
-		//		parentBones[stackIndex] = parentNode;
-		//		childEntities[stackIndex] = child;
-		//		stackIndex++;
-		//	}
-		//}
-		//
-		//SetModelMass(100.0f, dynamicRagdoll);
-		//
-		//// transform the entire contraction to its location
-		//dMatrix worldMatrix(modelEntity->GetCurrentMatrix() * location);
-		//worldMatrix.m_posit = location.m_posit;
-		//NewtonBodySetMatrixRecursive(rootBody, &worldMatrix[0][0]);
-		//
-		//
-		//// attach effectors here
-		//for (dAnimationJoint* joint = GetFirstJoint(dynamicRagdoll); joint; joint = GetNextJoint(joint)) {
-		//	if (joint->GetAsRoot()) {
-		//		dAssert(dynamicRagdoll == joint);
-		//		dynamicRagdoll->SetHipEffector(joint);
-		//	}
-		//	else if (joint->GetAsLeaf()) {
-		//		NewtonBody* const body = joint->GetBody();
-		//		DemoEntity* const entity = (DemoEntity*)NewtonBodyGetUserData(body);
-		//		if (entity->GetName().Find("left") != -1) {
-		//			dynamicRagdoll->SetLeftFootEffector(joint);
-		//		}
-		//		else if (entity->GetName().Find("right") != -1) {
-		//			dynamicRagdoll->SetRightFootEffector(joint);
-		//		}
-		//	}
-		//}
-		//
-		//dynamicRagdoll->Finalize();
-
 		NewtonWorld* const world = GetWorld();
 		DemoEntityManager* const scene = (DemoEntityManager*)NewtonWorldGetUserData(world);
 
@@ -870,12 +890,14 @@ class dKinematicRagdollManager: public dModelManager
 		//NewtonCollisionSetUserData(NewtonBodyGetCollision(rootBone), controller);
 
 		int stackIndex = 0;
-		DemoEntity* childEntities[32];
 		dModelNode* parentBones[32];
+		DemoEntity* childEntities[32];
 		for (DemoEntity* child = entityModel->GetChild(); child; child = child->GetSibling()) {
 			parentBones[stackIndex] = model;
 			childEntities[stackIndex] = child;
 			stackIndex++;
+			const char* const name = child->GetName().GetStr();
+			dTrace(("name: %s\n", name));
 		}
 
 		// walk model hierarchic adding all children designed as rigid body bones. 
@@ -891,8 +913,13 @@ class dKinematicRagdollManager: public dModelManager
 				if (!strcmp(descriptor.m_skeletonDefinition[i].m_boneName, name)) {
 					NewtonBody* const parentBody = parentBone->GetBody();
 					if (descriptor.m_skeletonDefinition[i].m_type == dKinematicBoneDefinition::m_effector) {
-						dAssert (0);
-						//robot->m_effector = ConnectEffector(rootBody, entity, parentBody, definition[i]);
+						dModelKeyFrame effectorPose;
+						dMatrix effectorMatrix(entity->CalculateGlobalMatrix());
+						effectorPose.m_effector = ConnectEffector(parentBone, effectorMatrix, descriptor.m_mass);
+
+						effectorPose.SetMatrix (effectorPose.m_effector->GetTargetMatrix());
+						model->m_pose.Append(effectorPose);
+
 					} else {
 						NewtonBody* const childBody = CreateBodyPart(entity, descriptor.m_skeletonDefinition[i]);
 						ConnectLimb(childBody, parentBody, descriptor.m_skeletonDefinition[i]);
@@ -912,20 +939,21 @@ class dKinematicRagdollManager: public dModelManager
 		}
 
 		// set mass distribution by density and volume
-		//NormalizeMassAndInertia(SIZE_ROBOT_MASS, bodyCount, bodyArray);
+		NormalizeMassAndInertia(model, descriptor.m_mass);
 
-		NewtonBodySetMassMatrix(rootBody, 0.0f, 0.0f, 0.0f, 0.0f);
+//		NewtonBodySetMassMatrix(rootBody, 0.0f, 0.0f, 0.0f, 0.0f);
+		dCustomHinge* fixToWorld = new dCustomHinge (matrix0 * location, model->GetBody(), NULL);
+		fixToWorld->EnableLimits(true);
+		fixToWorld->SetLimits(0.0f, 0.0f);
 
 		//m_currentController = robot;
 		//robot->SetPivotMatrix();
 	}
 
-	virtual void OnDebug(dModelRootNode* const model, dCustomJoint::dDebugDisplay* const debugContext) 
+	virtual void OnDebug(dModelRootNode* const model, dCustomJoint::dDebugDisplay* const debugContext)
 	{
-		//dKinematicRagdoll* const ragdoll = (dKinematicRagdoll*)model;
-		//if (robot->m_effector) {
-		//	robot->m_effector->Debug(debugContext);
-		//}
+		dKinematicRagdoll* const hexapod = (dKinematicRagdoll*)model;
+		hexapod->OnDebug(debugContext);
 	}
 
 	virtual void OnUpdateTransform(const dModelNode* const bone, const dMatrix& localMatrix) const
@@ -973,6 +1001,7 @@ void KinematicRagdoll(DemoEntityManager* const scene)
 	NewtonMaterialSetDefaultElasticity(world, defaultMaterialID, defaultMaterialID, 0.0f);
 
 	dMatrix origin (dYawMatrix(90.0f * dDegreeToRad));
+	origin.m_posit.m_y += 1.0f;
 	
 #ifdef OLD_KINEMATIC_RAGDOLL
 	origin.m_posit.m_y = 2.0f;

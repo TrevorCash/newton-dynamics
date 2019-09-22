@@ -363,9 +363,9 @@ DemoEntityManager::DemoEntityManager ()
 //	m_showRaycastHit = true;
 //	m_showNormalForces = true;
 //	m_showCenterOfMass = false;
-	m_showJointDebugInfo = true;
+//	m_showJointDebugInfo = true;
 	m_showListenersDebugInfo = true;
-	m_collisionDisplayMode = 2;
+//	m_collisionDisplayMode = 2;
 //	m_asynchronousPhysicsUpdate = true;
 	m_solveLargeIslandInParallel = true;
 
@@ -1634,7 +1634,7 @@ void DemoEntityManager::RenderScene()
 
 	if (m_showJointDebugInfo) {
 		dJointDebugDisplay jointDebugRender (m_cameraManager->GetCamera()->GetCurrentMatrix());
-		jointDebugRender.SetScale(1.0f);
+		jointDebugRender.SetScale(0.5f);
 
 		RenderJointsDebugInfo(m_world, &jointDebugRender);
 	}

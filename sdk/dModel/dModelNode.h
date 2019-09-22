@@ -40,8 +40,11 @@ class dModelNode: public dCustomAlloc
 
 	void* GetUserData() const { return m_userData; }
 	void SetUserData(void* const data) { m_userData = data; }
-	dModelNode* GetParent() const {return m_parent;}
+
+	const dModelNode* GetRoot() const;
+	const dModelNode* GetParent() const {return m_parent;}
 	dModelChildrenList& GetChildren() {return m_children;}
+	const dModelChildrenList& GetChildren() const {return m_children;}
 
 	dCustomJoint* GetParentJoint() const;
 
